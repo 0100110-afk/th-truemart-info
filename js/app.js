@@ -432,6 +432,7 @@ function accountShell() {
 }
 
 function showAccountDialog(okMsg) {
+  if (typeof okMsg !== 'string') okMsg = '';   // gọi từ sự kiện click thì tham số là Event, không phải lời nhắn
   const shell = accountShell();
   const u = auth.currentUser;
   if (!u) { shell.close(); return; }
@@ -546,7 +547,7 @@ function injectUserBox() {
     sheetBody.appendChild(it);
   }
   const accBtn = document.getElementById('tmAccountBtn');
-  if (accBtn) accBtn.addEventListener('click', showAccountDialog);
+  if (accBtn) accBtn.addEventListener('click', () => showAccountDialog());
   const btn = document.getElementById('tmLogoutBtn');
   if (btn) btn.addEventListener('click', doLogout);
 }
