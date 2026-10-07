@@ -14,5 +14,5 @@ export const FIREBASE_CONFIG = {
   appId: '1:689058170024:web:f10719c9acd92b639f2e9d'
 };
 
-/** Tên hiển thị trên màn hình đăng nhập. */
-export const APP_TITLE = 'TH true mart · Quản lý hệ thống';
+/** Dòng chữ nhỏ dưới logo "truemart" trên màn hình đăng nhập. */
+export const APP_TITLE = 'Hệ thống quản lý';

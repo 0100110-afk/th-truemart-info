@@ -76,8 +76,14 @@ function esc(v) {
   return String(v == null ? '' : v).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
 
-const BRAND = '<div class="tm-auth-brand"><div class="tm-auth-mark">TH</div>' +
-  '<div><div class="tm-auth-word"><span>true</span>mart</div><div class="tm-auth-sub">' + esc(APP_TITLE) + '</div></div></div>';
+// Logo giống hệt app Phiếu sửa chữa: ô TH chữ serif + ngôi sao 6 cánh vàng đè mép phải.
+const STAR_SVG = '<svg class="tm-auth-star" viewBox="0 0 24 24" fill="none" aria-hidden="true"><defs>' +
+  '<linearGradient id="tmStarGold" x1="4" y1="2" x2="20" y2="22" gradientUnits="userSpaceOnUse">' +
+  '<stop offset="0" stop-color="#FDF0C6"/><stop offset=".45" stop-color="#E9B24A"/><stop offset="1" stop-color="#B67F22"/>' +
+  '</linearGradient></defs><path fill="url(#tmStarGold)" d="M12 .5Q13.1 10.1 18.5 8.25Q14.2 12 18.5 15.75Q13.1 13.9 12 22Q10.9 13.9 5.5 15.75Q9.8 12 5.5 8.25Q10.9 10.1 12 .5Z"/></svg>';
+const BRAND = '<div class="tm-auth-brand"><div class="tm-auth-mark"><span class="tm-auth-th">TH</span>' + STAR_SVG + '</div>' +
+  '<div><div class="tm-auth-word"><span class="w-true">true</span><span class="w-mart">mart</span></div>' +
+  '<div class="tm-auth-sub">' + esc(APP_TITLE) + '</div></div></div>';
 
 function showAuth(html) {
   authEl.innerHTML = '<div class="tm-auth-card">' + BRAND + html + '</div>';
@@ -91,24 +97,30 @@ function showLoading(msg) {
 
 function showLogin(errMsg) {
   showAuth(
+    '<form id="tmEmailForm" autocomplete="on">' +
+      '<div class="tm-fields">' +
+        '<div class="tm-field"><label for="tmEmail">Email</label>' +
+          '<input class="tm-input" type="email" id="tmEmail" placeholder="ten@example.com" autocomplete="username" required></div>' +
+        '<div class="tm-field"><label for="tmPass">Mật khẩu</label>' +
+          '<input class="tm-input" type="password" id="tmPass" placeholder="••••••••" autocomplete="current-password" required></div>' +
+      '</div>' +
+      '<div class="tm-auth-err" id="tmAuthErr">' + esc(errMsg || '') + '</div>' +
+      '<button class="tm-btn tm-btn-primary" type="submit" id="tmSubmit">Đăng nhập</button>' +
+    '</form>' +
+    '<div class="tm-or"><span>hoặc</span></div>' +
     '<button class="tm-btn tm-btn-google" id="tmGoogleBtn" type="button">' +
       '<svg viewBox="0 0 48 48" width="18" height="18"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z"/><path fill="#FF3D00" d="m6.3 14.7 6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-7.9l-6.5 5C9.5 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.1-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.4-.4-3.5z"/></svg>' +
       'Đăng nhập bằng Google</button>' +
-    '<div class="tm-or"><span>hoặc email</span></div>' +
-    '<form id="tmEmailForm" autocomplete="on">' +
-      '<input class="tm-input" type="email" id="tmEmail" placeholder="Email" autocomplete="username" required>' +
-      '<input class="tm-input" type="password" id="tmPass" placeholder="Mật khẩu" autocomplete="current-password" required>' +
-      '<button class="tm-btn tm-btn-primary" type="submit">Đăng nhập</button>' +
-      '<button class="tm-link" type="button" id="tmForgot">Quên mật khẩu?</button>' +
-    '</form>' +
-    '<div class="tm-auth-err" id="tmAuthErr">' + esc(errMsg || '') + '</div>' +
-    '<div class="tm-auth-note">Chỉ tài khoản đã được cấp quyền trong sheet APP USERS mới vào được.</div>'
+    '<button class="tm-link" type="button" id="tmForgot">Quên mật khẩu?</button>' +
+    '<p class="tm-auth-note">Tài khoản do quản trị viên cung cấp.</p>'
   );
   $('#tmGoogleBtn').onclick = loginGoogle;
   $('#tmEmailForm').onsubmit = (e) => {
     e.preventDefault();
+    const btn = $('#tmSubmit');
+    btn.disabled = true; btn.textContent = 'Đang đăng nhập...'; setAuthErr('');
     signInWithEmailAndPassword(auth, $('#tmEmail').value.trim(), $('#tmPass').value)
-      .catch((err) => setAuthErr(authErrText(err)));
+      .catch((err) => { setAuthErr(authErrText(err)); btn.disabled = false; btn.textContent = 'Đăng nhập'; });
   };
   $('#tmForgot').onclick = () => {
     const em = $('#tmEmail').value.trim();
@@ -125,7 +137,7 @@ function authErrText(err) {
   const c = (err && err.code) || '';
   if (c.includes('invalid-credential') || c.includes('wrong-password') || c.includes('user-not-found')) return 'Sai email hoặc mật khẩu.';
   if (c.includes('too-many-requests')) return 'Thử sai quá nhiều lần, đợi vài phút rồi thử lại.';
-  if (c.includes('popup-closed')) return '';
+  if (c.includes('popup-closed') || c.includes('cancelled-popup')) return '';
   if (c.includes('unauthorized-domain')) return 'Tên miền này chưa được thêm vào Firebase Auth → Settings → Authorized domains.';
   if (c.includes('network')) return 'Không có kết nối mạng.';
   return (err && err.message) || 'Đăng nhập không thành công.';
@@ -148,8 +160,7 @@ function loginGoogle() {
 function showNoAccess(email) {
   showAuth(
     '<div class="tm-auth-msg"><b>Tài khoản chưa được cấp quyền</b><br>' + esc(email) +
-    '<br><br>Nhờ quản trị thêm email này vào sheet <b>APP USERS</b> trong file Google Sheet TM, ' +
-    'chờ vài phút cho đồng bộ rồi bấm "Thử lại".</div>' +
+    '<br><br>Liên hệ quản trị viên để được cấp quyền, sau đó bấm "Thử lại".</div>' +
     '<button class="tm-btn tm-btn-primary" id="tmRetry" type="button">Thử lại</button>' +
     '<button class="tm-btn" id="tmLogout2" type="button">Đăng xuất</button>'
   );
