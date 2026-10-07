@@ -587,6 +587,11 @@ async function start(user) {
     return;
   }
   if (!currentRole) { showNoAccess(user.email); return; }
+  // Quyền trên giao diện: admin (và editor bản cũ) bỏ hộp mật khẩu 121212; người dùng chỉ xem —
+  // ẩn hết nút ghi (css/auth.css: body.tm-viewer). Rules vẫn chặn ghi nếu cố gọi.
+  const canEdit = currentRole === 'admin' || currentRole === 'editor';
+  window.__TM_ROLE = canEdit ? 'admin' : 'viewer';
+  document.body.classList.toggle('tm-viewer', !canEdit);
 
   showLoading('Đang tải dữ liệu…');
   let offline = false;

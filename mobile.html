@@ -878,6 +878,7 @@
   var pwResolve_=null;
 
   function requirePassword_(title,message){
+    if (window.__TM_ROLE === 'admin') return Promise.resolve(true);   // web: đã phân quyền bằng tài khoản
     return new Promise(function(resolve){
       pwResolve_=resolve;
       $('#pwTitle').textContent=title||'Xác nhận mật khẩu';

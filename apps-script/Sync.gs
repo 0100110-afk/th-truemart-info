@@ -309,7 +309,7 @@ function fsWriteMetaOnly_(meta) {
 //
 //   Hai cột quyền chỉ dùng HAI giá trị:  admin  /  user   (để trống = không vào được)
 //   Hệ thống quản lý -> Firebase th-truemart-info: users/<email> { role, uid }
-//       admin = Quản trị, user = Người dùng (cả hai đều sửa được vật tư như bản Apps Script cũ)
+//       admin = Quản trị (sửa vật tư, không cần mật khẩu 121212), user = Người dùng (chỉ xem)
 //   Phiếu sửa chữa   -> Firebase của app sửa chữa: members/<email> { role, uid } + admins/<email>
 //       admin = Quản trị (sửa bảng giá, cửa hàng, xem mọi phiếu), user = Người dùng (phiếu của mình)
 //   uid = mã tài khoản Sync.gs tạo/tra được — rules dùng để chặn người tự đăng ký trùng email.
@@ -383,8 +383,7 @@ function fsTmRole_(v) {
   const raw = fsStripAccents_(v);
   if (!raw) return '';
   if (raw.indexOf('admin') > -1 || raw.indexOf('quan tri') > -1) return 'admin';
-  if (raw === 'viewer' || raw.indexOf('chi xem') > -1) return 'viewer';   // giá trị cũ, vẫn hiểu
-  return 'editor';   // user (và mọi giá trị khác) = người dùng, được sửa vật tư như bản cũ
+  return 'viewer';   // user (và mọi giá trị khác) = người dùng: chỉ xem, không thấy nút ghi
 }
 
 function fsPscRole_(v) {
@@ -420,6 +419,12 @@ function fsPscOn_() {
 function fsSyncAllUsers_(force) {
   let data = fsReadUsers_();
   if (!data.sh) return;
+  // Cập nhật danh sách chọn (admin / user) cho sheet đã tạo từ bản cũ — chỉ làm một lần
+  const props0 = PropertiesService.getScriptProperties();
+  if (props0.getProperty('fs_users_layout_v') !== '2') {
+    try { fsEnsureUsersLayout_(data.sh); props0.setProperty('fs_users_layout_v', '2'); data = fsReadUsers_(); }
+    catch (e) { console.error('Cập nhật cột APP USERS: ' + e.message); }
+  }
   try { fsNormalizeRoleCells_(data); } catch (e) { console.error('Chuẩn hoá quyền: ' + e.message); }
   // Tạo tài khoản TRƯỚC để biết uid, rồi mới ghi quyền (kèm uid) lên Firestore
   try { fsProvisionAccounts_(data); } catch (e) { console.error('Tạo tài khoản: ' + e.message); }

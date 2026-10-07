@@ -1367,6 +1367,7 @@
 
   /** Modal xác nhận mật khẩu dùng chung, khoá thao tác ghi đè dữ liệu nhạy cảm. Trả về Promise<boolean>. */
   function passwordDialog(title, message) {
+    if (window.__TM_ROLE === 'admin') return Promise.resolve(true);   // web: đã phân quyền bằng tài khoản
     return new Promise(function (resolve) {
       $('#vtPasswordTitle').textContent = title || 'Yêu cầu mật khẩu';
       $('#vtPasswordMsg').textContent = message || '';

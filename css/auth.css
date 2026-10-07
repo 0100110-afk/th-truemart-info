@@ -78,3 +78,13 @@
 .tm-acc-pw .field:last-of-type{margin-bottom:12px;}
 .tm-acc-note{font-size:11.5px; color:var(--ink-500,#5B6B63); text-align:center; margin:2px 0 0;}
 .tm-acc [hidden]{display:none !important;}
+
+/* Đã phân quyền bằng tài khoản -> bỏ biểu tượng khoá (hộp mật khẩu 121212) trên các nút */
+.btn-lock-icon{display:none !important;}
+/* Người dùng (chỉ xem): ẩn mọi nút ghi dữ liệu vật tư */
+body.tm-viewer #vtManageItemsBtn,
+body.tm-viewer #vtManageHoldersBtn,
+body.tm-viewer #vtEditQtyBtn,
+body.tm-viewer #vtStockInBtn,
+body.tm-viewer #vtStockInOpenBtn,
+body.tm-viewer #vtCalcBtn{display:none !important;}

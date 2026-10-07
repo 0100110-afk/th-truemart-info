@@ -115,7 +115,7 @@ ok(meta.sheets.chiphi.n >= 2, 'CHI PHI 6000 dòng được cắt thành ' + meta
 ok(Object.keys(store).filter((k) => k.startsWith('sheetdata/chiphi')).every((k) => Buffer.byteLength(store[k].fields.json.stringValue) < 1000000), 'mỗi mảnh < 1MB');
 ok(meta.sheets.stores.rowCount === 1, 'bỏ dòng trống');
 ok(!!meta.sheets.sanaky && !!meta.sheets.dongia_bt && !!meta.sheets.dongia_xd && !!meta.sheets.dongia_snk, 'Sanaky (tab trong TM) + 3 tab Đơn giá (file DG) đều được đẩy lên');
-ok(store['users/a@thmilk.vn'].fields.role.stringValue === 'editor' && store['users/b@thmilk.vn'].fields.role.stringValue === 'viewer', 'users: email chữ thường + quyền (giá trị cũ vẫn hiểu)');
+ok(store['users/a@thmilk.vn'].fields.role.stringValue === 'viewer' && store['users/b@thmilk.vn'].fields.role.stringValue === 'viewer', 'users: email chữ thường; user = chỉ xem');
 ok(sheets['APP USERS']._v()[1][1] === 'user' && sheets['APP USERS']._v()[2][1] === 'user', 'cột quyền chuẩn hoá về admin / user');
 ok(!!store['users/a@thmilk.vn'].fields.uid.stringValue, 'users ghi kèm uid');
 const uh = sheets['APP USERS']._v()[0];

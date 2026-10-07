@@ -22,8 +22,23 @@ HEAD = '''<meta charset="utf-8">
   {xlsx}<script src="js/core.js"></script>
 '''
 
+# Bản web có phân quyền thật (sheet APP USERS): admin thì bỏ hộp mật khẩu 121212, người dùng
+# (viewer) thì ẩn hẳn các nút ghi — xem css/auth.css (body.tm-viewer) và js/app.js (__TM_ROLE).
+PATCHES = {
+    'Index.html': [('  function passwordDialog(title, message) {\n',
+                    '  function passwordDialog(title, message) {\n'
+                    '    if (window.__TM_ROLE === \'admin\') return Promise.resolve(true);   // web: đã phân quyền bằng tài khoản\n')],
+    'IndexMobile.html': [('  function requirePassword_(title,message){\n',
+                          '  function requirePassword_(title,message){\n'
+                          '    if (window.__TM_ROLE === \'admin\') return Promise.resolve(true);   // web: đã phân quyền bằng tài khoản\n')],
+}
+
 def build(src, dst, desktop):
     s = open(os.path.join(root, 'apps-script', src), encoding='utf-8').read()
+    for old, new in PATCHES.get(src, []):
+        if old not in s:
+            sys.exit('Không tìm thấy đoạn cần vá trong ' + src + ': ' + old.strip())
+        s = s.replace(old, new, 1)
     s = s.replace('<base target="_top">', '')
     has_vp = 'name="viewport"' in s
     head = HEAD.format(
