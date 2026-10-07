@@ -1,5 +1,5 @@
 rules_version = '2';
-// Quyền truy cập app TH true mart.
+// Quyền truy cập app TH true mart (Hệ thống quản lý) + app TH true care (dùng chung dự án Firebase này).
 // - Danh sách người dùng nằm ở users/<email> (Sync.gs ghi từ sheet "APP USERS"; app KHÔNG ghi được).
 // - Dữ liệu bảng (meta, sheetdata) chỉ Sync.gs ghi bằng service account (bỏ qua rules) -> app chỉ đọc.
 // - Kho vật tư: viewer chỉ đọc, editor/admin được ghi.
@@ -7,6 +7,8 @@ rules_version = '2';
 //   xác minh. Ai tự đăng ký bằng SDK với email của người trong danh sách: khác uid + chưa xác minh
 //   -> bị chặn. Người dùng thật liên kết thêm mật khẩu (Firebase đặt lại "chưa xác minh") vẫn
 //   vào được vì uid không đổi.
+// - TH true care: danh sách riêng care_users/<email> (cột "TH true care" của APP USERS), dữ liệu
+//   care_meta + care_chunks do Sync.gs bên file GT ghi -> app chỉ đọc. Hai app không đọc chéo dữ liệu.
 service cloud.firestore {
   match /databases/{database}/documents {
     function email() { return request.auth.token.email.lower(); }
@@ -15,6 +17,13 @@ service cloud.firestore {
       return request.auth != null && request.auth.token.email != null
         && exists(/databases/$(database)/documents/users/$(email()))
         && (profile().data.get('uid', '') == request.auth.uid
+            || request.auth.token.get('email_verified', false) == true);
+    }
+    function careProfile() { return get(/databases/$(database)/documents/care_users/$(email())); }
+    function careMember() {
+      return request.auth != null && request.auth.token.email != null
+        && exists(/databases/$(database)/documents/care_users/$(email()))
+        && (careProfile().data.get('uid', '') == request.auth.uid
             || request.auth.token.get('email_verified', false) == true);
     }
     function editor() { return member() && profile().data.role in ['editor', 'admin']; }
@@ -27,5 +36,13 @@ service cloud.firestore {
     match /sheetdata/{id}     { allow read: if member(); allow write: if false; }
     match /vattu/{id}         { allow read: if member(); allow write: if editor(); }
     match /vattu_autolog/{id} { allow read: if member(); allow write: if editor(); }
+
+    // ---- TH true care ----
+    match /care_users/{id} {
+      allow get: if request.auth != null && request.auth.token.email != null && id == email();
+      allow list, write: if false;
+    }
+    match /care_meta/{id}   { allow read: if careMember(); allow write: if false; }
+    match /care_chunks/{id} { allow read: if careMember(); allow write: if false; }
   }
 }

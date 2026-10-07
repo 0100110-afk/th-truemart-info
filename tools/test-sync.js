@@ -119,9 +119,9 @@ ok(store['users/a@thmilk.vn'].fields.role.stringValue === 'viewer' && store['use
 ok(sheets['APP USERS']._v()[1][1] === 'user' && sheets['APP USERS']._v()[2][1] === 'user', 'cột quyền chuẩn hoá về admin / user');
 ok(!!store['users/a@thmilk.vn'].fields.uid.stringValue, 'users ghi kèm uid');
 const uh = sheets['APP USERS']._v()[0];
-ok(uh[1] === 'Hệ thống quản lý' && uh[2] === 'Phiếu sửa chữa' && uh.includes('Tài khoản (tự động)'), 'APP USERS: đổi "Quyền" -> "Hệ thống quản lý", thêm cột Phiếu sửa chữa + trạng thái');
+ok(uh[1] === 'Hệ thống quản lý' && uh[2] === 'Phiếu sửa chữa' && uh[3] === 'TH true care' && uh.includes('Tài khoản (tự động)'), 'APP USERS: đổi "Quyền" -> "Hệ thống quản lý", thêm cột Phiếu sửa chữa + TH true care + trạng thái');
 ok(authUsers.p1.some((u) => u.email === 'a@thmilk.vn' && u.emailVerified) && sentMail.some((m) => m.to === 'a@thmilk.vn'), 'email mới có quyền QL -> tự tạo tài khoản + gửi email đặt mật khẩu');
-ok(String(sheets['APP USERS']._v()[1][4]).includes('đã gửi email'), 'cột Tài khoản (tự động) ghi trạng thái');
+ok(String(sheets['APP USERS']._v()[1][5]).includes('đã gửi email'), 'cột Tài khoản (tự động) ghi trạng thái');
 ok(!!store['vattu/state'], 'kho vật tư được đưa lên lần đầu');
 
 // Đồng bộ lại không đổi gì -> không ghi sheetdata
@@ -185,7 +185,7 @@ ok(authUsers.p2.every((u) => u.emailVerified), 'tài khoản cũ của app sửa
 ok(!!stores.p2['members/kythuat.cu@gmail.com'] && !!stores.p2['members/quantri@th.com'] && !!stores.p2['admins/quantri@th.com'], 'members + admins đẩy sang Firebase app sửa chữa');
 ok(sentMail.length === mailsBefore, 'người cũ KHÔNG bị gửi email đặt mật khẩu');
 // Thêm nhân viên mới + nâng 1 người lên admin + thu quyền 1 người
-U().push(['moi.vao@gmail.com', '', 'nhân viên', '', '']);   // gõ kiểu cũ -> tự đổi thành 'user'
+U().push(['moi.vao@gmail.com', '', 'nhân viên', '', '', '']);   // gõ kiểu cũ -> tự đổi thành 'user'
 rowOf('kythuat.cu@gmail.com')[2] = 'admin';
 rowOf('quantri@th.com')[2] = '';
 ctx.__t.fsOnEdit({ range: { getSheet: () => sheets['APP USERS'] } });
@@ -201,5 +201,22 @@ ok(!!stores.p2['admins/kythuat.cu@gmail.com'], 'nâng lên admin -> có trong ad
 ok(!stores.p2['admins/quantri@th.com'] && !stores.p2['members/quantri@th.com'], 'xoá quyền -> gỡ khỏi admins + members');
 const n0 = sentMail.length; ctx.__t.fsSyncAll_(false);
 ok(sentMail.length === n0, 'quét lại không gửi email lặp');
+// ---- TH true care: cùng Firebase p1, danh sách care_users ----
+const p1Before = authUsers.p1.length, mailsC = sentMail.length;
+rowOf('a@thmilk.vn')[3] = 'user';                                   // đã có tài khoản QL -> không tạo/gửi lại
+U().push(['care.moi@gmail.com', '', '', 'Quản trị', '', '']);        // chỉ có TH true care
+ctx.__t.fsOnEdit({ range: { getSheet: () => sheets['APP USERS'] } });
+ok(store['care_users/a@thmilk.vn'] && store['care_users/a@thmilk.vn'].fields.role.stringValue === 'user', 'care_users: người dùng QL được thêm quyền TH true care');
+ok(store['care_users/a@thmilk.vn'].fields.uid.stringValue === store['users/a@thmilk.vn'].fields.uid.stringValue, 'care_users dùng CHUNG uid với Hệ thống quản lý');
+ok(store['care_users/care.moi@gmail.com'] && store['care_users/care.moi@gmail.com'].fields.role.stringValue === 'admin', 'care_users: admin');
+ok(rowOf('care.moi@gmail.com')[3] === 'admin', 'cột TH true care chuẩn hoá "Quản trị" -> admin');
+ok(!store['users/care.moi@gmail.com'], 'chỉ có quyền TH true care -> KHÔNG vào được Hệ thống quản lý');
+ok(authUsers.p1.length === p1Before + 1, 'chỉ tạo 1 tài khoản mới (người đã có không tạo lại)');
+const mc = sentMail.slice(mailsC);
+ok(mc.length === 1 && mc[0].to === 'care.moi@gmail.com' && mc[0].htmlBody.includes('th-true-care.vercel.app') && !mc[0].htmlBody.includes('Hệ thống quản lý'), 'email người mới chỉ có link TH true care');
+ok(String(rowOf('care.moi@gmail.com')[5]).includes('TH true care: đã tạo'), 'trạng thái ghi "TH true care: đã tạo tài khoản"');
+rowOf('a@thmilk.vn')[3] = '';
+ctx.__t.fsOnEdit({ range: { getSheet: () => sheets['APP USERS'] } });
+ok(!store['care_users/a@thmilk.vn'] && !!store['users/a@thmilk.vn'], 'xoá quyền TH true care -> gỡ care_users, giữ quyền QL');
 console.log(fails ? 'THẤT BẠI ' + fails : 'TẤT CẢ OK');
 process.exit(fails ? 1 : 0);

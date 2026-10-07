@@ -18,7 +18,7 @@ cài được lên điện thoại như app (PWA). Google Sheet **vẫn là nơi
 |---|---|---|
 | DS CH, TAI SAN, BAO DUONG, CHI PHI, SANAKY (file **TM**) | **Google Sheet** | Sửa như cũ, app thấy sau vài giây |
 | DON GIA BT, DON GIA XD, DON GIA SNK (file **DG**) | **Google Sheet** | File riêng, cũng đẩy ngay khi sửa |
-| APP USERS (ai được vào **cả hai app**) | **Google Sheet** | Hai cột quyền (*Hệ thống quản lý*, *Phiếu sửa chữa*) chỉ ghi `admin` hoặc `user`. Để trống = không vào được. Email mới → tự tạo tài khoản + gửi email đặt mật khẩu |
+| APP USERS (ai được vào **cả ba app**) | **Google Sheet** | Ba cột quyền (*Hệ thống quản lý*, *Phiếu sửa chữa*, *TH true care*) chỉ ghi `admin` hoặc `user`. Để trống = không vào được. Email mới → tự tạo tài khoản + gửi email đặt mật khẩu |
 | VAT TU, VAT TU NHAP KHO, VAT TU TU DONG TRU | **App** | Sheet chỉ là bản sao, **đừng sửa tay** — lần kéo sau sẽ ghi đè |
 
 Giao diện giữ **nguyên văn** Index.html / IndexMobile.html; logic tính toán giữ **nguyên văn** Code.gs
@@ -52,7 +52,9 @@ Giao diện giữ **nguyên văn** Index.html / IndexMobile.html; logic tính to
 
 ### 3. Thêm người dùng (dùng chung cho app Phiếu sửa chữa)
 
-Sheet **APP USERS**: `Email | Hệ thống quản lý | Phiếu sửa chữa | Ghi chú | Tài khoản (tự động)`.
+Sheet **APP USERS**: `Email | Hệ thống quản lý | Phiếu sửa chữa | TH true care | Ghi chú | Tài khoản (tự động)`.
+
+Cột *TH true care* cấp quyền app [th-true-care](https://github.com/0100110-afk/th-true-care) — app đó dùng **chung Firebase này**, nên một người có cả hai quyền chỉ có **một** tài khoản (cùng mật khẩu / Google). Quyền ghi vào `care_users/<email>`.
 - Thêm dòng → vài giây sau có quyền. Email chưa có tài khoản → Sync.gs tự tạo và gửi email
   *"Đặt mật khẩu"* (link hết hạn 1 giờ; gửi lại: chọn dòng → menu **App TM → Gửi lại email đặt mật khẩu**).
 - Xoá quyền / xoá dòng → mất quyền ngay.

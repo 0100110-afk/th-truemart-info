@@ -29,6 +29,10 @@
  *   5. Script Properties -> Add:  FIREBASE_SA_PSC = nội dung file JSON đó.
  *   6. Chạy hàm caiDatPhieuSuaChua (hoặc menu App TM -> "Cài đặt cấp quyền Phiếu sửa chữa").
  *
+ * TH TRUE CARE (app th-true-care, CHUNG Firebase th-truemart-info -> cùng tài khoản đăng nhập):
+ *   Cột "TH true care" trong APP USERS (admin / user) -> care_users/<email>. Tự thêm cột, không cần cài gì.
+ *   Dữ liệu của app đó do Sync.gs riêng bên file GT đẩy lên.
+ *
  * Định dạng dữ liệu trên Firestore: xem đầu file js/app.js trong repo.
  */
 
@@ -51,10 +55,12 @@ const FS_PROP_SA = 'FIREBASE_SA';              // Firebase của Hệ thống qu
 const FS_PROP_SA_PSC = 'FIREBASE_SA_PSC';      // Firebase của app Phiếu sửa chữa
 const FS_PROP_PSC_ON = 'fs_psc_enabled';       // '1' sau khi chạy caiDatPhieuSuaChua
 const FS_PROP_PSC_HASH = 'fs_psc_users_hash';
+const FS_PROP_CARE_HASH = 'fs_care_users_hash';
 const FS_PROP_ACCOUNTS = 'fs_accounts_done';   // { "<prop>|<email>": "created" | "existing" }
-// Địa chỉ 2 app — dùng trong email gửi người mới
+// Địa chỉ các app — dùng trong email gửi người mới
 const FS_URL_TM = 'https://th-truemart-info.vercel.app';
 const FS_URL_PSC = 'https://th-truemart-repair-app.vercel.app';
+const FS_URL_CARE = 'https://th-true-care.vercel.app';
 const FS_PROP_MIRROR_REV = 'fs_vattu_mirror_rev';
 const FS_PROP_USERS_HASH = 'fs_users_hash';
 const FS_SHEET_USERS = 'APP USERS';
@@ -303,15 +309,17 @@ function fsWriteMetaOnly_(meta) {
 
 // ============================== NGƯỜI DÙNG (sheet APP USERS) ==============================
 //
-// Một sheet cấp quyền cho CẢ HAI app:
+// Một sheet cấp quyền cho CẢ BA app:
 //
-//   Email | Hệ thống quản lý | Phiếu sửa chữa | Ghi chú | Tài khoản (tự động)
+//   Email | Hệ thống quản lý | Phiếu sửa chữa | TH true care | Ghi chú | Tài khoản (tự động)
 //
-//   Hai cột quyền chỉ dùng HAI giá trị:  admin  /  user   (để trống = không vào được)
+//   Các cột quyền chỉ dùng HAI giá trị:  admin  /  user   (để trống = không vào được)
 //   Hệ thống quản lý -> Firebase th-truemart-info: users/<email> { role, uid }
 //       admin = Quản trị (sửa vật tư, không cần mật khẩu 121212), user = Người dùng (chỉ xem)
 //   Phiếu sửa chữa   -> Firebase của app sửa chữa: members/<email> { role, uid } + admins/<email>
 //       admin = Quản trị (sửa bảng giá, cửa hàng, xem mọi phiếu), user = Người dùng (phiếu của mình)
+//   TH true care     -> CÙNG Firebase th-truemart-info: care_users/<email> { role, uid }
+//       app chỉ tra cứu: admin và user xem như nhau (cùng tài khoản với Hệ thống quản lý)
 //   uid = mã tài khoản Sync.gs tạo/tra được — rules dùng để chặn người tự đăng ký trùng email.
 //   Tài khoản (tự động): Sync.gs ghi — đừng gõ tay.
 //
@@ -321,6 +329,7 @@ function fsWriteMetaOnly_(meta) {
 const FS_COL_EMAIL = 'Email';
 const FS_COL_TM = 'Hệ thống quản lý';
 const FS_COL_PSC = 'Phiếu sửa chữa';
+const FS_COL_CARE = 'TH true care';
 const FS_COL_NOTE = 'Ghi chú';
 const FS_COL_STATUS = 'Tài khoản (tự động)';
 
@@ -341,6 +350,8 @@ function fsEnsureUsersLayout_(sh) {
   headers = sh.getRange(1, 1, 1, Math.max(sh.getLastColumn(), 1)).getDisplayValues()[0];
   if (idx(FS_COL_PSC) < 0) { sh.insertColumnAfter(idx(FS_COL_TM) + 1); sh.getRange(1, idx(FS_COL_TM) + 2).setValue(FS_COL_PSC); }
   headers = sh.getRange(1, 1, 1, Math.max(sh.getLastColumn(), 1)).getDisplayValues()[0];
+  if (idx(FS_COL_CARE) < 0) { sh.insertColumnAfter(idx(FS_COL_PSC) + 1); sh.getRange(1, idx(FS_COL_PSC) + 2).setValue(FS_COL_CARE); }
+  headers = sh.getRange(1, 1, 1, Math.max(sh.getLastColumn(), 1)).getDisplayValues()[0];
   if (idx(FS_COL_NOTE) < 0) { sh.getRange(1, headers.filter(String).length + 1).setValue(FS_COL_NOTE); }
   headers = sh.getRange(1, 1, 1, Math.max(sh.getLastColumn(), 1)).getDisplayValues()[0];
   if (idx(FS_COL_STATUS) < 0) { sh.getRange(1, headers.filter(String).length + 1).setValue(FS_COL_STATUS); }
@@ -351,11 +362,13 @@ function fsEnsureUsersLayout_(sh) {
     .requireValueInList(['admin', 'user'], true).setAllowInvalid(true).build());
   sh.getRange(2, idx(FS_COL_PSC) + 1, n, 1).setDataValidation(SpreadsheetApp.newDataValidation()
     .requireValueInList(['admin', 'user'], true).setAllowInvalid(true).build());
+  sh.getRange(2, idx(FS_COL_CARE) + 1, n, 1).setDataValidation(SpreadsheetApp.newDataValidation()
+    .requireValueInList(['admin', 'user'], true).setAllowInvalid(true).build());
   sh.getRange(1, 1, 1, headers.filter(String).length).setFontWeight('bold');
   sh.setFrozenRows(1);
 }
 
-/** Đọc APP USERS -> [{ row, email, tm, psc }]. tm: admin|editor|viewer|'' ; psc: admin|staff|'' */
+/** Đọc APP USERS -> [{ row, email, tm, psc, care }]. tm: admin|viewer|'' ; psc: admin|staff|'' ; care: admin|user|'' */
 function fsReadUsers_() {
   const sh = SpreadsheetApp.getActive().getSheetByName(FS_SHEET_USERS);
   if (!sh || sh.getLastRow() < 2) return { sh: sh, cols: null, rows: [] };
@@ -363,7 +376,7 @@ function fsReadUsers_() {
   const H = vals[0].map(fsStripAccents_);
   const col = function (name) { return H.indexOf(fsStripAccents_(name)); };
   const cols = { email: col(FS_COL_EMAIL), tm: col(FS_COL_TM) > -1 ? col(FS_COL_TM) : col('Quyền'),
-    psc: col(FS_COL_PSC), status: col(FS_COL_STATUS) };
+    psc: col(FS_COL_PSC), care: col(FS_COL_CARE), status: col(FS_COL_STATUS) };
   if (cols.email < 0) cols.email = 0;
   const rows = [];
   for (let i = 1; i < vals.length; i++) {
@@ -373,6 +386,7 @@ function fsReadUsers_() {
       row: i + 1, email: email,
       tm: cols.tm > -1 ? fsTmRole_(vals[i][cols.tm]) : '',
       psc: cols.psc > -1 ? fsPscRole_(vals[i][cols.psc]) : '',
+      care: cols.care > -1 ? fsCareRole_(vals[i][cols.care]) : '',
       status: cols.status > -1 ? vals[i][cols.status] : ''
     });
   }
@@ -393,10 +407,17 @@ function fsPscRole_(v) {
   return 'staff';    // user (và mọi giá trị khác) = người dùng
 }
 
+function fsCareRole_(v) {
+  const raw = fsStripAccents_(v);
+  if (!raw) return '';
+  if (raw.indexOf('admin') > -1 || raw.indexOf('quan tri') > -1) return 'admin';
+  return 'user';
+}
+
 /** Đưa các giá trị cũ (nhân viên, editor, viewer...) về đúng 2 giá trị admin / user cho dễ đọc. */
 function fsNormalizeRoleCells_(data) {
   if (!data.sh || !data.cols) return;
-  [data.cols.tm, data.cols.psc].forEach(function (c) {
+  [data.cols.tm, data.cols.psc, data.cols.care].forEach(function (c) {
     if (c < 0) return;
     const rng = data.sh.getRange(2, c + 1, Math.max(data.sh.getLastRow() - 1, 1), 1);
     const vals = rng.getDisplayValues();
@@ -421,8 +442,8 @@ function fsSyncAllUsers_(force) {
   if (!data.sh) return;
   // Cập nhật danh sách chọn (admin / user) cho sheet đã tạo từ bản cũ — chỉ làm một lần
   const props0 = PropertiesService.getScriptProperties();
-  if (props0.getProperty('fs_users_layout_v') !== '2') {
-    try { fsEnsureUsersLayout_(data.sh); props0.setProperty('fs_users_layout_v', '2'); data = fsReadUsers_(); }
+  if (props0.getProperty('fs_users_layout_v') !== '3') {   // 3: thêm cột "TH true care"
+    try { fsEnsureUsersLayout_(data.sh); props0.setProperty('fs_users_layout_v', '3'); data = fsReadUsers_(); }
     catch (e) { console.error('Cập nhật cột APP USERS: ' + e.message); }
   }
   try { fsNormalizeRoleCells_(data); } catch (e) { console.error('Chuẩn hoá quyền: ' + e.message); }
@@ -430,6 +451,7 @@ function fsSyncAllUsers_(force) {
   try { fsProvisionAccounts_(data); } catch (e) { console.error('Tạo tài khoản: ' + e.message); }
   const done = fsAccountsDone_();
   try { fsSyncTmUsers_(data.rows, force, done); } catch (e) { console.error('Quyền Hệ thống quản lý: ' + e.message); }
+  try { fsSyncCareUsers_(data.rows, force, done); } catch (e) { console.error('Quyền TH true care: ' + e.message); }
   if (fsPscOn_()) {
     try { fsSyncPscUsers_(data.rows, force, done); } catch (e) { console.error('Quyền Phiếu sửa chữa: ' + e.message); }
   }
@@ -459,6 +481,27 @@ function fsSyncTmUsers_(rows, force, done) {
   });
   if (writes.length) fsCommit_(writes);
   props.setProperty(FS_PROP_USERS_HASH, hash);
+}
+
+/** TH true care: cùng Firebase th-truemart-info, danh sách riêng care_users/<email>. */
+function fsSyncCareUsers_(rows, force, done) {
+  done = done || fsAccountsDone_();
+  const want = {};
+  rows.forEach(function (r) { if (r.care) want[r.email] = { role: r.care, uid: fsUidOf_(done, FS_PROP_SA, r.email) }; });
+  const hash = fsMd5_(JSON.stringify(want));
+  const props = PropertiesService.getScriptProperties();
+  if (!force && props.getProperty(FS_PROP_CARE_HASH) === hash) return;
+
+  const existing = fsListDocs_('care_users').map(function (d) { return decodeURIComponent(d.name.split('/').pop()); });
+  const writes = Object.keys(want).map(function (email) {
+    return { update: { name: fsDocName_('care_users/' + email), fields: {
+      role: { stringValue: want[email].role }, uid: { stringValue: want[email].uid } } } };
+  });
+  existing.forEach(function (id) {
+    if (!want.hasOwnProperty(id)) writes.push({ delete: fsDocName_('care_users/' + id) });
+  });
+  if (writes.length) fsCommit_(writes);
+  props.setProperty(FS_PROP_CARE_HASH, hash);
 }
 
 function fsSyncPscUsers_(rows, force, done) {
@@ -502,8 +545,16 @@ function fsAccountsDone_() {
  * Ghi kết quả vào cột "Tài khoản (tự động)". Mỗi email/app chỉ xử lý MỘT lần.
  */
 function fsProvisionAccounts_(data) {
-  const targets = [{ prop: FS_PROP_SA, key: 'tm', name: 'Hệ thống quản lý', url: FS_URL_TM }];
-  if (fsPscOn_()) targets.push({ prop: FS_PROP_SA_PSC, key: 'psc', name: 'Phiếu sửa chữa', url: FS_URL_PSC });
+  // Firebase th-truemart-info dùng chung cho Hệ thống quản lý + TH true care: MỘT tài khoản cho cả hai.
+  const targets = [{ prop: FS_PROP_SA, apps: function (r) {
+    const a = [];
+    if (r.tm) a.push({ name: 'Hệ thống quản lý', url: FS_URL_TM });
+    if (r.care) a.push({ name: 'TH true care', url: FS_URL_CARE });
+    return a;
+  } }];
+  if (fsPscOn_()) targets.push({ prop: FS_PROP_SA_PSC, apps: function (r) {
+    return r.psc ? [{ name: 'Phiếu sửa chữa', url: FS_URL_PSC }] : [];
+  } });
   const done = fsAccountsDone_();
   const statusByRow = {};
   let changed = false;
@@ -512,12 +563,14 @@ function fsProvisionAccounts_(data) {
     const links = [];
     const notes = [];
     targets.forEach(function (t) {
-      if (!r[t.key]) return;
+      const apps = t.apps(r);
+      if (!apps.length) return;
+      const name = apps.map(function (a) { return a.name; }).join(' + ');
       const k = t.prop + '|' + r.email;
       const prev = done[k];
       const prevState = prev && typeof prev === 'object' ? prev.s : prev;   // bản cũ lưu chuỗi, chưa có uid
       if (prev && typeof prev === 'object' && prev.uid) {
-        notes.push(t.name + ': ' + (prevState === 'created' ? 'đã tạo' : 'đã có') + ' tài khoản');
+        notes.push(name + ': ' + (prevState === 'created' ? 'đã tạo' : 'đã có') + ' tài khoản');
         return;
       }
       try {
@@ -526,17 +579,17 @@ function fsProvisionAccounts_(data) {
           if (u) {
             if (!prev && !u.emailVerified) fsAuthMarkVerified_(u.localId);
             done[k] = { s: prevState || 'existing', uid: u.localId };
-            notes.push(t.name + ': ' + (prevState === 'created' ? 'đã tạo' : 'đã có') + ' tài khoản');
+            notes.push(name + ': ' + (prevState === 'created' ? 'đã tạo' : 'đã có') + ' tài khoản');
           } else {
             const created = fsAuthCreate_(r.email);
-            links.push({ app: t.name, url: t.url, link: fsAuthResetLink_(r.email, t.url) });
+            links.push({ apps: apps, link: fsAuthResetLink_(r.email, apps[0].url) });
             done[k] = { s: 'created', uid: created.localId };
-            notes.push(t.name + ': đã tạo tài khoản');
+            notes.push(name + ': đã tạo tài khoản');
           }
         });
         changed = true;
       } catch (e) {
-        notes.push(t.name + ': LỖI ' + e.message.slice(0, 120));
+        notes.push(name + ': LỖI ' + e.message.slice(0, 120));
       }
     });
     if (links.length) {
@@ -564,8 +617,12 @@ function fsWriteStatus_(data, statusByRow) {
 }
 
 function fsSendWelcomeMail_(email, links) {
+  // Mỗi mục = một tài khoản (một nút Đặt mật khẩu), dùng được cho một hoặc nhiều app cùng Firebase.
   const lines = links.map(function (l) {
-    return '<li style="margin:0 0 14px"><b>' + l.app + '</b> — <a href="' + l.url + '">' + l.url.replace('https://', '') + '</a><br>' +
+    const apps = l.apps.map(function (a) {
+      return '<b>' + a.name + '</b> — <a href="' + a.url + '">' + a.url.replace('https://', '') + '</a>';
+    }).join('<br>');
+    return '<li style="margin:0 0 14px">' + apps + '<br>' +
       '<a href="' + l.link + '" style="display:inline-block;margin-top:6px;padding:8px 16px;background:#0B4C8C;color:#fff;' +
       'border-radius:8px;text-decoration:none;font-weight:600">Đặt mật khẩu</a></li>';
   }).join('');
@@ -590,11 +647,14 @@ function guiLaiEmailDatMatKhau() {
   const r = data.rows.filter(function (x) { return x.row === row; })[0];
   if (!r) { fsAlert_('Dòng đang chọn không có email hợp lệ.'); return; }
   const links = [];
-  if (r.tm) fsWithTarget_(FS_PROP_SA, function () {
-    if (fsAuthLookup_(r.email)) links.push({ app: 'Hệ thống quản lý', url: FS_URL_TM, link: fsAuthResetLink_(r.email, FS_URL_TM) });
+  const mainApps = [];
+  if (r.tm) mainApps.push({ name: 'Hệ thống quản lý', url: FS_URL_TM });
+  if (r.care) mainApps.push({ name: 'TH true care', url: FS_URL_CARE });
+  if (mainApps.length) fsWithTarget_(FS_PROP_SA, function () {
+    if (fsAuthLookup_(r.email)) links.push({ apps: mainApps, link: fsAuthResetLink_(r.email, mainApps[0].url) });
   });
   if (r.psc && fsPscOn_()) fsWithTarget_(FS_PROP_SA_PSC, function () {
-    if (fsAuthLookup_(r.email)) links.push({ app: 'Phiếu sửa chữa', url: FS_URL_PSC, link: fsAuthResetLink_(r.email, FS_URL_PSC) });
+    if (fsAuthLookup_(r.email)) links.push({ apps: [{ name: 'Phiếu sửa chữa', url: FS_URL_PSC }], link: fsAuthResetLink_(r.email, FS_URL_PSC) });
   });
   if (!links.length) { fsAlert_('Chưa có tài khoản nào cho ' + r.email + '. Đợi vài giây cho đồng bộ tạo tài khoản rồi thử lại.'); return; }
   fsSendWelcomeMail_(r.email, links);
