@@ -454,7 +454,6 @@ function showAccountDialog(okMsg) {
       '<div class="tm-acc-actions"><button type="submit" class="btn btn-primary" id="tmAccSave">Lưu mật khẩu</button>' +
       '<button type="button" class="btn btn-ghost" id="tmAccCancel">Huỷ</button></div>' +
     '</form>' +
-    '<p class="tm-acc-note">Liên kết ở đây thì giữ được cả hai cách đăng nhập.</p>' +
   '</div>';
   shell.open();
   const msg = (t, ok) => { const m = document.getElementById('tmAccMsg'); if (!m) return; m.textContent = t; m.className = 'tm-acc-msg' + (ok ? ' ok' : ''); };
