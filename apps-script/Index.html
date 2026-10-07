@@ -1,0 +1,3488 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <style>
+  @import url('https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700;800&family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap');
+  /* Chỉ dùng cho khối logo. Tham số text= cắt bộ ký tự xuống đúng 8 chữ cái cần thiết
+     (T H t r u e m a) -> ~2-3 KB thay vì ~40 KB cho 2 font đầy đủ.
+     HỆ QUẢ: 2 font này CHỈ hiển thị được 8 ký tự đó, không dùng lại ở chỗ khác được. */
+  @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Quicksand:wght@700&text=THtruemart&display=swap');
+
+  :root{
+    /* Tên chuẩn là --brand-*; --forest-* giữ làm BÍ DANH để không phải sửa hàng trăm
+       chỗ đang dùng tên cũ. Code mới nên dùng --brand-*. */
+    --brand-900:#0B4C8C;
+    --brand-800:#0F5FA8;
+    --brand-700:#136FBF;
+    --brand-500:#2E9BE0;
+    --brand-300:#7FC4EE;
+    --forest-900:var(--brand-900);
+    --forest-800:var(--brand-800);
+    --forest-700:var(--brand-700);
+    --forest-500:var(--brand-500);
+    --forest-300:var(--brand-300);
+    --cream-50:#F3F8FC;
+    --white:#FFFFFF;
+    --ink-900:#16231E;
+    --ink-600:#40514A;
+    --ink-500:#5B6B63;
+    --ink-300:#93A29A;
+    --gold-500:#E3A83B;
+    --gold-100:#FCEFD2;
+    --sky-100:#E3F1FC;
+    --purple-100:#F3E1FC;
+    --purple-700:#7A2FA0;
+    --line:#E1E9F2;
+    --danger:#C1443A;
+    --danger-100:#F7E1DE;
+    --ok:#2C7A4B;
+    --ok-100:#E1F0E5;
+        /* PHẢI khai báo: .vt-status.warn dùng var(--warning) không có giá trị dự phòng, thiếu biến là
+       hỏng cả khai báo color. Không dùng --gold-500 (#E3A83B) làm màu chữ — quá nhạt ở cỡ 11.5px
+       trên nền #FBF0DC. */
+    --warning:#8A5A0B;
+    --warning-100:#FBF0DC;
+    --radius:14px;
+    --radius-sm:8px;
+    --shadow-card:0 1px 2px rgba(11,76,140,.07), 0 8px 24px -12px rgba(11,76,140,.14);
+    --shadow-pop:0 12px 40px -8px rgba(11,76,140,.32);
+    --sidebar-w:248px;
+    --sidebar-w-collapsed:76px;
+  }
+
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    font-family:'Be Vietnam Pro', sans-serif;
+    background:var(--cream-50);
+    color:var(--ink-900);
+    -webkit-font-smoothing:antialiased;
+  }
+  h1,h2,h3,h4{font-family:'Sora', sans-serif; margin:0; letter-spacing:-.01em;}
+  ::selection{background:var(--gold-100);}
+
+  button, input, select, textarea{font-family:inherit;}
+  a{color:inherit;}
+
+  /* Shell layout */
+  .shell{display:flex; min-height:100vh;}
+
+  .sidebar{
+    width:var(--sidebar-w); flex-shrink:0;
+    background:linear-gradient(185deg, var(--brand-900) 0%, var(--brand-800) 100%);
+    color:var(--white);
+    display:flex; flex-direction:column;
+    position:sticky; top:0; height:100vh;
+    transition:width .18s ease;
+    overflow:visible;
+  }
+  .sidebar.collapsed{ width:var(--sidebar-w-collapsed); }
+
+  .brand{
+    display:flex; align-items:center; gap:10px;
+    padding:22px 16px 18px 22px;
+    border-bottom:1px solid rgba(255,255,255,.1);
+    position:relative;
+  }
+  .sidebar.collapsed .brand{ padding:22px 0 18px; justify-content:center; }
+
+  /* Khối logo bám theo logo TH true mart: TH serif tương phản cao, ngôi sao 6 cánh
+     gradient vàng chen giữa TH và "true", wordmark bo tròn THẲNG ĐỨNG (không nghiêng). */
+  .brand-mark{
+    width:38px; height:38px; border-radius:10px;
+    background:var(--white);
+    display:flex; align-items:center; justify-content:center;
+    color:var(--brand-900);
+    flex-shrink:0; position:relative;
+    box-shadow:0 2px 6px rgba(0,0,0,.18);
+  }
+  .brand-th{
+    font-family:'Playfair Display','Times New Roman',serif;
+    font-weight:700; font-size:17px; line-height:1; letter-spacing:-.01em;
+    margin-right:1px;
+  }
+  .brand-star{
+    position:absolute; right:-7px; top:50%; transform:translateY(-80%);
+    width:15px; height:15px;
+    filter:drop-shadow(0 1px 1.5px rgba(0,0,0,.28));
+  }
+  .brand-text{line-height:1.15; overflow:hidden; white-space:nowrap;}
+  .sidebar.collapsed .brand-text{display:none;}
+  .brand-wordmark{
+    font-family:'Quicksand','Be Vietnam Pro',sans-serif;
+    font-weight:700; font-size:17px; letter-spacing:-.005em;
+  }
+  .brand-wordmark .w-true{color:#8FD3FF;}
+  .brand-wordmark .w-mart{color:var(--white);}
+  .brand-text .t2{font-size:11px; color:rgba(255,255,255,.55); letter-spacing:.04em; margin-top:2px;}
+
+  .collapse-toggle{
+    position:absolute; top:26px; right:-12px;
+    width:24px; height:24px; border-radius:50%;
+    background:var(--white); color:var(--brand-900);
+    border:1px solid var(--line); box-shadow:0 2px 6px rgba(0,0,0,.18);
+    display:flex; align-items:center; justify-content:center;
+    cursor:pointer; z-index:20; transition:transform .18s ease;
+  }
+  .collapse-toggle svg{width:13px; height:13px;}
+  .sidebar.collapsed .collapse-toggle svg{transform:rotate(180deg);}
+
+  /* KHÔNG đặt overflow-y:auto ở đây. Theo chuẩn CSS Overflow, khi 1 trục là auto thì trục
+     còn lại dù ghi visible cũng bị coi như auto -> tooltip ở left:100% bị xén đúng mép
+     sidebar. Menu chỉ có 7 mục cố định nên không cần cuộn. */
+  .nav{flex:1; padding:16px 12px; display:flex; flex-direction:column; gap:2px;}
+  .sidebar.collapsed .nav{padding:16px 10px;}
+  .nav-item{
+    display:flex; align-items:center; gap:11px;
+    padding:11px 12px; border-radius:10px;
+    color:rgba(255,255,255,.72);
+    cursor:pointer; font-size:14px; font-weight:500;
+    transition:background .15s ease, color .15s ease;
+    user-select:none;
+    position:relative; white-space:nowrap;
+    /* reset để dùng được thẻ <button> mà không đổi giao diện */
+    width:100%; text-align:left; border:none; background:transparent; font-family:inherit;
+  }
+  .nav-item:focus-visible,
+  .sidebar-refresh-btn:focus-visible{outline:2px solid var(--gold-500); outline-offset:-2px;}
+  .nav-item svg{width:18px; height:18px; flex-shrink:0; opacity:.85;}
+  .nav-item:hover{background:rgba(255,255,255,.07); color:var(--white);}
+  .nav-item.active{background:rgba(255,255,255,.14); color:var(--white); box-shadow:inset 3px 0 0 var(--gold-500);}
+  .nav-item.active svg{opacity:1;}
+  .nav-section-label{
+    font-size:10.5px; text-transform:uppercase; letter-spacing:.09em;
+    color:rgba(255,255,255,.4); padding:14px 12px 6px;
+  }
+
+  .sidebar.collapsed .nav-item{justify-content:center; padding:11px 0;}
+  .sidebar.collapsed .nav-item span.label{display:none;}
+  .sidebar.collapsed .nav-item.active{box-shadow:none; background:rgba(255,255,255,.16);}
+
+  /* Tooltip khi thu gọn sidebar.
+     z-index 45: trên topbar (5) và tiêu đề bảng dính (1-2), nhưng DƯỚI modal (50) và
+     toast (80) — nếu để 100 như cũ thì tooltip sẽ đè lên cả modal đang mở. */
+  .sidebar.collapsed .nav-item::after,
+  .sidebar.collapsed .sidebar-refresh-btn::after{
+    content:attr(data-tooltip);
+    position:absolute; left:100%; top:50%;
+    transform:translateY(-50%) translateX(6px);
+    margin-left:12px; background:#08386A; color:var(--white);
+    padding:8px 12px; border-radius:8px; font-size:12.5px; font-weight:600; line-height:1;
+    white-space:nowrap; box-shadow:0 8px 22px -6px rgba(0,0,0,.45);
+    opacity:0; visibility:hidden; pointer-events:none; z-index:45;
+    transition:opacity .14s ease, transform .14s ease, visibility .14s;
+  }
+  .sidebar.collapsed .nav-item::before,
+  .sidebar.collapsed .sidebar-refresh-btn::before{
+    content:''; position:absolute; left:100%; top:50%;
+    transform:translateY(-50%) translateX(6px);
+    margin-left:2px; border:5px solid transparent; border-right-color:#08386A;
+    opacity:0; visibility:hidden; pointer-events:none; z-index:45;
+    transition:opacity .14s ease, transform .14s ease, visibility .14s;
+  }
+  .sidebar.collapsed .nav-item:hover::after,
+  .sidebar.collapsed .nav-item:hover::before,
+  .sidebar.collapsed .nav-item:focus-visible::after,
+  .sidebar.collapsed .nav-item:focus-visible::before,
+  .sidebar.collapsed .sidebar-refresh-btn:hover::after,
+  .sidebar.collapsed .sidebar-refresh-btn:hover::before,
+  .sidebar.collapsed .sidebar-refresh-btn:focus-visible::after,
+  .sidebar.collapsed .sidebar-refresh-btn:focus-visible::before{
+    opacity:1; visibility:visible; transform:translateY(-50%) translateX(0);
+  }
+  @media (prefers-reduced-motion:reduce){
+    .sidebar.collapsed .nav-item::after,
+    .sidebar.collapsed .nav-item::before,
+    .sidebar.collapsed .sidebar-refresh-btn::after,
+    .sidebar.collapsed .sidebar-refresh-btn::before{transition:none;}
+  }
+
+  .sidebar-refresh-row{padding:10px 16px 12px;}
+  .sidebar.collapsed .sidebar-refresh-row{padding:10px 10px 12px;}
+  .sidebar-refresh-btn{
+    display:flex; align-items:center; justify-content:center; gap:8px;
+    width:100%; border:1px solid rgba(255,255,255,.18); background:rgba(255,255,255,.06);
+    color:rgba(255,255,255,.85); border-radius:10px; padding:10px 12px;
+    font-size:12.5px; font-weight:600; cursor:pointer; transition:background .15s ease, color .15s ease;
+    position:relative; white-space:nowrap;
+  }
+  .sidebar-refresh-btn:hover{background:rgba(255,255,255,.14); color:var(--white);}
+  .sidebar-refresh-btn:disabled{opacity:.55; cursor:not-allowed;}
+  .sidebar-refresh-btn svg{width:14px; height:14px; flex-shrink:0;}
+  .sidebar.collapsed .sidebar-refresh-btn span.label{display:none;}
+  .sidebar.collapsed .sidebar-refresh-btn{padding:10px;}
+  /* Mốc giờ dữ liệu được nạp lại gần nhất. Sidebar thu gọn chỉ rộng ~72px nên phải ẩn hẳn,
+     giống cách xử lý .sidebar-foot-text và nhãn các nút. */
+  .sidebar-refresh-time{
+    margin-top:8px; text-align:center; font-size:11px; line-height:1.4;
+    color:rgba(255,255,255,.45);
+  }
+  /* Phần giờ in đậm và sáng hơn nhãn, để mắt bắt được con số trước. */
+  .sidebar-refresh-time b{ color:rgba(255,255,255,.72); font-weight:600; }
+  .sidebar.collapsed .sidebar-refresh-time{display:none;}
+
+  .sidebar-foot{
+    padding:14px 16px 18px; border-top:1px solid rgba(255,255,255,.1);
+  }
+  .sidebar-foot-text{font-size:11.5px; color:rgba(255,255,255,.45); line-height:1.5; padding:0 4px;}
+  .sidebar.collapsed .sidebar-foot-text{display:none;}
+
+  /* Main */
+  .main{flex:1; min-width:0; display:flex; flex-direction:column;}
+  .topbar{
+    display:flex; align-items:center; justify-content:space-between; gap:16px;
+    padding:20px 32px; background:var(--cream-50);
+    position:sticky; top:0; z-index:5;
+    border-bottom:1px solid var(--line);
+  }
+  .topbar h1{font-size:20px; font-weight:700; color:var(--brand-900);}
+  .topbar-left{display:flex; align-items:center; gap:12px; min-width:0;}
+  .topbar-menu-btn{
+    display:none; width:38px; height:38px; border-radius:10px; flex-shrink:0;
+    align-items:center; justify-content:center;
+    background:var(--white); border:1px solid var(--line); color:var(--brand-900);
+    cursor:pointer; box-shadow:var(--shadow-card);
+  }
+  .topbar-menu-btn svg{width:19px; height:19px;}
+  .topbar-menu-btn:focus-visible{outline:2px solid var(--brand-500); outline-offset:2px;}
+  .sidebar-scrim{
+    position:fixed; inset:0; background:rgba(11,25,20,.45); z-index:55;
+    opacity:0; visibility:hidden; transition:opacity .2s ease, visibility .2s;
+  }
+  .sidebar-scrim.active{opacity:1; visibility:visible;}
+  .topbar .sub{font-size:12.5px; color:var(--ink-500); margin-top:2px;}
+
+  .content{padding:26px 32px 48px; flex:1; max-width:1440px; margin:0 auto; width:100%;}
+  .view{display:none;}
+  .view.active{display:block; animation:fadeIn .25s ease;}
+  @keyframes fadeIn{from{opacity:0; transform:translateY(4px);} to{opacity:1; transform:none;}}
+
+  /* Cards / grid */
+  .stat-grid{display:grid; grid-template-columns:repeat(4,1fr); gap:16px; margin-bottom:22px;}
+  .stat-grid.cols-3{grid-template-columns:repeat(3,1fr);}
+  .stat-grid.cols-5{grid-template-columns:repeat(5,1fr);}
+  .stat-grid.cols-6{grid-template-columns:repeat(6,1fr);}
+
+  .card{
+    background:var(--white); border:1px solid var(--line); border-radius:var(--radius);
+    box-shadow:var(--shadow-card);
+  }
+  .stat-card{padding:18px 20px;}
+  .stat-card .label{font-size:12px; color:var(--ink-500); font-weight:500;}
+  /* Bỏ ellipsis: số tiền LUÔN hiện đủ, thiếu chỗ thì xuống dòng chứ không bị cắt cụt.
+     tabular-nums cho các chữ số rộng bằng nhau, cột số nhìn thẳng hàng hơn. */
+  .stat-card .value{
+    font-family:'Sora',sans-serif; font-size:28px; font-weight:700; color:var(--brand-900);
+    margin-top:6px; line-height:1.2; font-variant-numeric:tabular-nums;
+    overflow-wrap:anywhere;
+  }
+  .stat-grid.cols-5 .stat-card .value{font-size:19px;}
+  .stat-grid.cols-6 .stat-card .value{font-size:17px;}
+
+  /* LỖI CŨ: media query KHÔNG làm tăng độ ưu tiên chọn lọc, nên rule (0,1,0) ".stat-grid"
+     trong media query luôn THUA rule (0,2,0) ".stat-grid.cols-6" ở trên -> lưới 6 cột
+     không bao giờ gãy xuống 2 cột, ép số tiền vào ô ~120px và phải cắt bằng ellipsis.
+     Phải liệt kê đủ các biến thể cols-* thì mới ghi đè được. */
+  @media (max-width:1240px){
+    .stat-grid.cols-5,
+    .stat-grid.cols-6{grid-template-columns:repeat(3,1fr);}
+    .stat-grid.cols-5 .stat-card .value,
+    .stat-grid.cols-6 .stat-card .value{font-size:22px;}
+  }
+  @media (max-width:1080px){
+    .stat-grid,
+    .stat-grid.cols-3,
+    .stat-grid.cols-5,
+    .stat-grid.cols-6{grid-template-columns:repeat(2,1fr);}
+  }
+  @media (max-width:560px){
+    .stat-grid,
+    .stat-grid.cols-3,
+    .stat-grid.cols-5,
+    .stat-grid.cols-6{grid-template-columns:1fr;}
+  }
+  /* Ở lưới 6 cột trên màn ~1366px mỗi thẻ chỉ còn ~170px, chuỗi "Tài sản đang được quản lý"
+     gãy thành 2 dòng làm 6 thẻ cao lệch nhau. Ép 1 dòng và thu nhỏ chữ vừa đủ; nếu vẫn quá dài
+     thì cắt bằng ellipsis chứ không phá bố cục (title giữ nguyên văn để rê chuột đọc được). */
+  .stat-card .delta{
+    font-size:12px; margin-top:6px; color:var(--ink-500);
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  }
+  .stat-grid.cols-5 .stat-card .delta,
+  .stat-grid.cols-6 .stat-card .delta{font-size:11px;}
+  /* Từ 2 cột trở xuống thì thẻ đã đủ rộng, cho xuống dòng lại cho dễ đọc */
+  @media (max-width:1080px){
+    .stat-card .delta{white-space:normal; overflow:visible; text-overflow:clip;}
+  }
+  .stat-card .delta.ok{color:var(--ok); font-weight:600;}
+
+  /* Badge trạng thái xuất kho — 3 kiểu màu dùng chung cho 4 nhãn.
+     Icon là SVG stroke kế thừa currentColor nên đổi màu badge là icon đổi theo. */
+  .vt-status{
+    display:inline-flex; align-items:center; gap:5px; white-space:nowrap;
+    padding:3px 9px; border-radius:999px; font-size:11.5px; font-weight:700;
+    border:1px solid transparent;
+  }
+  .vt-status svg{width:14px; height:14px; flex-shrink:0;}
+  .vt-status.ok{background:var(--ok-100,#E1F0E6); color:var(--ok); border-color:rgba(44,122,85,.18);}
+  .vt-status.wait{background:#EEF3F8; color:var(--ink-500); border-color:rgba(120,140,160,.22);}
+  .vt-status.warn{background:var(--warning-100,#FBF0DC); color:var(--warning); border-color:rgba(217,154,43,.24);}
+
+  /* Dải tóm tắt số lượng theo trạng thái, đặt phía trên bảng */
+  .vt-status-summary{display:flex; gap:10px; flex-wrap:wrap; margin-bottom:14px;}
+  /* Thẻ tóm tắt bấm được để lọc nhanh */
+  button.vt-status{cursor:pointer; font-family:inherit;}
+  button.vt-status:hover{filter:brightness(.96);}
+  button.vt-status.on{box-shadow:0 0 0 2px var(--brand-700) inset; font-weight:800;}
+  button.vt-status.dim{opacity:.45;}
+  /* Dòng phụ dưới badge: cho biết TRỪ VÀO VẬT TƯ NÀO trong danh mục */
+  /* white-space:normal — dòng phụ thừa hưởng nowrap từ td nên bản cũ đẩy cột Trạng thái rộng ra
+     bằng cả câu "Đèn exit kết hợp sự cố"; cho xuống dòng thì cột giữ đúng bề rộng đã định. */
+  .vt-sub{display:block; margin-top:4px; font-size:11px; color:var(--ink-500); line-height:1.35; white-space:normal;}
+  /* Mã tài sản trống -> gạch ngang xanh thay vì viên thuốc rỗng */
+  .cc-dash{color:var(--brand-700);}
+
+  .chart-row{display:grid; grid-template-columns:1.3fr 1fr; gap:16px; margin-bottom:22px;}
+  .chart-row.split-even{grid-template-columns:1fr 1fr;}
+  @media (max-width:1080px){.chart-row{grid-template-columns:1fr;}}
+  .panel{padding:20px 22px;}
+  .panel h3{font-size:14.5px; font-weight:700; color:var(--brand-900); margin-bottom:14px;}
+  .panel-head{display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:14px; flex-wrap:wrap;}
+  .panel-head h3{margin:0;}
+  .chart-container{position:relative; height:240px; width:100%; overflow:hidden;}
+  .chart-container canvas{max-width:100% !important; max-height:100% !important;}
+  /* Chú thích biểu đồ tròn dựng bằng HTML thay vì legend của Chart.js: legend trong canvas bị
+     chặn trần vị trí (không hạ thấp hơn được mà không giảm cỡ chữ), nên không thể căn thẳng hàng
+     với nhãn trục của biểu đồ cột. Ra ngoài HTML thì vị trí do CSS quyết định, và biểu đồ cột
+     giữ nguyên kích thước vì không còn phải bị ép căn theo. */
+  .chart-legend{position:absolute; left:0; right:0; display:flex; flex-wrap:wrap;
+    justify-content:center; align-items:center; gap:4px 16px;}
+  .chart-legend-item{display:flex; align-items:center; gap:6px; font-size:11px; font-weight:600;
+    color:var(--ink-600); cursor:pointer; user-select:none; line-height:16px;}
+  .chart-legend-dot{width:10px; height:10px; border-radius:3px; flex-shrink:0;}
+  .chart-legend-item.off{color:var(--ink-300); text-decoration:line-through;}
+  .chart-legend-item.off .chart-legend-dot{opacity:.35;}
+  .filter-select{
+    border:1px solid var(--line); border-radius:8px; padding:7px 10px; font-size:12.5px;
+    font-weight:600; color:var(--ink-900); background:var(--white); outline:none; cursor:pointer;
+  }
+  .filter-select:focus{border-color:var(--brand-500);}
+  .filters-row{display:flex; align-items:center; gap:10px; flex-wrap:wrap;}
+
+  /* Cost-center pill */
+  .cc-pill{
+    display:inline-flex; align-items:center; gap:6px;
+    font-family:'SFMono-Regular', ui-monospace, Menlo, Consolas, monospace;
+    font-size:12px; font-weight:600; letter-spacing:.01em;
+    background:var(--brand-900); color:var(--gold-100);
+    padding:4px 10px; border-radius:999px;
+  }
+  .cc-pill.light{background:var(--sky-100); color:var(--brand-900);}
+  .cc-pill.outline{background:transparent; color:var(--brand-700); border:1px solid var(--brand-300);}
+
+  /* Store type badge */
+  .type-badge{
+    display:inline-flex; align-items:center;
+    font-size:11px; font-weight:700; letter-spacing:.02em;
+    padding:4px 10px; border-radius:999px; white-space:nowrap;
+  }
+  /* Trước đây hero và cvs DÙNG CHUNG nền vàng + chữ cùng màu -> không phân biệt được,
+     lại lệch với màu trên biểu đồ tròn (hero=vàng, cvs=xanh lá). Nay bám đúng
+     STORE_TYPE_COLORS trong Code.gs: normal xanh nhạt · flagship tím · hero vàng
+     · cvshero xanh đậm · cvs xanh lá · mini xanh xám. */
+  .type-badge.normal{background:var(--sky-100); color:var(--brand-800);}
+  .type-badge.flagship{background:var(--purple-100); color:var(--purple-700);}
+  .type-badge.hero{background:var(--gold-100); color:#8A5A10;}
+  .type-badge.cvshero{background:#D3E4F6; color:#0A3F72;}
+  .type-badge.cvs{background:var(--ok-100); color:var(--ok);}
+  .type-badge.mini{background:#DDE9F0; color:#3B6478;}
+  .type-badge.other{background:#F1F3F5; color:var(--ink-500);}
+
+  /* Badge loại chi phí (Sanaky / Bảo dưỡng / Chi phí) */
+  .cost-type-badge{display:inline-flex; align-items:center; font-size:11px; font-weight:700; padding:4px 10px; border-radius:999px; white-space:nowrap;}
+  .cost-type-badge.sanaky{background:var(--purple-100); color:var(--purple-700);}
+  .cost-type-badge.maint{background:var(--sky-100); color:var(--brand-900);}
+  .cost-type-badge.chiphi{background:var(--gold-100); color:#8A5A10;}
+  .cost-type-badge.pc{background:#F1F3F5; color:var(--ink-500);}
+
+  /* Search */
+  .search-bar{
+    display:flex; align-items:center; gap:10px;
+    background:var(--white); border:1px solid var(--line); border-radius:var(--radius);
+    padding:6px 8px 6px 16px; box-shadow:var(--shadow-card);
+  }
+  .search-bar svg{width:18px; height:18px; color:var(--ink-300); flex-shrink:0;}
+  .search-bar input{
+    flex:1; border:none; outline:none; font-size:14.5px; padding:10px 4px; background:transparent; color:var(--ink-900);
+  }
+  .search-bar input::placeholder{color:var(--ink-300);}
+  .search-bar .btn{white-space:nowrap;}
+
+  .mode-toggle{display:inline-flex; flex-wrap:wrap; row-gap:4px; background:var(--white); border:1px solid var(--line); border-radius:999px; padding:4px; margin-bottom:16px;}
+  .mode-toggle button{
+    border:none; background:transparent; padding:8px 16px; border-radius:999px;
+    font-size:12.5px; font-weight:600; color:var(--ink-500); cursor:pointer; transition:.15s; white-space:nowrap;
+  }
+  .mode-toggle button.active{background:var(--brand-900); color:var(--white);}
+
+  .candidates{margin-top:12px; display:flex; flex-direction:column; gap:8px;}
+  .candidate-item{
+    display:flex; align-items:center; justify-content:space-between; gap:14px;
+    background:var(--white); border:1px solid var(--line); border-radius:var(--radius-sm);
+    padding:12px 16px; cursor:pointer; transition:border-color .15s, transform .1s;
+  }
+  .candidate-item:hover{border-color:var(--brand-300); transform:translateX(2px);}
+  .candidate-main{display:flex; flex-direction:column; gap:3px;}
+  .candidate-main .addr{font-size:13.5px; font-weight:600; color:var(--ink-900);}
+  .candidate-main .meta{font-size:12px; color:var(--ink-500);}
+  .candidate-arrow{color:var(--ink-300); flex-shrink:0;}
+  .hint{font-size:12.5px; color:var(--ink-500); margin-top:10px;}
+  .empty-state{
+    text-align:center; padding:48px 20px; color:var(--ink-500);
+  }
+  .empty-state .icn{margin-bottom:10px; display:flex; align-items:center; justify-content:center; color:var(--ink-300);}
+  .empty-state .t{font-weight:600; color:var(--ink-900); margin-bottom:4px;}
+
+  /* Detail card */
+  .detail-head{
+    display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px;
+    padding:20px 24px; border-bottom:1px solid var(--line);
+  }
+  .detail-head .addr{font-family:'Sora',sans-serif; font-size:17px; font-weight:700; color:var(--brand-900);}
+  .status-badge{font-size:11.5px; font-weight:700; padding:4px 10px; border-radius:999px; text-transform:uppercase; letter-spacing:.03em;}
+  .status-badge.open{background:var(--ok-100); color:var(--ok);}
+  .status-badge.closed{background:var(--danger-100); color:var(--danger);}
+
+  .detail-grid{display:grid; grid-template-columns:repeat(3,1fr); gap:0;}
+  .detail-grid.cols-2{grid-template-columns:repeat(2,1fr);}
+  @media (max-width:900px){
+    .detail-grid{grid-template-columns:repeat(2,1fr);}
+    .detail-grid.cols-2{grid-template-columns:repeat(2,1fr);}
+  }
+  .detail-field{padding:16px 24px; border-bottom:1px solid var(--line); border-right:1px solid var(--line);}
+  .detail-field .k{font-size:11px; color:var(--ink-500); text-transform:uppercase; letter-spacing:.05em; margin-bottom:5px;}
+  .detail-field .v{font-size:14px; font-weight:600; color:var(--ink-900);}
+  .detail-field .v.muted{color:var(--ink-500); font-weight:500;}
+
+  /* Store detail sub-tabs */
+  .sub-tabs-wrap{padding:18px 22px 22px;}
+  .tab-empty{text-align:center; padding:32px 12px; color:var(--ink-500); font-size:13px;}
+
+  /* Dòng tóm tắt "Số lượt · Tổng chi phí" */
+  .sanaky-summary-line{
+    font-size:12.5px; color:var(--ink-500); margin-bottom:12px;
+    display:flex; align-items:center; gap:6px; flex-wrap:wrap;
+  }
+  .sanaky-summary-line strong{color:var(--ink-900); font-weight:700;}
+  .sanaky-summary-line .sep{color:var(--ink-300);}
+
+  /* Ranking list */
+  .rank-item{
+    display:flex; align-items:center; justify-content:space-between; gap:10px;
+    padding:12px 2px; border-bottom:1px solid var(--line); cursor:pointer; transition:transform .1s;
+    min-width:0;
+  }
+  .rank-item:last-child{border-bottom:none;}
+  .rank-item:hover{transform:translateX(3px);}
+  .rank-left{display:flex; align-items:center; gap:12px; min-width:0; flex:1; overflow:hidden;}
+  .rank-badge{
+    width:30px; height:30px; border-radius:50%; flex-shrink:0;
+    display:flex; align-items:center; justify-content:center; color:var(--brand-900);
+  }
+  .rank-badge.r1{background:#FCE7A6;}
+  .rank-badge.r2{background:#E5E9ED;}
+  .rank-badge.r3{background:#F3D2AE;}
+  .rank-info{min-width:0; overflow:hidden;}
+  .rank-name{font-weight:700; font-size:13px; color:var(--ink-900); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .rank-sub{font-size:11px; color:var(--ink-500); margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .rank-count{font-size:10.5px; color:var(--ink-300); margin-top:1px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .rank-money{font-weight:700; color:var(--ok); font-size:12.5px; white-space:nowrap; flex-shrink:0;}
+
+  /* Dòng gộp nhiều hạng mục cùng ngày */
+  .multi-line{display:flex; flex-direction:column; gap:4px;}
+  .multi-line > div{min-height:20px; line-height:1.35; display:flex; align-items:center;}
+  .multi-line.qty-group > div{justify-content:center;}
+  .multi-line.money-group > div{justify-content:flex-end; font-weight:600;}
+  .warranty-badge{display:inline-flex; align-items:center; font-size:11px; font-weight:700; padding:4px 10px; border-radius:999px; white-space:nowrap;}
+  .warranty-badge.ok{background:var(--ok-100); color:var(--ok);}
+  .warranty-badge.expired{background:#F1F3F5; color:var(--ink-500);}
+
+  /* Table */
+  .table-wrap{overflow-x:auto;}
+  table.data-table{width:100%; border-collapse:collapse; font-size:13.5px;}
+  table.data-table thead th{
+    text-align:left; font-size:11px; text-transform:uppercase; letter-spacing:.05em;
+    color:var(--ink-500); padding:10px 14px; border-bottom:1px solid var(--line); white-space:nowrap;
+  }
+  table.data-table tbody td{padding:12px 14px; border-bottom:1px solid var(--line); color:var(--ink-900); white-space:nowrap;}
+  /* Cũ là rgba(31,122,92,...) — màu XANH LÁ sót lại từ bảng màu "forest" đời đầu */
+  table.data-table tbody tr:hover{background:rgba(46,155,224,.07);}
+  table.data-table tbody tr:last-child td{border-bottom:none;}
+
+  /* Bảng thu gọn: mặc định mọi cột nowrap, chỉ cột .col-wrap được xuống dòng */
+  .table-wrap.wrap-cells{overflow-x:auto;}
+  .table-wrap.wrap-cells table.data-table{table-layout:auto;}
+  .table-wrap.wrap-cells table.data-table td,
+  .table-wrap.wrap-cells table.data-table th{
+    white-space:nowrap;
+  }
+  .table-wrap.wrap-cells table.data-table td.col-wrap,
+  .table-wrap.wrap-cells table.data-table th.col-wrap{
+    white-space:normal; word-break:break-word; overflow-wrap:break-word; min-width:160px;
+  }
+  .table-wrap.wrap-cells table.data-table td.money,
+  .table-wrap.wrap-cells table.data-table th.money{ text-align:right; }
+
+  /* Bảng Đơn giá: auto layout, cột dài (.col-wrap) được xuống dòng, số tiền luôn 1 dòng */
+  .table-wrap.wrap-cells table.data-table.dongia-table td,
+  .table-wrap.wrap-cells table.data-table.dongia-table th{
+    padding:13px 12px; line-height:1.55; vertical-align:top;
+    word-break:break-word; overflow-wrap:break-word;
+  }
+  .table-wrap.wrap-cells table.data-table.dongia-table td.col-wrap,
+  .table-wrap.wrap-cells table.data-table.dongia-table th.col-wrap{ min-width:0; padding-right:20px; white-space:normal; }
+    /* Tiêu đề Đơn giá: viết hoa, mặc định KHÔNG xuống dòng.
+     NGOẠI LỆ CỐ Ý — hai cột .col-wrap ("Nội dung công việc", "Yêu cầu kỹ thuật") VẪN xuống dòng:
+     rule th.col-wrap ở trên có 5 class nên thắng thead th (4 class). Tiêu đề hai cột đó dài, ép
+     một dòng sẽ giãn bảng. Các tiêu đề dài còn lại ngắt bằng labelLines trong DONGIA_COLUMNS. */
+  .table-wrap.wrap-cells table.data-table.dongia-table thead th{
+    font-family:'Be Vietnam Pro', sans-serif; font-size:11px; font-weight:700; color:var(--brand-900);
+    text-transform:uppercase; letter-spacing:.05em; white-space:nowrap; vertical-align:middle;
+    text-align:left;
+  }
+  .table-wrap.wrap-cells table.data-table.dongia-table tbody td{ font-family:'Be Vietnam Pro', sans-serif; font-size:13px; }
+  /* Dữ liệu tiền (td.money) căn trái, đồng nhất với các cột văn bản trong bảng Đơn giá */
+  .table-wrap.wrap-cells table.data-table.dongia-table td.money{ text-align:left; white-space:nowrap; }
+
+  /* Buttons */
+  .btn{
+    display:inline-flex; align-items:center; gap:7px; justify-content:center;
+    border:none; border-radius:10px; padding:10px 18px; font-size:13.5px; font-weight:600;
+    cursor:pointer; transition:filter .12s, transform .05s;
+  }
+  .btn:active{transform:scale(.98);}
+  .btn-primary{background:var(--brand-900); color:var(--white);}
+  .btn-primary:hover{filter:brightness(1.15);}
+  .btn-ghost{background:var(--white); color:var(--brand-900); border:1px solid var(--line);}
+  .btn-ghost:hover{border-color:var(--brand-300);}
+  .btn-gold{background:var(--white); color:var(--brand-900); border:1.5px solid var(--gold-500);}
+  .btn-gold:hover{background:var(--gold-100);}
+  .btn-sm{padding:7px 12px; font-size:12.5px; border-radius:8px;}
+  /* "Khớp vật tư" có icon khoá nên rộng tự nhiên ~116px, "Xuất Excel" không có icon nên chỉ ~92px.
+     Đặt CÙNG min-width cho cả hai (lớn hơn cả hai chiều rộng tự nhiên) thì cả hai ra đúng bằng
+     nhau, không phải đo bằng JS và không lệ thuộc cách trình duyệt render font. */
+  #vtCalcBtn, #vtExportBtn{min-width:124px;}
+  .btn-icon-sm{padding:4px 8px; font-size:11.5px; border-radius:6px; line-height:1;}
+
+  .row-between{display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-bottom:16px;}
+
+  /* Modal */
+  .modal-overlay{
+    position:fixed; inset:0; background:rgba(11,25,20,.5); backdrop-filter:blur(2px);
+    display:none; align-items:center; justify-content:center; z-index:50; padding:20px;
+  }
+  .modal-overlay.active{display:flex;}
+  .modal{
+    background:var(--white); border-radius:16px; width:100%; max-width:560px;
+    box-shadow:var(--shadow-pop); max-height:90vh; overflow-y:auto;
+  }
+  .modal.modal-wide{max-width:820px;}
+  .modal-head{padding:20px 24px; border-bottom:1px solid var(--line); display:flex; align-items:center; justify-content:space-between;}
+  .modal-head h3{font-size:16px; font-weight:700; color:var(--brand-900);}
+  .modal-close{cursor:pointer; color:var(--ink-500); font-size:20px; line-height:1; background:none; border:none;}
+  .modal-body{padding:22px 24px;}
+  .modal-foot{padding:16px 24px; border-top:1px solid var(--line); display:flex; justify-content:flex-end; gap:10px;}
+
+  .field{margin-bottom:14px;}
+  .field label{display:block; font-size:12.5px; font-weight:600; color:var(--ink-600); margin-bottom:6px;}
+  .field input, .field select, .field textarea{
+    width:100%; border:1px solid var(--line); border-radius:8px; padding:10px 12px;
+    font-size:13.5px; outline:none; color:var(--ink-900); background:var(--cream-50);
+  }
+  .field input:focus, .field select:focus, .field textarea:focus{border-color:var(--brand-500); background:var(--white);}
+  .field-row{display:grid; grid-template-columns:1fr 1fr; gap:12px;}
+
+  /* Skeleton — thay spinner ở các khối tải lần đầu, đỡ giật layout khi dữ liệu về */
+  .skel{position:relative; overflow:hidden; background:#E7EEF6; border-radius:10px;}
+  .skel::after{
+    content:''; position:absolute; inset:0;
+    background:linear-gradient(90deg,transparent,rgba(255,255,255,.75),transparent);
+    transform:translateX(-100%); animation:shimmer 1.3s infinite;
+  }
+  @keyframes shimmer{to{transform:translateX(100%);}}
+  .skel-stat{height:98px; border-radius:var(--radius);}
+  .skel-row{height:15px;}
+  @media (prefers-reduced-motion:reduce){ .skel::after{animation:none;} }
+
+  /* Loader */
+  .spinner{
+    width:28px; height:28px; border-radius:50%;
+    border:3px solid var(--line); border-top-color:var(--brand-500);
+    animation:spin .7s linear infinite; margin:30px auto;
+  }
+  @keyframes spin{to{transform:rotate(360deg);}}
+  .loading-wrap{display:flex; flex-direction:column; align-items:center; padding:20px; color:var(--ink-500); font-size:13px;}
+
+  .toast{
+    position:fixed; bottom:24px; right:24px; z-index:80;
+    background:var(--brand-900); color:var(--white); padding:13px 20px; border-radius:10px;
+    font-size:13.5px; font-weight:500; box-shadow:var(--shadow-pop);
+    display:flex; align-items:center; gap:10px;
+    transform:translateY(20px); opacity:0; pointer-events:none; transition:.25s ease;
+  }
+  .toast.show{transform:translateY(0); opacity:1;}
+  .toast.error{background:var(--danger);}
+
+  .pagination{display:flex; align-items:center; gap:8px; justify-content:flex-end; margin-top:16px; font-size:13px; color:var(--ink-500);}
+  .pagination button{
+    border:1px solid var(--line); background:var(--white); border-radius:8px; padding:6px 12px; cursor:pointer; font-size:13px;
+  }
+  .pagination button:disabled{opacity:.4; cursor:not-allowed;}
+
+  /* Vật tư: bảng thu gọn đầy khung */
+  /* scrollbar-gutter:stable — CHỐT QUAN TRỌNG. Không có nó, thanh cuộn dọc được vẽ ĐÈ lên mép
+     phải của bảng và cắt mất cột người giữ cuối cùng. Có nó, trình duyệt chừa sẵn một làn riêng
+     bên ngoài vùng ô dữ liệu nên thanh cuộn không bao giờ phủ lên nội dung. */
+  .vt-stock-wrap{
+    width:100%; overflow-x:auto; overflow-y:auto; max-height:560px;
+    border:1px solid var(--line); border-radius:10px; scrollbar-gutter:stable;
+  }
+  /* Thanh cuộn mảnh, màu nhạt để làn cuộn không "nặng" hơn viền bảng */
+  .vt-stock-wrap::-webkit-scrollbar{width:10px; height:10px;}
+  .vt-stock-wrap::-webkit-scrollbar-track{background:transparent;}
+  .vt-stock-wrap::-webkit-scrollbar-thumb{
+    background:rgba(120,140,160,.35); border-radius:999px;
+    border:2px solid transparent; background-clip:content-box;
+  }
+  .vt-stock-wrap::-webkit-scrollbar-thumb:hover{background:rgba(120,140,160,.55); background-clip:content-box;}
+  .vt-stock-wrap::-webkit-scrollbar-corner{background:transparent;}
+  table.vt-compact{border-collapse:collapse; font-size:13px; width:100%; table-layout:auto;}
+  table.vt-compact th, table.vt-compact td{padding:9px 10px; border-bottom:1px solid var(--line); border-right:1px solid var(--line); white-space:nowrap; font-size:13px;}
+  table.vt-compact th:last-child, table.vt-compact td:last-child{border-right:none;}
+  table.vt-compact thead th{position:sticky; top:0; background:var(--white); z-index:2; text-transform:none; letter-spacing:0; font-weight:700; color:var(--brand-900);}
+  /* Tiêu đề người giữ: căn giữa, thu gọn min-width (chỉ cần đủ chỗ cho tên viết tắt) */
+  table.vt-compact th.vt-holder-head{ min-width:64px; text-align:center; }
+  table.vt-compact th.vt-name-head, table.vt-compact td.vt-name-cell{white-space:normal; min-width:230px;}
+  table.vt-compact th.vt-spec-head{white-space:normal; min-width:180px;}
+  table.vt-compact td.vt-spec-cell{white-space:normal; min-width:180px; color:var(--ink-500);}
+  table.vt-compact th.vt-fixed-head{background:var(--cream-50); position:sticky; left:0; z-index:3; text-align:center;}
+  table.vt-compact td.vt-fixed-cell{position:sticky; left:0; background:var(--white); z-index:1; text-align:center;}
+  table.vt-compact td.vt-total-cell{font-weight:700; color:var(--brand-900); text-align:center;}
+  /* Cột "Tổng" đứng ngay sau "Yêu cầu kỹ thuật", trước các cột người giữ */
+  table.vt-compact th.vt-total-head{ background:var(--cream-50); text-align:center; }
+  .vt-order-btns{display:inline-flex; gap:2px; margin-left:6px;}
+
+  /* Đồng bộ màu/độ đậm tiêu đề "Vật tư theo tháng" với bảng tồn kho phía trên */
+  table.vt-staff-table thead th{
+    color:var(--brand-900); font-weight:700; text-transform:none; letter-spacing:0; font-size:13px;
+  }
+  /* Dữ liệu các cột người giữ VÀ cột "Tổng" căn giữa; riêng "Tên vật tư" (cột đầu) giữ căn trái.
+     Phải viết đủ chuỗi .table-wrap.wrap-cells ... td.money mới thắng được rule căn PHẢI của
+     td.money khai báo ở khối Table phía trên. */
+  .table-wrap.wrap-cells table.data-table.vt-staff-table thead th + th,
+  .table-wrap.wrap-cells table.data-table.vt-staff-table tbody td + td,
+  .table-wrap.wrap-cells table.data-table.vt-staff-table thead th.money,
+  .table-wrap.wrap-cells table.data-table.vt-staff-table tbody td.money{ text-align:center; }
+
+  /* Bảng "Theo dõi vật tư đã sử dụng": table-layout FIXED + độ rộng cột theo % (khai báo bằng
+     <colgroup> trong HTML) để 7 cột luôn nằm gọn trong khung thẻ, không tràn ra ngoài phải cuộn
+     ngang. Trước đây bảng dùng layout auto: địa chỉ dài kéo giãn bảng và cắt mất cột Trạng thái. */
+  /* min-width 970px = ngưỡng mà cột chật nhất ("Hạng mục vật tư", 15%) vẫn đủ chỗ cho tên vật tư
+     dài nhất trên 1 dòng. Màn 1366px còn ~1034px cho bảng nên KHÔNG phát sinh cuộn ngang; hẹp
+     hơn ~1260px thì mới hiện thanh cuộn — cố ý chọn cuộn thay vì bóp cột đến mức vỡ chữ. */
+  .table-wrap.wrap-cells table.data-table.vt-track-table{
+    table-layout:fixed; width:100%; min-width:970px;
+  }
+  .table-wrap.wrap-cells table.data-table.vt-track-table td,
+  .table-wrap.wrap-cells table.data-table.vt-track-table th{
+    padding:11px 10px; vertical-align:top;
+  }
+  /* Tiêu đề căn GIỮA theo chiều dọc. Bản trước để bottom nên "NGUỒN" (1 dòng) bị dính đáy, so le
+     với các tiêu đề 2 dòng. Ô DỮ LIỆU vẫn giữ top: địa chỉ dài 2-3 dòng mà căn giữa thì ngày
+     tháng và badge trạng thái sẽ trôi lệch khỏi dòng đầu, rất khó dò theo hàng.
+     white-space:normal giữ lại làm lưới an toàn cho trường hợp nhãn cột dài hơn ô. */
+  .table-wrap.wrap-cells table.data-table.vt-track-table thead th{
+    white-space:normal; vertical-align:middle; line-height:1.35;
+  }
+  .table-wrap.wrap-cells table.data-table.vt-track-table td.col-wrap{
+    white-space:normal; word-break:break-word; overflow-wrap:break-word; min-width:0; line-height:1.45;
+  }
+
+  /* Người giữ vật tư: avatar tròn + tên + nút thao tác */
+  .vt-holder-row{display:flex; align-items:center; gap:10px; padding:10px 12px; border:1px solid var(--line); border-radius:10px; margin-bottom:8px; background:var(--cream-50);}
+  .vt-holder-avatar{width:32px; height:32px; border-radius:50%; background:var(--brand-900); color:var(--white); display:flex; align-items:center; justify-content:center; font-weight:700; font-size:13px; flex-shrink:0;}
+  .vt-holder-name-input{flex:1; min-width:0; border:1px solid var(--line); border-radius:8px; padding:8px 10px; font-size:13px; background:var(--white); color:var(--ink-900);}
+
+  /* Nút bị khoá bằng mật khẩu (Chỉnh sửa tồn kho) */
+  .btn-lock-icon{width:13px; height:13px; flex-shrink:0;}
+
+  @media (max-width:820px){
+    /* .sidebar.collapsed có độ ưu tiên cao hơn .sidebar nên phải nhắc lại cả 2 selector,
+       nếu không drawer sẽ không trượt ra được khi sidebar đang ở trạng thái thu gọn. */
+    .sidebar, .sidebar.collapsed{position:fixed; left:-260px; z-index:60; transition:left .2s ease; width:var(--sidebar-w);}
+    .sidebar.open, .sidebar.collapsed.open{left:0;}
+    .sidebar.collapsed .brand-text,
+    .sidebar.collapsed .sidebar-foot-text,
+    .sidebar.collapsed .nav-item span.label,
+    .sidebar.collapsed .sidebar-refresh-time,
+    .sidebar.collapsed .sidebar-refresh-btn span.label{display:block;}
+    .collapse-toggle{display:none;}
+    .topbar-menu-btn{display:flex;}
+    .topbar{padding:16px 18px;}
+    .content{padding:18px;}
+    .detail-grid{grid-template-columns:1fr;}
+    .detail-grid.cols-2{grid-template-columns:1fr;}
+  }
+</style>
+</head>
+<body>
+  <div class="shell">
+    <!-- SIDEBAR -->
+    <aside class="sidebar" id="sidebar">
+      <div class="brand">
+        <div class="brand-mark"><span class="brand-th">TH</span>
+          <svg class="brand-star" viewBox="0 0 24 24" fill="none">
+            <defs>
+              <linearGradient id="thStarGold" x1="4" y1="2" x2="20" y2="22" gradientUnits="userSpaceOnUse">
+                <stop offset="0" stop-color="#FDF0C6"/>
+                <stop offset=".45" stop-color="#E9B24A"/>
+                <stop offset="1" stop-color="#B67F22"/>
+              </linearGradient>
+            </defs>
+            <path fill="url(#thStarGold)" d="M12 .5Q13.1 10.1 18.5 8.25Q14.2 12 18.5 15.75Q13.1 13.9 12 22Q10.9 13.9 5.5 15.75Q9.8 12 5.5 8.25Q10.9 10.1 12 .5Z"/>
+          </svg>
+        </div>
+        <div class="brand-text">
+          <div class="brand-wordmark"><span class="w-true">true</span><span class="w-mart">mart</span></div>
+          <div class="t2">HỆ THỐNG QUẢN LÝ</div>
+        </div>
+        <button class="collapse-toggle" id="collapseToggleBtn" title="Thu gọn / Mở rộng menu">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m14 6-6 6 6 6"/></svg>
+        </button>
+      </div>
+
+      <nav class="nav">
+        <button class="nav-item active" type="button" data-view="dashboard" data-tooltip="Tổng quan">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>
+          <span class="label">Tổng quan</span>
+        </button>
+        <button class="nav-item" type="button" data-view="stores" data-tooltip="Cửa hàng">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 9.5 12 3l9 6.5"/><path d="M5 9.5V21h14V9.5"/><path d="M9.5 21v-6h5v6"/></svg>
+          <span class="label">Cửa hàng</span>
+        </button>
+        <button class="nav-item" type="button" data-view="assets" data-tooltip="Tài sản">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="4" y="4" width="16" height="16" rx="2.5"/><path d="M4 10h16M10 4v16"/></svg>
+          <span class="label">Tài sản</span>
+        </button>
+        <button class="nav-item" type="button" data-view="sanaky" data-tooltip="Sanaky">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2v6.5M12 15.5V22M4.5 6l4.6 4.6M14.9 13.4l4.6 4.6M4.5 18l4.6-4.6M14.9 10.6l4.6-4.6"/></svg>
+          <span class="label">Sanaky</span>
+        </button>
+        <button class="nav-item" type="button" data-view="maintenance" data-tooltip="Bảo dưỡng">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M14.7 6.3a4 4 0 0 1-5.4 5.4L4 17l3 3 5.3-5.3a4 4 0 0 1 5.4-5.4l-3 3-2-2 3-3z"/></svg>
+          <span class="label">Bảo dưỡng</span>
+        </button>
+        <button class="nav-item" type="button" data-view="vattu" data-tooltip="Vật tư">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 8 12 3 3 8v8l9 5 9-5V8Z"/><path d="M3 8l9 5 9-5M12 13v8"/></svg>
+          <span class="label">Vật tư</span>
+        </button>
+        <button class="nav-item" type="button" data-view="dongia" data-tooltip="Đơn giá">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2v20M17 5.5c0-1.4-2-2.5-5-2.5s-5 1.1-5 2.5S9 8 12 8s5 1.1 5 2.5S14.5 13 12 13s-5-1.1-5-2.5"/></svg>
+          <span class="label">Đơn giá</span>
+        </button>
+      </nav>
+
+      <div class="sidebar-refresh-row">
+        <button class="sidebar-refresh-btn" id="refreshDataBtn" data-tooltip="Làm mới dữ liệu" title="Đọc lại dữ liệu mới nhất từ Google Sheet">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 0 1 15.3-6.4L21 8M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-15.3 6.4L3 16M3 21v-5h5"/></svg>
+          <span class="label">Làm mới dữ liệu</span>
+        </button>
+        <div class="sidebar-refresh-time" id="dataLastUpdated">Cập nhật lần cuối: <b id="dataLastUpdatedValue">…</b></div>
+      </div>
+      <div class="sidebar-foot">
+        <div class="sidebar-foot-text">© 2026 Phòng Dự án và Xây Dựng · Hệ thống quản lý nội bộ</div>
+      </div>
+    </aside>
+
+    <!-- MAIN -->
+    <main class="main">
+      <div class="topbar">
+        <div class="topbar-left">
+          <button class="topbar-menu-btn" id="mobileMenuBtn" type="button" aria-label="Mở menu">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+          </button>
+          <div>
+            <h1 id="pageTitle">Tổng quan hệ thống</h1>
+            <div class="sub" id="pageSub">Số liệu cửa hàng, tài sản, chi phí sửa chữa và bảo dưỡng</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="content">
+
+        <!-- DASHBOARD -->
+        <section class="view active" id="view-dashboard">
+          <div class="row-between">
+            <div></div>
+            <div class="filters-row">
+              <select class="filter-select" id="yearFilterSelect"></select>
+              <select class="filter-select" id="regionFilterSelect">
+                <option value="">Toàn quốc</option>
+                <option value="MB">Miền Bắc</option>
+                <option value="MT">Miền Trung</option>
+                <option value="MN">Miền Nam</option>
+              </select>
+            </div>
+          </div>
+          <div class="stat-grid cols-6" id="statGrid"></div>
+          <div class="chart-row">
+            <div class="card panel">
+              <h3>Số lượng cửa hàng theo Miền</h3>
+              <div class="chart-container"><canvas id="chartRegion"></canvas></div>
+            </div>
+            <div class="card panel">
+              <h3>Loại cửa hàng</h3>
+              <div class="chart-container"><canvas id="chartType"></canvas><div class="chart-legend" id="chartTypeLegend"></div></div>
+            </div>
+          </div>
+          <div class="card panel">
+            <h3 style="margin-bottom:12px;">Chi phí mới cập nhật</h3>
+            <div class="table-wrap wrap-cells">
+              <table class="data-table" id="recentCostsTable">
+                <thead><tr><th>Loại</th><th>Mã tài sản</th><th class="col-wrap">Địa chỉ</th><th class="col-wrap">Nội dung</th><th>Ngày thực hiện</th><th>Nhà cung cấp</th><th class="money">Chi phí</th></tr></thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- STORES -->
+        <section class="view" id="view-stores">
+          <div class="search-bar">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+            <input type="text" id="storeSearchInput" placeholder="Nhập địa chỉ cửa hàng hoặc mã cửa hàng (Cost center) để tìm kiếm...">
+            <button class="btn btn-primary" id="storeSearchBtn">Tìm kiếm</button>
+          </div>
+
+          <div id="storeCandidates"></div>
+          <div id="storeDetailWrap" style="margin-top:18px;"></div>
+        </section>
+
+        <!-- ASSETS -->
+        <section class="view" id="view-assets">
+          <div class="mode-toggle">
+            <button class="active" data-mode="byCode">Tìm theo mã tài sản</button>
+            <button data-mode="byStore">Tìm theo cửa hàng</button>
+          </div>
+
+          <div id="assetByCodePanel">
+            <div class="search-bar">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+              <input type="text" id="assetCodeInput" placeholder="Nhập mã tài sản, ví dụ: 348014852">
+              <button class="btn btn-primary" id="assetCodeSearchBtn">Tìm kiếm</button>
+            </div>
+            <div id="assetCodeResults" style="margin-top:16px;"></div>
+          </div>
+
+          <div id="assetByStorePanel" style="display:none;">
+            <div class="search-bar">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+              <input type="text" id="assetStoreSearchInput" placeholder="Nhập địa chỉ cửa hàng hoặc mã cửa hàng (Cost center)">
+              <button class="btn btn-primary" id="assetStoreSearchBtn">Tìm kiếm</button>
+            </div>
+            <div id="assetStoreCandidates"></div>
+            <div id="assetStoreListWrap" style="margin-top:18px;"></div>
+          </div>
+        </section>
+
+        <!-- SANAKY -->
+        <section class="view" id="view-sanaky">
+
+          <div id="sanakyListWrap">
+            <div class="row-between">
+              <div></div>
+              <div class="filters-row">
+                <select class="filter-select" id="sanakyMonthFilterSelect">
+                  <option value="">Tất cả tháng</option>
+                </select>
+                <select class="filter-select" id="sanakyYearFilterSelect">
+                  <option value="">Tất cả năm</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="stat-grid cols-3" id="sanakyStatGrid"></div>
+
+            <div class="chart-row split-even">
+              <div class="card panel">
+                <h3>Cửa hàng chi phí sửa chữa cao nhất</h3>
+                <div id="sanakyTopStores"><div class="loading-wrap"><div class="spinner"></div>Đang tải…</div></div>
+              </div>
+              <div class="card panel">
+                <h3>Mã tài sản chi phí sửa chữa cao nhất</h3>
+                <div id="sanakyTopDevices"><div class="loading-wrap"><div class="spinner"></div>Đang tải…</div></div>
+              </div>
+            </div>
+
+            <div class="row-between">
+              <div class="search-bar" style="flex:1; max-width:520px;">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+                <input type="text" id="sanakySearchInput" placeholder="Tìm theo mã tài sản, mã cửa hàng, địa chỉ...">
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="table-wrap wrap-cells">
+                <table class="data-table" id="sanakyTable">
+                  <thead>
+                    <tr><th>Mã tài sản</th><th>Mã cửa hàng</th><th class="col-wrap">Địa chỉ</th><th>Ngày thực hiện</th><th class="col-wrap">Hạng mục sửa chữa</th><th>SL</th><th class="money">Thành tiền</th><th>Tình trạng</th></tr>
+                  </thead>
+                  <tbody></tbody>
+                </table>
+              </div>
+            </div>
+            <div class="pagination" id="sanakyPagination"></div>
+          </div>
+
+          <div id="sanakyAssetDetailWrap" style="display:none;"></div>
+        </section>
+
+        <!-- MAINTENANCE -->
+        <section class="view" id="view-maintenance">
+          <div class="chart-row split-even">
+            <div class="card panel">
+              <h3>Số lượng bảo dưỡng theo Quý</h3>
+              <div class="chart-container" style="height:260px;"><canvas id="chartMaintQuarterlyQty"></canvas></div>
+            </div>
+            <div class="card panel">
+              <h3>Chi phí bảo dưỡng theo Quý</h3>
+              <div class="chart-container" style="height:260px;"><canvas id="chartMaintQuarterlyCost"></canvas></div>
+            </div>
+          </div>
+
+          <div class="row-between">
+            <div class="search-bar" style="flex:1; max-width:520px;">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+              <input type="text" id="maintSearchInput" placeholder="Tìm theo mã tài sản, địa chỉ, nhà cung cấp...">
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="table-wrap wrap-cells">
+              <table class="data-table" id="maintTable">
+                <thead>
+                  <tr><th>Mã tài sản</th><th class="col-wrap">Địa chỉ</th><th>Loại thiết bị</th><th>Ngày thực hiện</th><th>Nhà cung cấp</th><th class="col-wrap">Nội dung công việc</th><th class="money">Chi phí</th><th class="col-wrap">Ghi chú</th></tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </div>
+          <div class="pagination" id="maintPagination"></div>
+        </section>
+
+        <!-- VẬT TƯ -->
+        <section class="view" id="view-vattu">
+          <div class="card panel" style="margin-bottom:22px;">
+            <div class="row-between" style="margin-bottom:14px;">
+              <h3 style="margin:0;">Vật tư tồn kho theo người giữ</h3>
+              <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                <button class="btn btn-ghost btn-sm" id="vtManageItemsBtn"><svg class="btn-lock-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>Quản lý vật tư</button>
+                <button class="btn btn-ghost btn-sm" id="vtManageHoldersBtn"><svg class="btn-lock-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>Người giữ vật tư</button>
+                <button class="btn btn-ghost btn-sm" id="vtEditQtyBtn"><svg class="btn-lock-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>Chỉnh sửa tồn kho</button>
+                <button class="btn btn-primary btn-sm" id="vtStockInBtn"><svg class="btn-lock-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>Cập nhật tồn kho</button>
+                <!-- Trừ kho theo các dòng CHI PHÍ mới. Chỉ chạy khi bấm nút này. -->
+                <button class="btn btn-primary btn-sm" id="vtCalcBtn"><svg class="btn-lock-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>Khớp vật tư</button>
+                <button class="btn btn-gold btn-sm" id="vtExportBtn">Xuất Excel</button>
+              </div>
+            </div>
+            <div class="vt-stock-wrap" id="vtStockTableWrap">
+              <div class="loading-wrap"><div class="spinner"></div>Đang tải…</div>
+            </div>
+          </div>
+
+          <div class="card panel" style="margin-bottom:22px;">
+            <div class="row-between" style="margin-bottom:14px;">
+              <h3 style="margin:0;">Vật tư được sử dụng theo tháng</h3>
+              <div class="filters-row">
+                <select class="filter-select" id="vtMonthSelect"></select>
+                <select class="filter-select" id="vtYearSelect"></select>
+              </div>
+            </div>
+            <div class="table-wrap wrap-cells" id="vtByStaffTableWrap">
+              <div class="loading-wrap"><div class="spinner"></div>Đang tải…</div>
+            </div>
+          </div>
+
+          <div class="card panel">
+            <div class="row-between" style="margin-bottom:14px;">
+              <h3 style="margin:0;">Theo dõi vật tư đã sử dụng</h3>
+              <div class="filters-row">
+                <select class="filter-select" id="vtTrackStaffSelect"><option value="">Tên nhân viên</option></select>
+                <select class="filter-select" id="vtTrackMonthSelect"><option value="">Tất cả tháng</option></select>
+                <select class="filter-select" id="vtTrackYearSelect"><option value="">Tất cả năm</option></select>
+                <select class="filter-select" id="vtTrackStatusSelect">
+                  <option value="">Tất cả trạng thái</option>
+                  <option value="done">Đã xuất kho</option>
+                  <option value="wait">Chờ xuất kho</option>
+                  <option value="no_item">Chưa khớp vật tư</option>
+                  <option value="no_holder">Thiếu người giữ</option>
+                  <option value="no_qty">Thiếu số lượng</option>
+                  <option value="no_stock">Không đủ tồn</option>
+                </select>
+              </div>
+            </div>
+            <div class="search-bar" style="margin-bottom:16px; max-width:520px;">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+              <input type="text" id="vtTrackSearchInput" placeholder="Tìm theo tên vật tư, NV phụ trách, nhà cung cấp, địa chỉ...">
+            </div>
+            <div class="vt-status-summary" id="vtTrackSummary"></div>
+            <div class="table-wrap wrap-cells">
+              <table class="data-table vt-track-table" id="vtTrackTable">
+                <!-- Tổng phải đúng 100%: sửa một cột thì phải bù lại ở cột khác, nếu không bảng
+                     sẽ lệch khỏi bề rộng khung. Các % tính từ bề rộng thực của nội dung dài nhất
+                     mỗi cột cộng 20px padding ô: badge nguồn ~100px, "04/05/2026" ~106px, tên vật
+                     tư ~145px, tên nhân viên ~124px, badge trạng thái ~137px.
+                     Trạng thái CỐ Ý chỉ 15% chứ không 17% như bản trước: 17% để dư ~41px trắng ở
+                     mép phải trong khi cột Hạng mục bị bóp đến mức dòng nào cũng gãy đôi. -->
+                <colgroup>
+                  <col style="width:11%"><col style="width:11%"><col style="width:15%"><col style="width:5%">
+                  <col style="width:13%"><col style="width:30%"><col style="width:15%">
+                </colgroup>
+                <thead><tr><th>Nguồn</th><th title="Ngày hoàn thành">Ngày</th><th class="col-wrap">Hạng mục vật tư</th><th title="Số lượng">SL</th><th>NV Phụ trách</th><th class="col-wrap">Địa chỉ</th><th>Trạng thái</th></tr></thead>
+                <tbody></tbody>
+              </table>
+            </div>
+            <div class="pagination" id="vtTrackPagination"></div>
+          </div>
+        </section>
+
+        <!-- ĐƠN GIÁ -->
+        <section class="view" id="view-dongia">
+          <div class="mode-toggle" id="dongiaTabs">
+            <button class="active" data-cat="bt">Bảo trì</button>
+            <button data-cat="xd">Xây dựng</button>
+            <button data-cat="snk">Sanaky</button>
+          </div>
+
+          <div class="search-bar">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+            <input type="text" id="dongiaSearchInput" placeholder="Tìm theo mã IMC hoặc nội dung công việc...">
+          </div>
+
+          <div class="card" style="margin-top:16px;">
+            <div class="table-wrap wrap-cells">
+              <table class="data-table dongia-table" id="dongiaTable">
+                <thead><tr id="dongiaTheadRow"></tr></thead>
+                <tbody><tr><td colspan="7" style="text-align:center; color:var(--ink-500); padding:24px;">Đang tải…</td></tr></tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+      </div>
+    </main>
+  </div>
+
+  <!-- MODAL: Quản lý vật tư -->
+  <div class="modal-overlay" id="vtItemsModal">
+    <div class="modal">
+      <div class="modal-head"><h3>Quản lý vật tư</h3><button class="modal-close" id="vtItemsModalClose">×</button></div>
+      <div class="modal-body">
+        <div class="hint" style="margin:0 0 10px;">Dùng nút ↑ / ↓ để sắp xếp lại thứ tự — thứ tự này sẽ quyết định thứ tự hiển thị ở các bảng vật tư khác.</div>
+        <div id="vtItemsList" style="max-height:260px; overflow-y:auto; margin-bottom:16px;"></div>
+        <div class="field-row">
+          <div class="field"><label>Mã vật tư</label><input type="text" id="vtItemCodeInput"></div>
+          <div class="field"><label>Tên vật tư</label><input type="text" id="vtItemNameInput"></div>
+        </div>
+        <div class="field"><label>Yêu cầu kỹ thuật và vật liệu</label><input type="text" id="vtItemSpecInput"></div>
+        <input type="hidden" id="vtItemOldCodeInput">
+      </div>
+      <div class="modal-foot">
+        <button class="btn btn-ghost btn-sm" id="vtItemFormResetBtn">Nhập mới</button>
+        <button class="btn btn-primary btn-sm" id="vtItemSaveBtn">Lưu vật tư</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: Người giữ vật tư -->
+  <div class="modal-overlay" id="vtHoldersModal">
+    <div class="modal">
+      <div class="modal-head"><h3>Người giữ vật tư</h3><button class="modal-close" id="vtHoldersModalClose">×</button></div>
+      <div class="modal-body">
+        <div id="vtHoldersList" style="margin-bottom:16px;"></div>
+        <div class="field"><label>Thêm người giữ vật tư mới</label>
+          <div style="display:flex; gap:8px;">
+            <input type="text" id="vtHolderNewInput" placeholder="Họ tên..." style="flex:1;">
+            <button class="btn btn-primary btn-sm" id="vtHolderAddBtn">Thêm</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: Chỉnh sửa tồn kho (ghi đè, khoá mật khẩu) -->
+  <div class="modal-overlay" id="vtQtyModal">
+    <div class="modal modal-wide">
+      <div class="modal-head"><h3>Chỉnh sửa tồn kho (ghi đè)</h3><button class="modal-close" id="vtQtyModalClose">×</button></div>
+      <div class="modal-body">
+        <div class="field"><label>Người giữ</label><select id="vtQtyHolderSelect"></select></div>
+        <div class="hint" style="margin:0 0 10px;">Chọn người giữ, sau đó chỉnh sửa trực tiếp số lượng từng vật tư trong bảng bên dưới. Số nhập vào sẽ GHI ĐÈ số hiện có.</div>
+        <div class="table-wrap" style="max-height:360px; overflow-y:auto; border:1px solid var(--line); border-radius:10px;">
+          <table class="data-table" id="vtQtyTable">
+            <thead><tr><th>Mã vật tư</th><th>Tên vật tư</th><th style="width:120px;">Số lượng</th></tr></thead>
+            <tbody id="vtQtyTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="modal-foot">
+        <button class="btn btn-primary btn-sm" id="vtQtySaveBtn">Lưu số lượng</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: Xác nhận mật khẩu -->
+  <div class="modal-overlay" id="vtPasswordModal">
+    <div class="modal" style="max-width:380px;">
+      <div class="modal-head"><h3 id="vtPasswordTitle">Yêu cầu mật khẩu</h3><button class="modal-close" id="vtPasswordClose">×</button></div>
+      <div class="modal-body">
+        <div id="vtPasswordMsg" style="font-size:13px; color:var(--ink-500); margin-bottom:14px;"></div>
+        <div class="field"><label>Mật khẩu</label><input type="password" id="vtPasswordInput" placeholder="Nhập mật khẩu..."></div>
+        <div id="vtPasswordError" style="display:none; color:var(--danger); font-size:12.5px; margin-top:-8px;">Mật khẩu không đúng, thử lại.</div>
+      </div>
+      <div class="modal-foot">
+        <button class="btn btn-ghost btn-sm" id="vtPasswordCancelBtn">Huỷ</button>
+        <button class="btn btn-primary btn-sm" id="vtPasswordOkBtn">Xác nhận</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: Cập nhật tồn kho (nhập kho, cộng dồn) -->
+  <div class="modal-overlay" id="vtStockInModal">
+    <div class="modal modal-wide">
+      <div class="modal-head"><h3>Cập nhật tồn kho (nhập kho)</h3><button class="modal-close" id="vtStockInModalClose">×</button></div>
+      <div class="modal-body">
+        <div class="mode-toggle" id="vtStockInTabs">
+          <button class="active" data-tab="nhap">Nhập kho</button>
+          <button data-tab="lichsu">Lịch sử nhập</button>
+        </div>
+
+        <div id="vtStockInFormPanel">
+          <div class="field"><label>Người nhận nhập kho</label><select id="vtStockInHolderSelect"></select></div>
+          <div class="hint" style="margin:0 0 10px;">Điền số lượng VỪA NHẬN THÊM cho từng vật tư — hệ thống tự động CỘNG DỒN vào số đang có (không ghi đè), và lưu lại lịch sử nhập.</div>
+          <div class="table-wrap" style="max-height:340px; overflow-y:auto; border:1px solid var(--line); border-radius:10px;">
+            <table class="data-table" id="vtStockInTable">
+              <thead><tr><th>Mã vật tư</th><th>Tên vật tư</th><th style="width:140px;">Số lượng nhập</th></tr></thead>
+              <tbody id="vtStockInTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div id="vtStockInHistoryPanel" style="display:none;">
+          <div class="table-wrap wrap-cells">
+            <table class="data-table" id="vtStockInHistoryTable">
+              <thead><tr><th>Ngày nhập</th><th>Mã vật tư</th><th class="col-wrap">Tên vật tư</th><th>Số lượng nhập</th><th>Người giữ</th></tr></thead>
+              <tbody><tr><td colspan="5" style="text-align:center; color:var(--ink-500); padding:20px;">Đang tải…</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+      <div class="modal-foot" id="vtStockInFormFoot">
+        <button class="btn btn-primary btn-sm" id="vtStockInSaveBtn">Lưu nhập kho</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: Xác nhận xoá -->
+  <div class="modal-overlay" id="vtConfirmModal">
+    <div class="modal" style="max-width:420px;">
+      <div class="modal-head"><h3 id="vtConfirmTitle">Xác nhận</h3><button class="modal-close" id="vtConfirmClose">×</button></div>
+      <div class="modal-body"><div id="vtConfirmMsg" style="font-size:13.5px; color:var(--ink-900); line-height:1.5;"></div></div>
+      <div class="modal-foot">
+        <button class="btn btn-ghost btn-sm" id="vtConfirmCancelBtn">Huỷ</button>
+        <button class="btn btn-primary btn-sm" id="vtConfirmOkBtn" style="background:var(--danger);">Xoá</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="sidebar-scrim" id="sidebarScrim"></div>
+  <div class="toast" id="toast"></div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js" onerror="var s=document.createElement('script'); s.src='https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js'; document.head.appendChild(s);"></script>
+  <script>
+(function () {
+  'use strict';
+
+  // Icons (SVG)
+  var ICONS = {
+    search: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" width="34" height="34"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>',
+    box: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="34" height="34"><path d="M21 8 12 3 3 8v8l9 5 9-5V8Z"/><path d="M3 8l9 5 9-5M12 13v8"/></svg>',
+    trophy: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" width="16" height="16"><path d="M8 21h8M12 17v4M7 4h10v4a5 5 0 0 1-10 0V4Z"/><path d="M7 5H4a3 3 0 0 0 3 5M17 5h3a3 3 0 0 1-3 5"/></svg>'
+  };
+
+  // Helpers
+  function $(sel, root) { return (root || document).querySelector(sel); }
+  function $all(sel, root) { return Array.prototype.slice.call((root || document).querySelectorAll(sel)); }
+  function esc(v) { return (v === null || v === undefined) ? '' : String(v).replace(/[&<>"']/g, function (c) {
+    return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+  }); }
+  function fmtVND(n) { n = Number(n) || 0; return n.toLocaleString('vi-VN') + ' đ'; }
+  function removeDiacriticsJS_(str) {
+    return String(str || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'D').toLowerCase();
+  }
+  /** Viết tắt tên đầy đủ cho tiêu đề cột (đỡ chiếm diện tích ngang). Vd "Nguyễn Duy Đức" -> "ND Đức". */
+  function abbreviateHolderName_(fullName) {
+    var parts = String(fullName || '').trim().split(/\s+/);
+    if (parts.length <= 1) return fullName;
+    var last = parts[parts.length - 1];
+    var initials = parts.slice(0, parts.length - 1).map(function (p) { return p.charAt(0).toUpperCase(); }).join('');
+    return initials + ' ' + last;
+  }
+  /** Chuẩn hoá chuỗi ngày về dd/MM/yyyy (phòng khi có chuỗi ISO lọt qua). */
+  function normalizeDateJS_(v) {
+    var s = String(v === null || v === undefined ? '' : v).trim();
+    if (!s) return '';
+    var iso = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (iso) return iso[3] + '/' + iso[2] + '/' + iso[1];
+    return s;
+  }
+  /** Chuyển "dd/MM/yyyy" thành Date để so sánh/sắp xếp. */
+  function parseVnDateJS_(s) {
+    var p = String(s || '').split('/');
+    if (p.length !== 3) return new Date(0);
+    return new Date(Number(p[2]), Number(p[1]) - 1, Number(p[0]));
+  }
+
+  /** Khối chờ dạng skeleton — giữ đúng khung layout nên dữ liệu về không làm giật trang. */
+  function skelStats(n) {
+    var out = '';
+    for (var i = 0; i < n; i++) out += '<div class="skel skel-stat"></div>';
+    return out;
+  }
+  function skelTableRows(cols, rows) {
+    var out = '';
+    for (var i = 0; i < (rows || 5); i++) {
+      out += '<tr>';
+      for (var j = 0; j < cols; j++) out += '<td><div class="skel skel-row"></div></td>';
+      out += '</tr>';
+    }
+    return out;
+  }
+
+  var toastTimer = null;
+  function showToast(msg, isError) {
+    var t = $('#toast');
+    t.textContent = msg;
+    t.classList.toggle('error', !!isError);
+    t.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { t.classList.remove('show'); }, 3200);
+  }
+
+  /** Modal xác nhận dùng chung, thay confirm() mặc định. Trả về Promise<boolean>. */
+  function confirmDialog(title, message) {
+    return new Promise(function (resolve) {
+      $('#vtConfirmTitle').textContent = title || 'Xác nhận';
+      $('#vtConfirmMsg').textContent = message || '';
+      var overlay = $('#vtConfirmModal');
+      overlay.classList.add('active');
+      var okBtn = $('#vtConfirmOkBtn');
+      var cancelBtn = $('#vtConfirmCancelBtn');
+      var closeBtn = $('#vtConfirmClose');
+      function cleanup(result) {
+        overlay.classList.remove('active');
+        okBtn.removeEventListener('click', onOk);
+        cancelBtn.removeEventListener('click', onCancel);
+        closeBtn.removeEventListener('click', onCancel);
+        resolve(result);
+      }
+      function onOk() { cleanup(true); }
+      function onCancel() { cleanup(false); }
+      okBtn.addEventListener('click', onOk);
+      cancelBtn.addEventListener('click', onCancel);
+      closeBtn.addEventListener('click', onCancel);
+    });
+  }
+
+  /**
+   * Dựng cặp bộ lọc Tháng/Năm dựa trên `monthsAvailable` (mảng "yyyy-MM" thực có dữ liệu).
+   * Khi đổi Năm, danh sách Tháng tự lọc lại theo năm đó.
+   */
+  function setupYearMonthFilter_(monthsAvailable, yearSelectEl, monthSelectEl, currentYearVal, currentMonthVal, onChange) {
+    var years = Array.from(new Set(monthsAvailable.map(function (k) { return k.split('-')[0]; }))).sort().reverse();
+
+    function monthsForYear(year) {
+      var set = {};
+      monthsAvailable.forEach(function (k) {
+        var parts = k.split('-');
+        if (!year || parts[0] === String(year)) set[Number(parts[1])] = true;
+      });
+      return Object.keys(set).map(Number).sort(function (a, b) { return a - b; });
+    }
+
+    function rebuildMonths(year, keepMonth) {
+      var months = monthsForYear(year);
+      var html = '<option value="">Tất cả tháng</option>';
+      months.forEach(function (m) { html += '<option value="' + m + '">Tháng ' + m + '</option>'; });
+      monthSelectEl.innerHTML = html;
+      monthSelectEl.value = (keepMonth && months.indexOf(Number(keepMonth)) > -1) ? String(keepMonth) : '';
+    }
+
+    var yearHtml = '<option value="">Tất cả năm</option>';
+    years.forEach(function (y) { yearHtml += '<option value="' + y + '">Năm ' + y + '</option>'; });
+    yearSelectEl.innerHTML = yearHtml;
+    yearSelectEl.value = (currentYearVal && years.indexOf(String(currentYearVal)) > -1) ? String(currentYearVal) : '';
+    rebuildMonths(yearSelectEl.value, currentMonthVal);
+
+        /* PHẢI dùng .onchange = chứ KHÔNG dùng addEventListener. Hàm này chạy lại sau mỗi lần làm mới
+       (3 chỗ gọi) nhưng vẫn gắn vào ĐÚNG thẻ <select> cũ — addEventListener cộng dồn handler nên
+       refresh n lần là một lần đổi tháng gọi server n lần. */
+    yearSelectEl.onchange = function () {
+      rebuildMonths(yearSelectEl.value, null);
+      onChange(yearSelectEl.value, monthSelectEl.value);
+    };
+    monthSelectEl.onchange = function () {
+      onChange(yearSelectEl.value, monthSelectEl.value);
+    };
+  }
+
+  /** Modal xác nhận mật khẩu dùng chung, khoá thao tác ghi đè dữ liệu nhạy cảm. Trả về Promise<boolean>. */
+  function passwordDialog(title, message) {
+    return new Promise(function (resolve) {
+      $('#vtPasswordTitle').textContent = title || 'Yêu cầu mật khẩu';
+      $('#vtPasswordMsg').textContent = message || '';
+      $('#vtPasswordInput').value = '';
+      $('#vtPasswordError').style.display = 'none';
+      var overlay = $('#vtPasswordModal');
+      overlay.classList.add('active');
+      var okBtn = $('#vtPasswordOkBtn');
+      var cancelBtn = $('#vtPasswordCancelBtn');
+      var closeBtn = $('#vtPasswordClose');
+      var input = $('#vtPasswordInput');
+      setTimeout(function () { input.focus(); }, 50);
+
+      function cleanup(result) {
+        overlay.classList.remove('active');
+        okBtn.removeEventListener('click', onOk);
+        cancelBtn.removeEventListener('click', onCancel);
+        closeBtn.removeEventListener('click', onCancel);
+        input.removeEventListener('keydown', onKeydown);
+        resolve(result);
+      }
+      function onOk() {
+        if (input.value === '121212') { cleanup(true); }
+        else { $('#vtPasswordError').style.display = ''; input.value = ''; input.focus(); }
+      }
+      function onCancel() { cleanup(false); }
+      function onKeydown(e) { if (e.key === 'Enter') onOk(); }
+
+      okBtn.addEventListener('click', onOk);
+      cancelBtn.addEventListener('click', onCancel);
+      closeBtn.addEventListener('click', onCancel);
+      input.addEventListener('keydown', onKeydown);
+    });
+  }
+
+  function runServer(fnName, args, onOk, onErr) {
+    var runner = google.script.run
+      .withSuccessHandler(onOk)
+      .withFailureHandler(function (err) {
+        showToast((err && err.message) ? err.message : 'Có lỗi xảy ra, vui lòng thử lại.', true);
+        if (onErr) onErr(err);
+      });
+    runner[fnName].apply(runner, args || []);
+  }
+
+  /** Màu badge loại cửa hàng (Normal / Flagship / Hero / CVS Hero / khác) */
+  function typeBadgeClass(type) {
+    var t = removeDiacriticsJS_(type || '').replace(/\s+/g, '');
+    if (t.indexOf('cvshero') > -1) return 'cvshero';
+    if (t.indexOf('flagship') > -1) return 'flagship';
+    if (t.indexOf('hero') > -1) return 'hero';
+    if (t.indexOf('cvs') > -1) return 'cvs';
+    if (t.indexOf('mini') > -1) return 'mini';
+    if (t.indexOf('normal') > -1) return 'normal';
+    return 'other';
+  }
+
+  // SỬA: chốt cứng thứ tự Miền và màu Loại cửa hàng ngay tại client, KHÔNG phụ thuộc thứ tự
+  // key / mảng màu mà server trả về (nếu bản deploy Apps Script chưa cập nhật kịp thì biểu đồ
+  // vẫn luôn đúng thứ tự Bắc->Trung->Nam và đúng màu đồng bộ với badge trong tab Cửa hàng).
+  var REGION_ORDER_ = ['Miền Bắc', 'Miền Trung', 'Miền Nam'];
+  // Phải khớp 100% với STORE_TYPE_COLORS trong Code.gs và với .type-badge.* trong CSS ở trên.
+  var TYPE_COLOR_MAP_ = {
+    normal: '#2E9BE0', flagship: '#7A2FA0', hero: '#E3A83B',
+    cvshero: '#0F5FA8', cvs: '#2C7A4B', mini: '#5B8FA8', other: '#93A2AC'
+  };
+  function regionSortKey_(label) {
+    var i = REGION_ORDER_.indexOf(label);
+    return i === -1 ? REGION_ORDER_.length : i; // miền lạ (nếu có) đẩy xuống cuối
+  }
+
+  function costTypeBadgeClass(type) {
+    if (type === 'Sanaky') return 'sanaky';
+    if (type === 'Bảo dưỡng') return 'maint';
+    return 'chiphi';
+  }
+
+  /** Dòng "Số lượt · Tổng chi phí", dùng chung cho Sanaky / Chi phí / Lịch sử tài sản. */
+  function sanakySummaryHTML(totalRepairs, totalCost) {
+    return '<div class="sanaky-summary-line">' +
+      'Số lượt: <strong>' + totalRepairs + ' lượt</strong>' +
+      '<span class="sep">·</span>' +
+      'Tổng chi phí: <strong>' + fmtVND(totalCost) + '</strong>' +
+    '</div>';
+  }
+
+  /** Link mã tài sản -> chuyển sang trang Tài sản tra cứu theo mã. */
+  function assetToTaisanPill(assetCode) {
+    return '<span class="cc-pill outline" style="cursor:pointer;" onclick="THTM.searchAssetByCodeAndShow(\'' + esc(assetCode).replace(/'/g, "\\'") + '\')">' + esc(assetCode) + '</span>';
+  }
+
+  /** Ô nhiều dòng con cho bảng Chi phí đã gộp — mode: item | asset | qty | money. */
+  function chiPhiItemsCell(items, mode) {
+    return '<div class="multi-line' + (mode === 'qty' ? ' qty-group' : mode === 'money' ? ' money-group' : '') + '">' +
+      items.map(function (it) {
+        if (mode === 'qty') return '<div>' + esc(it.qty) + '</div>';
+        if (mode === 'money') return '<div>' + fmtVND(it.cost) + '</div>';
+        if (mode === 'asset') return '<div>' + (it.assetCode ? assetToTaisanPill(it.assetCode) : '<span class="cc-dash">—</span>') + '</div>';
+        return '<div>' + esc(it.item) + '</div>';
+      }).join('') +
+    '</div>';
+  }
+
+  function chiPhiSummaryHTML(totalCount, totalCost) {
+    return '<div class="sanaky-summary-line">' +
+      'Số lượt: <strong>' + totalCount + '</strong>' +
+      '<span class="sep">·</span>' +
+      'Tổng chi phí: <strong>' + fmtVND(totalCost) + '</strong>' +
+    '</div>';
+  }
+
+  /** Bảng Chi phí đã gộp: Mô tả sự cố, Mã thiết bị, Hạng mục/Vật tư, SL, Chi phí, NV phụ trách, Ngày, NCC. */
+  function chiPhiTableHTML(rows) {
+    return '<div class="table-wrap wrap-cells"><table class="data-table"><thead><tr>' +
+      '<th class="col-wrap">Mô tả sự cố</th><th>Mã thiết bị</th><th class="col-wrap">Hạng mục/Vật tư</th><th>SL</th><th class="money">Chi phí</th><th>NV phụ trách</th><th>Ngày hoàn thành</th><th>Nhà cung cấp</th>' +
+      '</tr></thead><tbody>' +
+      rows.map(function (r) {
+        return '<tr><td>' + esc(r.issue) + '</td>' +
+          '<td>' + chiPhiItemsCell(r.items, 'asset') + '</td>' +
+          '<td>' + chiPhiItemsCell(r.items, 'item') + '</td>' +
+          '<td>' + chiPhiItemsCell(r.items, 'qty') + '</td>' +
+          '<td class="money">' + chiPhiItemsCell(r.items, 'money') + '</td>' +
+          '<td>' + esc(r.staff) + '</td><td>' + esc(normalizeDateJS_(r.date)) + '</td><td>' + esc(r.supplier || '—') + '</td></tr>';
+      }).join('') +
+      '</tbody></table></div>';
+  }
+
+  // Sidebar collapse
+  var sidebarEl = $('#sidebar');
+  $('#collapseToggleBtn').addEventListener('click', function () {
+    sidebarEl.classList.toggle('collapsed');
+  });
+
+  // Drawer cho cửa sổ hẹp (<=820px). Trước đây CSS đã có sẵn rule .sidebar.open nhưng
+  // KHÔNG có chỗ nào gán class đó và topbar cũng không có nút mở -> thu hẹp cửa sổ là
+  // mất hẳn menu, không có cách nào gọi lại.
+  var scrimEl = $('#sidebarScrim');
+  function openDrawer() { sidebarEl.classList.add('open'); scrimEl.classList.add('active'); }
+  function closeDrawer() { sidebarEl.classList.remove('open'); scrimEl.classList.remove('active'); }
+  $('#mobileMenuBtn').addEventListener('click', openDrawer);
+  scrimEl.addEventListener('click', closeDrawer);
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeDrawer(); });
+  window.addEventListener('resize', function () { if (window.innerWidth > 820) closeDrawer(); });
+  // Đổi kích thước cửa sổ làm scale/legend fit lại -> căn thẳng hàng lại (debounce nhẹ).
+  var alignTimer_ = null;
+  window.addEventListener('resize', function () {
+    clearTimeout(alignTimer_);
+    alignTimer_ = setTimeout(function () {
+      if (typeof alignChartBaselines_ === 'function') alignChartBaselines_();
+    }, 180);
+  });
+
+  // Navigation
+  var TITLES = {
+    dashboard: ['Tổng quan hệ thống', 'Số liệu cửa hàng, tài sản, chi phí sửa chữa và bảo dưỡng'],
+    stores: ['Cửa hàng', 'Tra cứu thông tin chi tiết theo mã cửa hàng hoặc địa chỉ'],
+    assets: ['Tài sản', 'Tra cứu tài sản theo mã tài sản hoặc theo cửa hàng'],
+    sanaky: ['Sanaky', 'Lịch sử sửa chữa và chi phí bảo trì thiết bị Sanaky'],
+    maintenance: ['Bảo dưỡng', 'Lịch sử và chi phí bảo dưỡng thiết bị'],
+    vattu: ['Vật tư', 'Theo dõi vật tư tồn kho'],
+    dongia: ['Đơn giá', 'Tra cứu đơn giá vật tư, nhân công theo mã IMC hoặc nội dung công việc']
+  };
+
+  function goToView(view) {
+    closeDrawer();
+    $all('.nav-item').forEach(function (el) { el.classList.toggle('active', el.dataset.view === view); });
+    $all('.view').forEach(function (el) { el.classList.toggle('active', el.id === 'view-' + view); });
+    $('#pageTitle').textContent = TITLES[view][0];
+    $('#pageSub').textContent = TITLES[view][1];
+    if (view === 'dashboard') {
+      if (!dashboardLoaded) {
+        loadDashboard();
+      } else {
+        /* Biểu đồ đã dựng từ trước nhưng bị đo khi panel đang ẩn. Panel vừa hiện lại -> ép
+           Chart.js đo lại rồi căn chú thích, nếu không donut giữ nguyên kích thước sai. */
+        requestAnimationFrame(function () {
+          if (chartRegion) chartRegion.resize();
+          if (chartType) chartType.resize();
+          requestAnimationFrame(alignChartBaselines_);
+        });
+      }
+    }
+    if (view === 'sanaky') {
+      $('#sanakyListWrap').style.display = '';
+      $('#sanakyAssetDetailWrap').style.display = 'none';
+      if (!sanakyLoaded) loadSanakyView();
+    }
+    if (view === 'maintenance' && !maintLoaded) loadMaintenance();
+    if (view === 'vattu' && !vattuLoaded) loadVatTu();
+    if (view === 'dongia' && !dongiaLoaded) loadDongia(currentDongiaCategory);
+  }
+
+  $all('.nav-item').forEach(function (el) {
+    el.addEventListener('click', function () { goToView(el.dataset.view); });
+  });
+
+  // Dashboard
+  var dashboardLoaded = false;
+  var chartRegion, chartType;
+  var currentRegionFilter = '';
+  var currentYearFilter = String(new Date().getFullYear());
+
+  window.addEventListener('load', function () {
+    if (chartRegion) chartRegion.resize();
+    if (chartType) chartType.resize();
+  });
+
+  (function initYearFilter() {
+    var sel = $('#yearFilterSelect');
+    var nowY = new Date().getFullYear();
+    var html = '<option value="">Tất cả năm</option>';
+    for (var y = nowY; y >= nowY - 6; y--) {
+      html += '<option value="' + y + '"' + (String(y) === currentYearFilter ? ' selected' : '') + '>Năm ' + y + '</option>';
+    }
+    sel.innerHTML = html;
+  })();
+
+  function loadDashboard() {
+    dashboardLoaded = true;
+    $('#statGrid').innerHTML = skelStats(6);
+    $('#recentCostsTable tbody').innerHTML = skelTableRows(7, 5);
+    runServer('getDashboardData', [false, currentRegionFilter, currentYearFilter], renderDashboard);
+  }
+
+  $('#regionFilterSelect').addEventListener('change', function () {
+    currentRegionFilter = this.value;
+    loadDashboard();
+  });
+  $('#yearFilterSelect').addEventListener('change', function () {
+    currentYearFilter = this.value;
+    loadDashboard();
+  });
+
+    /* Nút "Làm mới dữ liệu" CHỈ ĐỌC. Thông điệp về trừ kho nằm ở vtCalcMessage_. */
+  function refreshMessage_(res) {
+    return 'Đã làm mới dữ liệu.';
+  }
+
+  /** Diễn giải kết quả trả về từ runVatTuAutoDeduction thành một câu tiếng Việt đầy đủ. */
+  function vtCalcMessage_(res) {
+    if (!res) return 'Đã tính toán vật tư.';
+    if (res.success === false) return res.message || 'Không chạy được, thử lại sau.';
+    if (res.migrated) return 'Đã khởi tạo khoá chống trùng cho ' + res.migrated + ' dòng chi phí (chưa trừ kho).';
+    if (!res.processed && !res.shorted && !res.skipped) {
+      return res.unmatchedTotal
+        ? 'Không có dòng chi phí mới nào cần trừ kho. Tổng cộng ' + res.unmatchedTotal + ' dòng đang chưa khớp.'
+        : 'Không có dòng chi phí mới nào cần trừ kho.';
+    }
+
+    /* Nói rõ "dòng MỚI": các con số này chỉ tính những dòng chưa từng xử lý, còn dải thẻ tóm tắt
+       phía trên bảng đếm TÍCH LUỸ toàn bộ. Thiếu chữ "mới" là hai con số nhìn như đá nhau. */
+    var parts = [];
+    if (res.processed) parts.push('đã trừ kho ' + res.processed + ' dòng');
+    if (res.shorted) parts.push(res.shorted + ' dòng không đủ tồn');
+    if (res.skipped) parts.push(res.skipped + ' dòng chưa khớp vật tư/người giữ');
+    var msg = 'Khớp vật tư (dòng mới): ' + parts.join(' · ') + '.';
+    if (res.unmatchedTotal) msg += ' Tổng cộng ' + res.unmatchedTotal + ' dòng đang chưa khớp.';
+    return msg;
+  }
+
+  /* Icon SVG 24x24 stroke, cùng phong cách với các icon sẵn có trong app. */
+  var VT_STATUS_ICONS_ = {
+    done:      '<path d="M20 6 9 17l-5-5"/>',
+    wait:      '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+    no_holder: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M17 11h5"/>',
+    no_qty:    '<circle cx="12" cy="12" r="9"/><path d="M5.6 5.6l12.8 12.8"/>',
+    no_item:   '<path d="M12 3 2 20h20Z"/><path d="M12 10v4"/><path d="M12 17h.01"/>',
+    // Thùng hàng rỗng — phân biệt với tam giác cảnh báo của "chưa khớp vật tư"
+    no_stock:  '<path d="M3 8h18v11a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1Z"/><path d="M3 8 5 4h14l2 4"/><path d="M9 12h6"/>'
+  };
+  var VT_STATUS_TONE_ = { done: 'ok', wait: 'wait', no_holder: 'warn', no_qty: 'warn', no_item: 'warn', no_stock: 'warn' };
+
+  /* KHÔNG gắn title. Trước đây tooltip chứa một câu giải thích dài; nay dòng chữ duy nhất còn lại
+     là tên vật tư, mà nó đã hiện sẵn ngay dưới thẻ — tooltip chỉ lặp lại đúng chữ đang nhìn thấy. */
+  function vtStatusBadge(status, label) {
+    var tone = VT_STATUS_TONE_[status] || 'wait';
+    var path = VT_STATUS_ICONS_[status] || VT_STATUS_ICONS_.wait;
+    return '<span class="vt-status ' + tone + '">' +
+      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" ' +
+      'stroke-linecap="round" stroke-linejoin="round">' + path + '</svg>' +
+      esc(label || '') + '</span>';
+  }
+
+  function statCard(label, value, sub, subTitle) {
+    // subTitle: chuỗi đầy đủ hiện khi rê chuột, phòng khi .delta bị cắt bằng ellipsis
+    var t = subTitle ? ' title="' + esc(subTitle) + '"' : '';
+    return '<div class="card stat-card"><div class="label">' + esc(label) + '</div>' +
+      '<div class="value">' + esc(value) + '</div>' +
+      (sub ? '<div class="delta"' + t + '>' + sub + '</div>' : '') + '</div>';
+  }
+
+    /* ===== "Chi phí mới cập nhật" — cuộn tới đâu nạp tới đó =====
+     Server trả sẵn tối đa 300 dòng trong CÙNG lần gọi getDashboardData, client render dần 10 dòng
+     một nên không phát sinh thêm lượt gọi server nào. Sentinel ở cuối tbody + IntersectionObserver
+     báo khi nó lọt vào tầm nhìn -> nối thêm một lô. */
+  var RECENT_PAGE_ = 10;
+  var recentCostsAll_ = [];
+  var recentShown_ = 0;
+  var recentObserver_ = null;
+
+  function recentRowHTML_(m) {
+    return '<tr><td><span class="cost-type-badge ' + costTypeBadgeClass(m.type) + '">' + esc(m.type) + '</span></td>' +
+      '<td>' + (m.code ? '<span class="cc-pill outline">' + esc(m.code) + '</span>'
+                        : '<span class="cc-dash">—</span>') + '</td>' +
+      '<td class="col-wrap">' + esc(m.address) + '</td>' +
+      '<td class="col-wrap">' + esc(m.detail) + '</td>' +
+      '<td>' + esc(normalizeDateJS_(m.date)) + '</td>' +
+      '<td>' + esc(m.supplier || '—') + '</td>' +
+      '<td class="money">' + fmtVND(m.cost) + '</td></tr>';
+  }
+
+  function renderRecentCosts_(list) {
+        /* PHẢI ngắt observer cũ. Đổi vùng miền/năm hay bấm làm mới đều gọi lại hàm này; không ngắt thì
+       observer lần trước vẫn bám sentinel đã rời DOM, tích tụ dần. */
+    if (recentObserver_) { recentObserver_.disconnect(); recentObserver_ = null; }
+
+    var tbody = $('#recentCostsTable tbody');
+    if (!tbody) return;
+    recentCostsAll_ = list || [];
+    recentShown_ = 0;
+
+    if (!recentCostsAll_.length) {
+      tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:var(--ink-500); padding:20px;">Chưa có dữ liệu.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = '';
+    appendRecentCosts_();
+
+    if (recentShown_ < recentCostsAll_.length) {
+      if (typeof IntersectionObserver === 'undefined') {
+        // Trình duyệt quá cũ -> đổ hết một lượt, thà dài còn hơn mất dữ liệu
+        while (recentShown_ < recentCostsAll_.length) appendRecentCosts_();
+        finishRecentCosts_();
+        return;
+      }
+      recentObserver_ = new IntersectionObserver(function (entries) {
+        if (!entries.some(function (e) { return e.isIntersecting; })) return;
+        appendRecentCosts_();
+        if (recentShown_ >= recentCostsAll_.length) finishRecentCosts_();
+      }, { rootMargin: '200px' });
+      recentObserver_.observe($('#recentSentinel'));
+    } else {
+      finishRecentCosts_();
+    }
+  }
+
+  function appendRecentCosts_() {
+    var tbody = $('#recentCostsTable tbody');
+    var sentinel = $('#recentSentinel');
+    if (sentinel) sentinel.remove();
+
+    var next = recentCostsAll_.slice(recentShown_, recentShown_ + RECENT_PAGE_);
+    tbody.insertAdjacentHTML('beforeend', next.map(recentRowHTML_).join(''));
+    recentShown_ += next.length;
+
+    if (recentShown_ < recentCostsAll_.length) {
+      tbody.insertAdjacentHTML('beforeend',
+        '<tr id="recentSentinel"><td colspan="7" style="text-align:center; color:var(--ink-300); padding:14px; font-size:12.5px;">Đang tải thêm…</td></tr>');
+      if (recentObserver_) recentObserver_.observe($('#recentSentinel'));
+    }
+  }
+
+  function finishRecentCosts_() {
+    if (recentObserver_) { recentObserver_.disconnect(); recentObserver_ = null; }
+    var sentinel = $('#recentSentinel');
+    if (sentinel) sentinel.remove();
+    var tbody = $('#recentCostsTable tbody');
+    if (tbody && recentCostsAll_.length > RECENT_PAGE_) {
+      tbody.insertAdjacentHTML('beforeend',
+        '<tr><td colspan="7" style="text-align:center; color:var(--ink-500); padding:14px; font-size:12.5px;">' +
+        'Đã hiển thị hết ' + recentCostsAll_.length + ' mục gần nhất.</td></tr>');
+    }
+  }
+
+  function renderDashboard(data) {
+    $('#statGrid').innerHTML =
+      statCard('Tổng số cửa hàng', data.totalStores, '<span class="delta ok">Đang hoạt động</span>') +
+      statCard('Tổng tài sản', data.totalAssets, 'Đang được quản lý', 'Tài sản đang được quản lý') +
+      statCard('Chi phí sửa chữa THS', fmtVND(data.thsCost), data.thsCount + ' lượt sửa chữa') +
+      statCard('Chi phí sửa chữa LSC', fmtVND(data.lscCost), data.lscCount + ' lượt sửa chữa') +
+      statCard('Chi phí sửa chữa SNK', fmtVND(data.sanakyCost), data.sanakyCount + ' lượt sửa chữa') +
+      statCard('Chi phí bảo dưỡng', fmtVND(data.maintCost), data.maintCount + ' lượt bảo dưỡng');
+
+    renderRecentCosts_(data.recentCosts || []);
+
+    try {
+      renderCharts(data);
+    } catch (err) {
+      var msg = '<div class="empty-state" style="padding:24px;">Không tải được biểu đồ (thư viện Chart.js chưa sẵn sàng). Thử tải lại trang.</div>';
+      var regionCard = $('#chartRegion').closest('.panel');
+      var typeCard = $('#chartType').closest('.panel');
+      if (regionCard) regionCard.innerHTML = msg;
+      if (typeCard) typeCard.innerHTML = msg;
+    }
+  }
+
+  // ===== Định dạng chữ dùng chung cho MỌI biểu đồ =====
+  // Trước đây không set Chart.defaults nên nhãn trục / chú thích rơi về mặc định của Chart.js
+  // (Helvetica-Arial, weight 400, màu #666) trong khi số liệu vẽ tay dùng Be Vietnam Pro 700
+  // màu --ink-600 -> lệch cả font, độ đậm lẫn màu. Gom về một hệ: cùng font, cùng màu, chỉ chênh
+  // một nấc đậm (trục/chú thích 600, số liệu 700) để số liệu vẫn nổi hơn nền.
+  var CHART_INK_ = '#40514A';                                   // = --ink-600
+  var CHART_VALUE_FONT_   = '700 10.5px "Be Vietnam Pro", sans-serif';
+  var CHART_VALUE_FONT_S_ = '700 9.5px "Be Vietnam Pro", sans-serif';
+  var chartDefaultsApplied_ = false;
+  function applyChartDefaults_() {
+    if (chartDefaultsApplied_ || typeof Chart === 'undefined') return;
+    Chart.defaults.font.family = '"Be Vietnam Pro", sans-serif';
+    Chart.defaults.font.size = 11;
+    Chart.defaults.font.weight = 600;
+    Chart.defaults.color = CHART_INK_;
+    /* Chart.js mặc định vẽ ở đúng window.devicePixelRatio. Windows đặt thu phóng 125%/150% cho
+       DPR lẻ (1.25 / 1.5); cộng với chiều rộng lẻ do grid-template-columns dùng đơn vị fr, chữ
+       vẽ trên canvas rơi vào điểm ảnh phụ và bị nhoè — đổi mức thu phóng lại nét. Vẽ dư độ phân
+       giải (tối thiểu 2x) thì sai số làm tròn không còn thấy được. */
+    Chart.defaults.devicePixelRatio = Math.max(2, window.devicePixelRatio || 1);
+    chartDefaultsApplied_ = true;
+  }
+
+  /** Quy đổi options font của Chart.js ra px thật (size + lineHeight). */
+  function chartFontPx_(fontOpt) {
+    var d = (typeof Chart !== 'undefined' && Chart.defaults.font) || {};
+    var size = (fontOpt && fontOpt.size) || d.size || 12;
+    var lh = (fontOpt && fontOpt.lineHeight) || d.lineHeight || 1.2;
+    return { size: size, lineHeight: typeof lh === 'number' ? lh * size : (parseFloat(lh) || size * 1.2) };
+  }
+
+  /** Tâm dòng chữ của nhãn trục X. Chart.js vẽ nhãn tại y = scale.top + tickLength + ticks.padding
+      với textBaseline 'middle' và textOffset = lineHeight/2.
+      Lưu ý: tickLength (mặc định 8) chỉ bị bỏ khi grid.drawTicks = false — grid.display = false
+      KHÔNG bỏ nó, nên hộp trục vẫn chừa 8px cho vạch chia không hề được vẽ. Đây chính là lý do
+      lấy "tâm hộp" làm mốc thì lệch, phải tính thẳng tâm chữ. */
+  function xScaleTextCenter_(scale) {
+    var o = scale.options || {};
+    var grid = o.grid || {}, ticks = o.ticks || {};
+    var tl = grid.drawTicks === false ? 0 : (grid.tickLength != null ? grid.tickLength : 8);
+    return scale.top + tl + (ticks.padding || 0) + chartFontPx_(ticks.font).lineHeight / 2;
+  }
+
+  /** Dựng chú thích HTML cho biểu đồ tròn, kèm bấm để ẩn/hiện lát (thay cho legend Chart.js). */
+  function renderTypeLegend_(labels, colors, values) {
+    var el = $('#chartTypeLegend');
+    if (!el) return;
+    el.innerHTML = labels.map(function (l, i) {
+      var off = (chartType && chartType.getDataVisibility && !chartType.getDataVisibility(i)) ? ' off' : '';
+      return '<div class="chart-legend-item' + off + '" data-i="' + i + '">' +
+        '<span class="chart-legend-dot" style="background:' + colors[i] + ';"></span>' +
+        esc(l) + ' · ' + values[i] + '</div>';
+    }).join('');
+    el.onclick = function (e) {
+      var it = e.target && e.target.closest ? e.target.closest('.chart-legend-item') : null;
+      if (!it || !chartType) return;
+      var i = parseInt(it.getAttribute('data-i'), 10);
+      chartType.toggleDataVisibility(i);
+      chartType.update();
+      if (chartType.getDataVisibility(i)) it.classList.remove('off');
+      else it.classList.add('off');
+    };
+  }
+
+  /** Căn dòng chú thích HTML của biểu đồ tròn thẳng hàng với dòng nhãn trục X của biểu đồ cột.
+      Chỉ đụng biểu đồ tròn: biểu đồ cột giữ nguyên kích thước, không còn bị ép căn theo.
+      Hai .chart-container cùng chiều cao và cùng vị trí trong thẻ, nên toạ độ y trong canvas cột
+      dùng thẳng được làm offset top cho chú thích bên tròn. */
+  function alignChartBaselines_() {
+    if (!chartRegion || !chartType) return;
+    var xs = chartRegion.scales && chartRegion.scales.x;
+    var el = $('#chartTypeLegend');
+    if (!xs || !el) return;
+
+    /* Khi tab Tổng quan bị display:none, mọi phép đo trả 0: chartType.height = 0 -> top bị kẹp
+       về 0 (chú thích nhảy lên đầu panel) và padBottom tính sai (vành donut co lại). Đó chính là
+       hiện tượng biểu đồ vỡ sau khi chuyển tab rồi quay lại. Panel chưa có kích thước thật thì
+       hoãn lại, goToView sẽ gọi lại hàm này khi panel hiện ra. */
+    if (el.offsetParent === null) return;
+    if (!chartType.height || !chartType.width) return;
+
+    var H = chartType.height || 240;
+    var h = el.offsetHeight || 16;
+    // Không làm tròn: .chart-legend-item có line-height cố định nên tâm chữ = top + h/2 chính xác.
+    var top = xScaleTextCenter_(xs) - h / 2;
+    top = Math.max(0, Math.min(H - h, top));   // chú thích nhiều dòng thì ưu tiên không bị cắt
+    el.style.top = top + 'px';
+
+    // Chừa chỗ phía dưới để vành donut không lấn xuống dòng chú thích.
+    var padBottom = Math.max(0, Math.min(80, Math.round(H - top + 6)));
+    var pad = chartType.options.layout.padding;
+    if (typeof pad === 'number') pad = { top: pad, right: pad, bottom: pad, left: pad };
+    if (Math.abs((pad.bottom || 0) - padBottom) >= 1) {
+      pad.bottom = padBottom;
+      chartType.options.layout.padding = pad;
+      chartType.update('none');
+    }
+  }
+
+  /** Vẽ số ngay trên đỉnh mỗi cột. */
+  var barValueLabelsPlugin = {
+    id: 'barValueLabels',
+    afterDatasetsDraw: function (chart) {
+      var ctx = chart.ctx;
+      chart.data.datasets.forEach(function (dataset, dsIndex) {
+        var meta = chart.getDatasetMeta(dsIndex);
+        if (meta.hidden) return;                       // dataset bị ẩn qua chú thích -> đừng vẽ số
+        meta.data.forEach(function (bar, i) {
+          var value = dataset.data[i];
+          if (value === null || value === undefined || value === 0) return;
+          if (bar.hidden) return;
+          ctx.save();
+          ctx.fillStyle = CHART_INK_;
+          ctx.font = CHART_VALUE_FONT_;
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'bottom';
+          ctx.fillText(String(value), bar.x, bar.y - 4);
+          ctx.restore();
+        });
+      });
+    }
+  };
+
+  var stackedCostLabelsPlugin = {
+    id: 'stackedCostLabels',
+    afterDatasetsDraw: function (chart) {
+      var ctx = chart.ctx;
+      var datasets = chart.data.datasets;
+      var n = chart.data.labels.length;
+      for (var i = 0; i < n; i++) {
+        var total = 0, topY = null, topX = null;
+        datasets.forEach(function (ds, dsIndex) {
+          var meta = chart.getDatasetMeta(dsIndex);
+          if (meta.hidden) return;
+          var v = ds.data[i] || 0;
+          total += v;
+          var bar = meta.data[i];
+          if (!bar) return;
+          if (topY === null || bar.y < topY) { topY = bar.y; topX = bar.x; }
+          if (v > 0) {
+            var segHeight = Math.abs((bar.base !== undefined ? bar.base : bar.y) - bar.y);
+            if (segHeight >= 15) {
+              var midY = ((bar.base !== undefined ? bar.base : bar.y) + bar.y) / 2;
+              ctx.save();
+              ctx.fillStyle = '#fff';
+              ctx.font = CHART_VALUE_FONT_S_;
+              ctx.textAlign = 'center';
+              ctx.textBaseline = 'middle';
+              ctx.fillText(fmtVND(v), bar.x, midY);
+              ctx.restore();
+            }
+          }
+        });
+        if (topY === null || total === 0) continue;
+        ctx.save();
+        ctx.fillStyle = CHART_INK_;
+        ctx.font = CHART_VALUE_FONT_;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'bottom';
+        ctx.fillText(fmtVND(total), topX, topY - 5);
+        ctx.restore();
+      }
+    }
+  };
+
+  // ===== Nhãn số của biểu đồ tròn "Loại cửa hàng" =====
+  // Lát đủ lớn: vẽ số trắng ngay giữa lát. Lát nhỏ: đưa số ra ngoài vành bằng leader line gấp
+  // khúc (đoạn bán kính ngắn -> bẻ ngang). Vì đoạn cuối luôn NẰM NGANG nên chữ luôn thẳng hàng
+  // tuyệt đối với gạch của nó, không bao giờ bị lệch như cách vẽ tia xiên trước đây.
+  var PIE_SMALL_CFG_ = {
+    smallPct: 0.05,   // dưới ngưỡng này thì đẩy số ra ngoài vành
+    anchorPad: 2,     // điểm neo cách mép vành
+    bendBase: 8,      // bán kính điểm gấp của lát nhỏ đầu tiên
+    bendStep: 12,     // mỗi lát nhỏ kế tiếp đẩy điểm gấp ra xa thêm bấy nhiêu
+    minGap: 13,       // khoảng cách dọc tối thiểu giữa 2 nhãn CÙNG phía
+    maxRun: 56,       // đoạn ngang dài nhất
+    minRun: 22,       // đoạn ngang ngắn nhất
+    runK: 1.4,        // hệ số rút ngắn đoạn ngang theo khoảng hở dọc
+    textPad: 4,       // chữ cách đầu mút đoạn ngang
+    font: CHART_VALUE_FONT_,
+    textColor: CHART_INK_
+  };
+
+  /** Tính toạ độ leader line cho các lát nhỏ. Dùng chung desktop/mobile, chỉ khác bộ tham số cfg.
+      labels đã được đẩy vào theo đúng thứ tự góc (Chart.js luôn vẽ lát sau nối tiếp lát trước). */
+  function layoutSmallPieLabels_(labels, cfg, bounds) {
+    // 1) Điểm neo + điểm gấp. Bán kính điểm gấp tăng dần theo thứ tự góc nên 2 lát sát nhau
+    //    không bao giờ có đoạn dọc trùng nhau.
+    labels.forEach(function (l, idx) {
+      var cos = Math.cos(l.midAngle), sin = Math.sin(l.midAngle);
+      var bendR = l.outerRadius + cfg.bendBase + idx * cfg.bendStep;
+      l.x0 = l.cx + cos * (l.outerRadius + cfg.anchorPad);
+      l.y0 = l.cy + sin * (l.outerRadius + cfg.anchorPad);
+      l.xb = l.cx + cos * bendR;
+      l.y  = l.cy + sin * bendR;
+      l.arcX = l.cx + cos * l.outerRadius;
+    });
+
+    // 2) Chia phía. Các lát nhỏ nằm chụm nhau (lệch góc dưới 30°, đúng ca CVS Hero + Flagship)
+    //    thì tách đôi sang 2 bên ĐỐI NHAU theo đúng thứ tự trái -> phải: leader line toả ra như
+    //    hình chữ V nên không thể cắt qua nhau. Lát nhỏ nằm rải rác thì tự chọn phía theo cos.
+    var spread = labels.length > 1
+      ? Math.abs(labels[labels.length - 1].midAngle - labels[0].midAngle) : 0;
+    if (labels.length > 1 && spread < Math.PI / 6) {
+      var byX = labels.slice().sort(function (a, b) { return a.arcX - b.arcX; });
+      var half = Math.ceil(byX.length / 2);
+      byX.forEach(function (l, i) { l.side = i < half ? -1 : 1; });
+    } else {
+      labels.forEach(function (l) { l.side = Math.cos(l.midAngle) >= 0 ? 1 : -1; });
+    }
+
+    // 3) Chống chồng lấn theo trục Y trong TỪNG phía, sau đó ép cả cụm vào trong vùng vẽ.
+    [-1, 1].forEach(function (side) {
+      var group = labels.filter(function (l) { return l.side === side; })
+                        .sort(function (a, b) { return a.y - b.y; });
+      if (!group.length) return;
+      for (var i = 1; i < group.length; i++) {
+        if (group[i].y - group[i - 1].y < cfg.minGap) group[i].y = group[i - 1].y + cfg.minGap;
+      }
+      if (!bounds) return;
+      var over = group[group.length - 1].y - bounds.bottom;
+      if (over > 0) group.forEach(function (l) { l.y -= over; });
+      var up = bounds.top - group[0].y;
+      if (up > 0) group.forEach(function (l) { l.y += up; });
+    });
+
+    // 4) Đoạn ngang dài ngắn LINH ĐỘNG: nhãn nào đã thoát xa vành thì kẻ ngắn, nhãn nào còn sát
+    //    vành thì kẻ dài hơn cho thoáng -> các gạch không đều tăm tắp như nhau.
+    labels.forEach(function (l) {
+      var clearance = Math.abs(l.y - l.cy) - l.outerRadius;
+      var run = cfg.maxRun - cfg.runK * clearance;
+      run = Math.max(cfg.minRun, Math.min(cfg.maxRun, run));
+      l.xe = l.xb + l.side * run;
+      // Chốt an toàn: nhãn rơi vào dải ngang của donut thì nới ra cho chữ không đè lên vành.
+      if (clearance < 0) {
+        var minAbs = l.cx + l.side * (l.outerRadius + 12);
+        if (l.side > 0 ? l.xe < minAbs : l.xe > minAbs) l.xe = minAbs;
+      }
+    });
+    return labels;
+  }
+
+  var pieLabelsPlugin = {
+    id: 'pieLabels',
+    afterDraw: function (chart) {
+      var ctx = chart.ctx;
+      var meta = chart.getDatasetMeta(0);
+      var dataset = chart.data.datasets[0];
+      if (!dataset) return;
+      var cfg = PIE_SMALL_CFG_;
+      var bg = dataset.backgroundColor;
+
+      // Chỉ tính trên các lát CÒN HIỆN. Trước đây total cộng cả lát đã ẩn qua chú thích nên vừa
+      // vẽ số của lát đã ẩn (đè lên vành), vừa tính sai ngưỡng "lát nhỏ" cho các lát còn lại.
+      var visible = function (i) {
+        return chart.getDataVisibility ? chart.getDataVisibility(i) : !(meta.data[i] && meta.data[i].hidden);
+      };
+      var total = 0;
+      dataset.data.forEach(function (v, i) { if (visible(i)) total += (v || 0); });
+      if (!total) return;
+
+      var smallLabels = [];
+      meta.data.forEach(function (arc, i) {
+        var value = dataset.data[i];
+        if (!value || !visible(i) || arc.hidden) return;
+        var midAngle = (arc.startAngle + arc.endAngle) / 2;
+
+        if (value / total < cfg.smallPct) {
+          smallLabels.push({
+            value: value, midAngle: midAngle, cx: arc.x, cy: arc.y,
+            outerRadius: arc.outerRadius,
+            color: (Array.isArray(bg) ? bg[i] : bg) || '#B7C3CC'
+          });
+        } else {
+          var midRadius = (arc.innerRadius + arc.outerRadius) / 2;
+          ctx.save();
+          ctx.fillStyle = '#fff';
+          ctx.font = cfg.font;
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(String(value), arc.x + Math.cos(midAngle) * midRadius,
+                                      arc.y + Math.sin(midAngle) * midRadius);
+          ctx.restore();
+        }
+      });
+
+      if (!smallLabels.length) return;
+
+      // Giới hạn kẹp nhãn: dùng cả bề mặt canvas (trừ 2px mép) chứ KHÔNG dùng chartArea, vì
+      // donut chiếm trọn chiều cao chartArea -> kẹp theo chartArea sẽ đẩy nhãn đè lên vành.
+      // Riêng mép dưới thì chặn ở chartArea.bottom để nhãn không lấn xuống phần chú thích.
+      var bounds = {
+        top: 2, bottom: (chart.chartArea ? chart.chartArea.bottom : chart.height) - 2,
+        left: 2, right: chart.width - 2
+      };
+      layoutSmallPieLabels_(smallLabels, cfg, bounds);
+
+      ctx.save();
+      ctx.font = cfg.font;
+      ctx.textBaseline = 'middle';
+      ctx.lineWidth = 1.2;
+      ctx.lineJoin = 'round';
+      ctx.lineCap = 'round';
+      smallLabels.forEach(function (l) {
+        var txt = String(l.value);
+        var w = ctx.measureText(txt).width;
+        var tx = l.xe + l.side * cfg.textPad;
+        if (l.side > 0 && tx + w > bounds.right) { tx = bounds.right - w; l.xe = tx - cfg.textPad; }
+        if (l.side < 0 && tx - w < bounds.left)  { tx = bounds.left + w;  l.xe = tx + cfg.textPad; }
+
+        ctx.strokeStyle = l.color;
+        ctx.beginPath();
+        ctx.moveTo(l.x0, l.y0);
+        ctx.lineTo(l.xb, l.y);
+        ctx.lineTo(l.xe, l.y);
+        ctx.stroke();
+
+        ctx.fillStyle = cfg.textColor;
+        ctx.textAlign = l.side > 0 ? 'left' : 'right';
+        ctx.fillText(txt, tx, l.y);
+      });
+      ctx.restore();
+    }
+  };
+
+  function renderCharts(data) {
+    applyChartDefaults_();
+    // --- Miền: luôn hiển thị Bắc -> Trung -> Nam, bất kể thứ tự key server trả về ---
+    var regionLabels = Object.keys(data.byRegion).sort(function (a, b) { return regionSortKey_(a) - regionSortKey_(b); });
+    var regionValues = regionLabels.map(function (k) { return data.byRegion[k]; });
+    var regionColorSrc = data.byRegionColors && data.byRegionColors.length ? data.byRegionColors : null;
+    var origRegionLabels = Object.keys(data.byRegion);
+    var regionColors = regionColorSrc
+      ? regionLabels.map(function (lbl) { return regionColorSrc[origRegionLabels.indexOf(lbl)] || '#2E9BE0'; })
+      : '#2E9BE0';
+
+    // --- Loại cửa hàng: sắp giảm dần theo số lượng, màu lấy theo LOẠI (không theo vị trí) ---
+    var typeLabels = Object.keys(data.byType).sort(function (a, b) { return data.byType[b] - data.byType[a]; });
+    var typeValues = typeLabels.map(function (k) { return data.byType[k]; });
+    var typeColors = typeLabels.map(function (lbl) { return TYPE_COLOR_MAP_[typeBadgeClass(lbl)] || '#93A2AC'; });
+
+    if (chartRegion) chartRegion.destroy();
+    chartRegion = new Chart($('#chartRegion').getContext('2d'), {
+      type: 'bar',
+      data: { labels: regionLabels, datasets: [{ data: regionValues, backgroundColor: regionColors, borderRadius: 6, maxBarThickness: 42 }] },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        layout: { padding: { top: 20 } },
+        plugins: { legend: { display: false } },
+        scales: { y: { beginAtZero: true, grid: { color: '#E8EEF5' } }, x: { grid: { display: false, drawTicks: false } } }
+      },
+      plugins: [barValueLabelsPlugin]
+    });
+
+    if (chartType) chartType.destroy();
+    chartType = new Chart($('#chartType').getContext('2d'), {
+      type: 'doughnut',
+      data: { labels: typeLabels, datasets: [{ data: typeValues, backgroundColor: typeColors, borderWidth: 2, borderColor: '#fff' }] },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        // Chú thích tắt ở đây, dựng bằng HTML qua renderTypeLegend_ để căn được thẳng hàng.
+        // padding.bottom là chỗ chừa cho dòng chú thích HTML, alignChartBaselines_ sẽ tính lại đúng.
+        layout: { padding: { top: 26, right: 30, bottom: 24, left: 30 } },
+        plugins: { legend: { display: false } },
+        cutout: '62%'
+      },
+      plugins: [pieLabelsPlugin]
+    });
+
+    renderTypeLegend_(typeLabels, typeColors, typeValues);
+
+    requestAnimationFrame(function () {
+      if (chartRegion) chartRegion.resize();
+      if (chartType) chartType.resize();
+      // Chờ thêm 1 khung hình để scale/legend đã fit xong rồi mới đo và căn thẳng hàng.
+      requestAnimationFrame(alignChartBaselines_);
+    });
+  }
+
+  // Stores
+  function storeDetailHTML(s) {
+    var isOpen = String(s.status || '').toLowerCase().indexOf('opn') === 0;
+    var tCls = typeBadgeClass(s.type);
+    return '<div class="card">' +
+      '<div class="detail-head">' +
+        '<div>' +
+          '<div style="display:flex; align-items:center; gap:8px; margin-bottom:8px;">' +
+            '<span class="cc-pill">' + esc(s.costCenter) + '</span>' +
+            (s.type ? '<span class="type-badge ' + tCls + '">' + esc(s.type) + '</span>' : '') +
+          '</div>' +
+          '<div class="addr">' + esc(s.address) + '</div>' +
+        '</div>' +
+        '<div style="display:flex; align-items:center; gap:10px;">' +
+          '<button class="btn btn-ghost btn-sm" onclick="THTM.viewAssetsFromStore(\'' + esc(s.costCenter).replace(/'/g, "\\'") + '\')">Xem chi tiết tài sản cửa hàng</button>' +
+          '<span class="status-badge ' + (isOpen ? 'open' : 'closed') + '">' + (isOpen ? 'Đang hoạt động' : 'Đã đóng') + '</span>' +
+        '</div>' +
+      '</div>' +
+      '<div class="detail-grid">' +
+        field('Miền', s.region) + field('Khu vực', s.area) + field('Ngày hoạt động', s.openDate) +
+      '</div>' +
+      '<div class="detail-grid cols-2">' +
+        field('Email cửa hàng', s.email) + field('SĐT cửa hàng', s.phone) +
+      '</div>' +
+      '<div class="detail-grid cols-2">' +
+        field('Quản lý cửa hàng', s.manager) + field('SĐT quản lý', s.managerPhone) +
+      '</div>' +
+      '<div class="detail-grid">' +
+        field('Giám sát', s.supervisor) + field('SĐT giám sát', s.supervisorPhone) + field('Email giám sát', s.supervisorMail) +
+      '</div>' +
+      '<div class="detail-grid">' +
+        field('ASM', s.asm) + field('SĐT ASM', s.asmPhone) + field('Email ASM', s.asmMail) +
+      '</div>' +
+    '</div>' +
+    '<div class="card" style="margin-top:16px;">' +
+      '<div class="sub-tabs-wrap">' +
+        '<div class="panel-head" style="margin-bottom:12px;"><h3 style="font-size:14.5px; margin:0;">Theo dõi chi phí sửa chữa</h3></div>' +
+        '<div class="mode-toggle" id="storeSubTabs"><div class="loading-wrap" style="padding:6px 0;"><div class="spinner" style="width:16px; height:16px; margin:0;"></div></div></div>' +
+        '<div id="storeSubTabContent"><div class="loading-wrap"><div class="spinner"></div>Đang tải…</div></div>' +
+      '</div>' +
+    '</div>';
+  }
+
+  function field(k, v) {
+    return '<div class="detail-field"><div class="k">' + esc(k) + '</div><div class="v' + (v ? '' : ' muted') + '">' + (v ? esc(v) : '—') + '</div></div>';
+  }
+
+  function candidateItem(c, onClickJs) {
+    return '<div class="candidate-item" ' + onClickJs + '>' +
+      '<div class="candidate-main">' +
+        '<div class="addr">' + esc(c.address) + '</div>' +
+        '<div class="meta"><span class="cc-pill outline" style="margin-right:8px;">' + esc(c.costCenter) + '</span>' + esc(c.ward || '') + ' · Quản lý: ' + esc(c.manager || '—') + '</div>' +
+      '</div>' +
+      '<div class="candidate-arrow">→</div>' +
+    '</div>';
+  }
+
+  var storeCandidatesCache = [];
+
+  function doStoreSearch() {
+    var q = $('#storeSearchInput').value.trim();
+    $('#storeDetailWrap').innerHTML = '';
+    if (!q) { $('#storeCandidates').innerHTML = ''; return; }
+    $('#storeCandidates').innerHTML = '<div class="loading-wrap"><div class="spinner"></div>Đang tìm kiếm…</div>';
+    runServer('searchStores', [q], function (results) {
+      storeCandidatesCache = results;
+      if (!results.length) {
+        $('#storeCandidates').innerHTML = '<div class="empty-state"><div class="icn">' + ICONS.search + '</div><div class="t">Không tìm thấy cửa hàng phù hợp</div>Thử lại với mã cửa hàng hoặc một phần địa chỉ khác.</div>';
+        return;
+      }
+      if (results.length === 1) {
+        $('#storeCandidates').innerHTML = '';
+        showStoreDetail(results[0].costCenter);
+        return;
+      }
+      $('#storeCandidates').innerHTML = '<div class="candidates">' +
+        results.map(function (c, i) { return candidateItem(c, 'onclick="THTM.pickStore(' + i + ')"'); }).join('') +
+        '</div><div class="hint">Tìm thấy ' + results.length + ' kết quả — chọn cửa hàng cần xem.</div>';
+    });
+  }
+
+  function pickStore(idx) {
+    $('#storeCandidates').innerHTML = '';
+    showStoreDetail(storeCandidatesCache[idx].costCenter);
+  }
+
+  function showStoreDetail(costCenter) {
+    $('#storeDetailWrap').innerHTML = '<div class="loading-wrap"><div class="spinner"></div>Đang tải chi tiết…</div>';
+    runServer('getStoreDetail', [costCenter], function (s) {
+      if (!s) { $('#storeDetailWrap').innerHTML = '<div class="empty-state">Không có dữ liệu.</div>'; return; }
+      $('#storeDetailWrap').innerHTML = storeDetailHTML(s);
+      buildStoreSubTabs(s.costCenter);
+    });
+  }
+
+  function buildStoreSubTabs(costCenter) {
+    runServer('getStoreCostSummary', [costCenter], function (s) {
+      var tabs = [{ key: 'tonghop', label: 'Tổng hợp' }];
+      if (s.sanaky.count > 0) tabs.push({ key: 'sanaky', label: 'Sanaky' });
+      if (s.maint.count > 0) tabs.push({ key: 'maint', label: 'Bảo dưỡng' });
+      if (s.daikin.count > 0) tabs.push({ key: 'daikin', label: 'DAIKIN' });
+      if (s.psmart.count > 0) tabs.push({ key: 'psmart', label: 'PSMART' });
+      if (s.minhhoang.count > 0) tabs.push({ key: 'minhhoang', label: 'Minh Hoàng' });
+      if (s.tdlighting.count > 0) tabs.push({ key: 'tdlighting', label: 'TD LIGHTING' });
+      if (s.khac.count > 0) tabs.push({ key: 'khac', label: 'Khác' });
+
+      var tabsEl = $('#storeSubTabs');
+      tabsEl.innerHTML = tabs.map(function (t, i) {
+        return '<button class="' + (i === 0 ? 'active' : '') + '" data-subtab="' + t.key + '">' + esc(t.label) + '</button>';
+      }).join('');
+
+      $all('button', tabsEl).forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          $all('button', tabsEl).forEach(function (b) { b.classList.remove('active'); });
+          btn.classList.add('active');
+          loadStoreSubTab(costCenter, btn.dataset.subtab);
+        });
+      });
+
+      loadStoreSubTab(costCenter, 'tonghop');
+    });
+  }
+
+  function historyItemsCell(items, mode) {
+    return '<div class="multi-line' + (mode === 'money' ? ' money-group' : '') + '">' + items.map(function (it) {
+      if (mode === 'asset') return '<div>' + (it.assetCode ? assetToTaisanPill(it.assetCode) : '<span class="cc-dash">—</span>') + '</div>';
+      if (mode === 'money') return '<div>' + fmtVND(it.cost) + '</div>';
+      return '<div>' + esc(it.label) + '</div>';
+    }).join('') + '</div>';
+  }
+
+  function loadStoreSubTab(costCenter, tab) {
+    var wrap = $('#storeSubTabContent');
+    if (!wrap) return;
+    wrap.innerHTML = '<div class="loading-wrap"><div class="spinner"></div>Đang tải…</div>';
+
+    if (tab === 'tonghop') {
+      runServer('getStoreRepairHistory', [costCenter], function (data) {
+        if (!data.rows.length) { wrap.innerHTML = '<div class="tab-empty">Chưa có chi phí nào được ghi nhận cho cửa hàng này.</div>'; return; }
+        wrap.innerHTML = sanakySummaryHTML(data.totalCount, data.totalCost) +
+          '<div class="table-wrap wrap-cells"><table class="data-table"><thead><tr><th>Nguồn</th><th>Ngày</th><th class="col-wrap">Nội dung</th><th>Mã tài sản</th><th class="money">Chi phí</th></tr></thead><tbody>' +
+          data.rows.map(function (r) {
+            return '<tr><td><span class="cost-type-badge ' + costTypeBadgeClass(r.source) + '">' + esc(r.source) + '</span></td>' +
+              '<td>' + esc(normalizeDateJS_(r.date)) + '</td>' +
+              '<td>' + historyItemsCell(r.items, 'label') + '</td>' +
+              '<td>' + historyItemsCell(r.items, 'asset') + '</td>' +
+              '<td class="money">' + historyItemsCell(r.items, 'money') + '</td></tr>';
+          }).join('') + '</tbody></table></div>';
+      });
+    } else if (tab === 'sanaky') {
+      runServer('getSanakyByStore', [costCenter], function (data) {
+        if (!data.rows.length) { wrap.innerHTML = '<div class="tab-empty">Cửa hàng này chưa có lịch sử sửa chữa Sanaky.</div>'; return; }
+        wrap.innerHTML =
+          sanakySummaryHTML(data.totalRepairs, data.totalCost) +
+          '<div class="table-wrap wrap-cells"><table class="data-table"><thead><tr><th>Mã tài sản</th><th>Ngày thực hiện</th><th class="col-wrap">Hạng mục sửa chữa</th><th>SL</th><th class="money">Thành tiền</th><th>Tình trạng</th></tr></thead><tbody>' +
+          data.rows.map(function (r) {
+            return '<tr><td>' + assetPill(r.assetCode) + '</td><td>' + esc(normalizeDateJS_(r.date)) + '</td>' +
+              '<td>' + sanakyItemsCell(r.items) + '</td>' +
+              '<td>' + sanakyItemsCell(r.items, 'qty') + '</td>' +
+              '<td>' + sanakyItemsCell(r.items, 'money') + '</td>' +
+              '<td>' + warrantyBadge(r.status) + '</td></tr>';
+          }).join('') + '</tbody></table></div>';
+      });
+    } else if (tab === 'maint') {
+      runServer('getMaintenanceByStore', [costCenter], function (rows) {
+        if (!rows.length) { wrap.innerHTML = '<div class="tab-empty">Cửa hàng này chưa có lịch sử bảo dưỡng.</div>'; return; }
+        wrap.innerHTML = '<div class="table-wrap wrap-cells"><table class="data-table"><thead><tr><th>Mã tài sản</th><th>Ngày thực hiện</th><th>Loại thiết bị</th><th>Nhà cung cấp</th><th class="col-wrap">Nội dung</th><th class="money">Chi phí</th></tr></thead><tbody>' +
+          rows.map(function (r) {
+            return '<tr><td><span class="cc-pill outline">' + esc(r.assetCode) + '</span></td><td>' + esc(normalizeDateJS_(r.date)) + '</td><td>' + esc(r.type) + '</td><td>' + esc(r.supplier) + '</td><td>' + esc(r.desc) + '</td><td class="money">' + fmtVND(r.cost) + '</td></tr>';
+          }).join('') + '</tbody></table></div>';
+      });
+    } else {
+      runServer('getChiPhiByStore', [costCenter, tab], function (data) {
+        if (!data.rows.length) { wrap.innerHTML = '<div class="tab-empty">Chưa có chi phí thuộc nhóm này.</div>'; return; }
+        wrap.innerHTML = chiPhiSummaryHTML(data.totalCount, data.totalCost) + chiPhiTableHTML(data.rows);
+      });
+    }
+  }
+
+  var storeSearchDebounce = null;
+  $('#storeSearchBtn').addEventListener('click', doStoreSearch);
+  $('#storeSearchInput').addEventListener('keydown', function (e) { if (e.key === 'Enter') doStoreSearch(); });
+  $('#storeSearchInput').addEventListener('input', function () {
+    clearTimeout(storeSearchDebounce);
+    storeSearchDebounce = setTimeout(doStoreSearch, 300);
+  });
+
+  // Assets
+  $all('.mode-toggle button[data-mode]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      $all('.mode-toggle button[data-mode]').forEach(function (b) { b.classList.remove('active'); });
+      btn.classList.add('active');
+      var mode = btn.dataset.mode;
+      $('#assetByCodePanel').style.display = mode === 'byCode' ? '' : 'none';
+      $('#assetByStorePanel').style.display = mode === 'byStore' ? '' : 'none';
+    });
+  });
+
+  function searchAssetByCodeAndShow(code) {
+    goToView('assets');
+    $all('.mode-toggle button[data-mode]').forEach(function (b) { b.classList.toggle('active', b.dataset.mode === 'byCode'); });
+    $('#assetByCodePanel').style.display = '';
+    $('#assetByStorePanel').style.display = 'none';
+    $('#assetCodeInput').value = code;
+    doAssetCodeSearch();
+  }
+
+  function assetCard(a, idx) {
+    var storeBit = a.store
+      ? '<div class="hint" style="margin-top:10px;">Đang được giữ bởi: <span class="cc-pill light" style="margin-left:4px;">' + esc(a.store.costCenter) + '</span> — ' + esc(a.store.address) + '</div>' +
+        '<button class="btn btn-ghost btn-sm" style="margin-top:10px;" onclick="THTM.viewStoreFromAsset(\'' + esc(a.store.costCenter).replace(/'/g, "\\'") + '\')">Xem chi tiết cửa hàng</button>'
+      : '<div class="hint" style="margin-top:10px; color:var(--danger);">Không tìm thấy cửa hàng tương ứng với tài sản này.</div>';
+
+    var histId = 'assetHist' + idx;
+
+    return '<div class="card" style="padding:18px 22px; margin-bottom:12px;">' +
+      '<div style="display:flex; justify-content:space-between; align-items:flex-start; gap:12px;">' +
+      '<div><div style="font-weight:700; font-size:15px; color:var(--brand-900);">' + esc(a.assetName) + '</div>' +
+      '<div class="hint" style="margin:4px 0 0;">Mã tài sản: <span class="cc-pill outline">' + esc(a.assetCode) + '</span> · Ngày hoạt động: ' + esc(normalizeDateJS_(a.activeDate)) + '</div></div>' +
+      '</div>' + storeBit +
+      '<div class="sub-tabs-wrap" style="padding:14px 0 0;">' +
+        '<h4 style="font-size:13.5px; font-weight:700; color:var(--brand-900); margin:0 0 10px;">Lịch sử sửa chữa tài sản</h4>' +
+        '<div id="' + histId + '"><div class="loading-wrap"><div class="spinner"></div>Đang tải…</div></div>' +
+      '</div>' +
+    '</div>';
+  }
+
+  function loadAssetRepairHistory(assetCode, targetId) {
+    var wrap = document.getElementById(targetId);
+    if (!wrap) return;
+    wrap.innerHTML = '<div class="loading-wrap"><div class="spinner"></div>Đang tải…</div>';
+    runServer('getAssetRepairHistory', [assetCode], function (data) {
+      if (!data.rows.length) { wrap.innerHTML = '<div class="tab-empty">Chưa có lịch sử sửa chữa cho tài sản này.</div>'; return; }
+      wrap.innerHTML = sanakySummaryHTML(data.totalCount, data.totalCost) +
+        '<div class="table-wrap wrap-cells"><table class="data-table"><thead><tr><th>Nguồn</th><th>Ngày</th><th class="col-wrap">Nội dung</th><th class="money">Chi phí</th></tr></thead><tbody>' +
+        data.rows.map(function (r) {
+          return '<tr><td><span class="cost-type-badge ' + costTypeBadgeClass(r.source) + '">' + esc(r.source) + '</span></td>' +
+            '<td>' + esc(normalizeDateJS_(r.date)) + '</td><td>' + esc(r.detail) + '</td><td class="money">' + fmtVND(r.cost) + '</td></tr>';
+        }).join('') + '</tbody></table></div>';
+    });
+  }
+
+  function doAssetCodeSearch() {
+    var q = $('#assetCodeInput').value.trim();
+    var wrap = $('#assetCodeResults');
+    if (!q) { wrap.innerHTML = ''; return; }
+    wrap.innerHTML = '<div class="loading-wrap"><div class="spinner"></div>Đang tìm kiếm…</div>';
+    runServer('searchAssetByCode', [q], function (results) {
+      if (!results.length) {
+        wrap.innerHTML = '<div class="empty-state"><div class="icn">' + ICONS.search + '</div><div class="t">Không tìm thấy mã tài sản này</div>Kiểm tra lại mã tài sản và thử lại.</div>';
+        return;
+      }
+      wrap.innerHTML = (results.length > 1 ? '<div class="hint">Tìm thấy ' + results.length + ' tài sản khớp với "' + esc(q) + '"</div>' : '') +
+        results.map(function (a, i) { return assetCard(a, i); }).join('');
+
+      results.forEach(function (a, i) {
+        loadAssetRepairHistory(a.assetCode, 'assetHist' + i);
+      });
+    });
+  }
+  $('#assetCodeSearchBtn').addEventListener('click', doAssetCodeSearch);
+  $('#assetCodeInput').addEventListener('keydown', function (e) { if (e.key === 'Enter') doAssetCodeSearch(); });
+
+  var assetStoreCandidatesCache = [];
+
+  function doAssetStoreSearch() {
+    var q = $('#assetStoreSearchInput').value.trim();
+    $('#assetStoreListWrap').innerHTML = '';
+    if (!q) { $('#assetStoreCandidates').innerHTML = ''; return; }
+    $('#assetStoreCandidates').innerHTML = '<div class="loading-wrap"><div class="spinner"></div>Đang tìm kiếm…</div>';
+    runServer('searchStores', [q], function (results) {
+      assetStoreCandidatesCache = results;
+      if (!results.length) {
+        $('#assetStoreCandidates').innerHTML = '<div class="empty-state"><div class="icn">' + ICONS.search + '</div><div class="t">Không tìm thấy cửa hàng phù hợp</div></div>';
+        return;
+      }
+      if (results.length === 1) {
+        $('#assetStoreCandidates').innerHTML = '';
+        showAssetsForStore(results[0].costCenter, results[0].address);
+        return;
+      }
+      $('#assetStoreCandidates').innerHTML = '<div class="candidates">' +
+        results.map(function (c, i) { return candidateItem(c, 'onclick="THTM.pickAssetStore(' + i + ')"'); }).join('') +
+        '</div><div class="hint">Tìm thấy ' + results.length + ' kết quả — chọn cửa hàng cần xem tài sản.</div>';
+    });
+  }
+
+  function pickAssetStore(idx) {
+    var c = assetStoreCandidatesCache[idx];
+    $('#assetStoreCandidates').innerHTML = '';
+    showAssetsForStore(c.costCenter, c.address);
+  }
+
+  function showAssetsForStore(costCenter, address) {
+    $('#assetStoreListWrap').innerHTML = '<div class="loading-wrap"><div class="spinner"></div>Đang tải tài sản…</div>';
+    runServer('getAssetsByStore', [costCenter], function (rows) {
+      if (!rows.length) {
+        $('#assetStoreListWrap').innerHTML = '<div class="empty-state"><div class="icn">' + ICONS.box + '</div><div class="t">Cửa hàng này chưa có tài sản nào được ghi nhận</div></div>';
+        return;
+      }
+      $('#assetStoreListWrap').innerHTML =
+        '<div class="row-between"><h3 style="margin:0; font-size:15px; color:var(--brand-900);">' + esc(address) + ' <span class="cc-pill light" style="margin-left:8px; cursor:pointer;" title="Xem chi tiết cửa hàng" onclick="THTM.viewStoreFromAsset(\'' + esc(costCenter).replace(/'/g, "\\'") + '\')">' + esc(costCenter) + '</span></h3>' +
+        '<span class="hint" style="margin:0;">' + rows.length + ' tài sản</span></div>' +
+        '<div class="card"><div class="table-wrap"><table class="data-table"><thead><tr><th>Mã tài sản</th><th>Tên tài sản</th><th>Ngày hoạt động</th></tr></thead><tbody>' +
+        rows.map(function (r) { return '<tr><td>' + assetToTaisanPill(r.assetCode) + '</td><td>' + esc(r.assetName) + '</td><td>' + esc(normalizeDateJS_(r.activeDate)) + '</td></tr>'; }).join('') +
+        '</tbody></table></div></div>';
+    });
+  }
+
+  var assetStoreSearchDebounce = null;
+  $('#assetStoreSearchBtn').addEventListener('click', doAssetStoreSearch);
+  $('#assetStoreSearchInput').addEventListener('keydown', function (e) { if (e.key === 'Enter') doAssetStoreSearch(); });
+  $('#assetStoreSearchInput').addEventListener('input', function () {
+    clearTimeout(assetStoreSearchDebounce);
+    assetStoreSearchDebounce = setTimeout(doAssetStoreSearch, 300);
+  });
+
+  function viewStoreFromAsset(costCenter) {
+    goToView('stores');
+    $('#storeSearchInput').value = costCenter;
+    $('#storeCandidates').innerHTML = '';
+    showStoreDetail(costCenter);
+  }
+
+  function viewAssetsFromStore(costCenter) {
+    goToView('assets');
+    $all('.mode-toggle button[data-mode]').forEach(function (b) { b.classList.toggle('active', b.dataset.mode === 'byStore'); });
+    $('#assetByCodePanel').style.display = 'none';
+    $('#assetByStorePanel').style.display = '';
+    $('#assetStoreSearchInput').value = costCenter;
+    $('#assetStoreCandidates').innerHTML = '';
+    runServer('getStoreDetail', [costCenter], function (s) {
+      showAssetsForStore(costCenter, s ? s.address : costCenter);
+    });
+  }
+
+  // Sanaky
+  var sanakyLoaded = false;
+  var sanakyPage = 1;
+  var sanakyQuery = '';
+  var sanakyYearFilter = '';
+  var sanakyMonthFilter = '';
+  var sanakyPageSize = 20;
+  var sanakyDebounce = null;
+
+  function loadSanakyView() {
+    sanakyLoaded = true;
+    $('#sanakyStatGrid').innerHTML = skelStats(3);
+    runServer('getSanakyMonthsAvailable', [], function (monthsAvailable) {
+      setupYearMonthFilter_(monthsAvailable, $('#sanakyYearFilterSelect'), $('#sanakyMonthFilterSelect'), sanakyYearFilter, sanakyMonthFilter, function (y, m) {
+        sanakyYearFilter = y; sanakyMonthFilter = m; sanakyPage = 1;
+        runServer('getSanakyDashboardData', [sanakyYearFilter, sanakyMonthFilter], renderSanakyStats);
+        fetchSanakyList();
+      });
+      runServer('getSanakyDashboardData', [sanakyYearFilter, sanakyMonthFilter], renderSanakyStats);
+      fetchSanakyList();
+    });
+  }
+
+  function rankItemHTML(x, i) {
+    var cls = i === 0 ? 'r1' : i === 1 ? 'r2' : 'r3';
+    return '<div class="rank-item">' +
+      '<div class="rank-left">' +
+        '<div class="rank-badge ' + cls + '">' + ICONS.trophy + '</div>' +
+        '<div class="rank-info">' +
+          '<div class="rank-name">' + esc(x.key) + '</div>' +
+          '<div class="rank-sub">' + esc(x.address || 'Không có địa chỉ') + '</div>' +
+          '<div class="rank-count">' + x.count + ' lượt sửa chữa</div>' +
+        '</div>' +
+      '</div>' +
+      '<div class="rank-money">' + fmtVND(x.cost) + '</div>' +
+    '</div>';
+  }
+
+  function renderSanakyStats(data) {
+    $('#sanakyStatGrid').innerHTML =
+      statCard('Tổng số tủ đã sửa chữa', data.totalDevices, '') +
+      statCard('Tổng số lần sửa chữa', data.totalRepairs, '') +
+      statCard('Tổng chi phí sửa chữa', fmtVND(data.totalCost), '');
+
+    $('#sanakyTopStores').innerHTML = data.topStores.length
+      ? data.topStores.map(rankItemHTML).join('')
+      : '<div class="tab-empty">Chưa có dữ liệu</div>';
+
+    $('#sanakyTopDevices').innerHTML = data.topDevices.length
+      ? data.topDevices.map(rankItemHTML).join('')
+      : '<div class="tab-empty">Chưa có dữ liệu</div>';
+  }
+
+  function fetchSanakyList() {
+    $('#sanakyTable tbody').innerHTML = skelTableRows(8, 6);
+    runServer('getSanakyList', [{ query: sanakyQuery, year: sanakyYearFilter, month: sanakyMonthFilter, page: sanakyPage, pageSize: sanakyPageSize }], renderSanakyTable);
+  }
+
+  function warrantyBadge(status) {
+    if (!status) return '';
+    var cls = status.ok ? 'ok' : 'expired';
+    return '<span class="warranty-badge ' + cls + '">' + esc(status.text) + '</span>';
+  }
+
+  function sanakyItemsCell(items, mode) {
+    return '<div class="multi-line' + (mode === 'qty' ? ' qty-group' : mode === 'money' ? ' money-group' : '') + '">' +
+      items.map(function (it) {
+        if (mode === 'qty') return '<div>' + esc(it.qty) + '</div>';
+        if (mode === 'money') return '<div>' + fmtVND(it.amount) + '</div>';
+        return '<div>' + esc(it.repairItem) + '</div>';
+      }).join('') +
+    '</div>';
+  }
+
+  function assetPill(assetCode) {
+    return '<span class="cc-pill outline" style="cursor:pointer;" onclick="THTM.showSanakyAsset(\'' + esc(assetCode).replace(/'/g, "\\'") + '\')">' + esc(assetCode) + '</span>';
+  }
+
+  function renderSanakyTable(data) {
+    var tbody = $('#sanakyTable tbody');
+    if (!data.rows.length) {
+      tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; color:var(--ink-500); padding:24px;">Không có bản ghi phù hợp.</td></tr>';
+    } else {
+      tbody.innerHTML = data.rows.map(function (r) {
+        return '<tr><td>' + assetPill(r.assetCode) + '</td>' +
+          '<td><span class="cc-pill light" style="cursor:pointer;" onclick="THTM.viewStoreFromAsset(\'' + esc(r.costCenter).replace(/'/g, "\\'") + '\')">' + esc(r.costCenter) + '</span></td>' +
+          '<td>' + esc(r.address) + '</td><td>' + esc(normalizeDateJS_(r.date)) + '</td>' +
+          '<td>' + sanakyItemsCell(r.items) + '</td>' +
+          '<td>' + sanakyItemsCell(r.items, 'qty') + '</td>' +
+          '<td class="money">' + sanakyItemsCell(r.items, 'money') + '</td>' +
+          '<td>' + warrantyBadge(r.status) + '</td></tr>';
+      }).join('');
+    }
+
+    var totalPages = Math.max(1, Math.ceil(data.total / data.pageSize));
+    $('#sanakyPagination').innerHTML =
+      '<span>Trang ' + data.page + ' / ' + totalPages + ' · ' + data.total + ' lượt sửa chữa</span>' +
+      '<button ' + (data.page <= 1 ? 'disabled' : '') + ' onclick="THTM.sanakyGoPage(' + (data.page - 1) + ')">← Trước</button>' +
+      '<button ' + (data.page >= totalPages ? 'disabled' : '') + ' onclick="THTM.sanakyGoPage(' + (data.page + 1) + ')">Sau →</button>';
+  }
+
+  function sanakyGoPage(p) { sanakyPage = p; fetchSanakyList(); }
+
+  $('#sanakySearchInput').addEventListener('input', function () {
+    clearTimeout(sanakyDebounce);
+    var val = this.value;
+    sanakyDebounce = setTimeout(function () {
+      sanakyQuery = val.trim();
+      sanakyPage = 1;
+      fetchSanakyList();
+    }, 350);
+  });
+
+  function showSanakyAsset(assetCode) {
+    goToView('sanaky');
+    $('#sanakyListWrap').style.display = 'none';
+    var wrap = $('#sanakyAssetDetailWrap');
+    wrap.style.display = '';
+    wrap.innerHTML = '<div class="loading-wrap"><div class="spinner"></div>Đang tải lịch sử sửa chữa…</div>';
+
+    runServer('getSanakyByAsset', [assetCode], function (data) {
+      if (!data.rows.length) {
+        wrap.innerHTML = '<button class="back-btn btn btn-ghost btn-sm" onclick="THTM.backToSanakyList()">← Quay lại</button>' +
+          '<div class="empty-state" style="margin-top:16px;"><div class="t">Chưa có lịch sử sửa chữa cho mã tài sản này</div></div>';
+        return;
+      }
+      wrap.innerHTML =
+        '<button class="btn btn-ghost btn-sm" onclick="THTM.backToSanakyList()" style="margin-bottom:16px;">← Quay lại</button>' +
+        '<div class="card" style="padding:20px 22px; margin-bottom:16px;">' +
+          '<div style="font-family:\'Sora\',sans-serif; font-size:20px; font-weight:800; color:var(--brand-900);">' + esc(data.assetCode) + '</div>' +
+          (data.cabinetType ? '<div style="color:var(--ink-500); font-size:13px; margin-top:3px; margin-bottom:14px;">' + esc(data.cabinetType) + '</div>' : '<div style="margin-bottom:14px;"></div>') +
+          sanakySummaryHTML(data.totalRepairs, data.totalCost) +
+        '</div>' +
+        '<div class="card"><div class="table-wrap wrap-cells"><table class="data-table"><thead><tr>' +
+          '<th class="col-wrap">Địa chỉ</th><th>Ngày thực hiện</th><th class="col-wrap">Hạng mục sửa chữa</th><th>SL</th><th class="money">Thành tiền</th><th>Tình trạng</th>' +
+        '</tr></thead><tbody>' +
+        data.rows.map(function (r) {
+          return '<tr><td>' + esc(r.address) + '</td><td>' + esc(normalizeDateJS_(r.date)) + '</td>' +
+            '<td>' + sanakyItemsCell(r.items) + '</td>' +
+            '<td>' + sanakyItemsCell(r.items, 'qty') + '</td>' +
+            '<td>' + sanakyItemsCell(r.items, 'money') + '</td>' +
+            '<td>' + warrantyBadge(r.status) + '</td></tr>';
+        }).join('') +
+        '</tbody></table></div></div>';
+    });
+  }
+
+  function backToSanakyList() {
+    $('#sanakyAssetDetailWrap').style.display = 'none';
+    $('#sanakyAssetDetailWrap').innerHTML = '';
+    $('#sanakyListWrap').style.display = '';
+  }
+
+  // Maintenance
+  var maintLoaded = false;
+  var maintPage = 1;
+  var maintQuery = '';
+  var maintPageSize = 20;
+  var maintDebounce = null;
+  var chartMaintQuarterlyQty = null;
+  var chartMaintQuarterlyCost = null;
+
+  var MAINT_CHART_PALETTE = ['#2E9BE0', '#E3A83B', '#7A2FA0', '#2C7A4B', '#C1443A', '#7FC4EE', '#93A2AC'];
+
+  function loadMaintenance() {
+    maintLoaded = true;
+    fetchMaintenance();
+    loadMaintQuarterlyChart();
+  }
+
+  function loadMaintQuarterlyChart() {
+    runServer('getMaintenanceQuarterlyStats', [], renderMaintQuarterlyChart);
+  }
+
+  function renderMaintQuarterlyChart(data) {
+    applyChartDefaults_();
+    if (!data || !data.labels || !data.labels.length) {
+      ['#chartMaintQuarterlyQty', '#chartMaintQuarterlyCost'].forEach(function (sel) {
+        var cont = $(sel) ? $(sel).closest('.panel') : null;
+        if (cont) cont.innerHTML = '<div class="empty-state" style="padding:24px;">Chưa có dữ liệu để vẽ biểu đồ.</div>';
+      });
+      return;
+    }
+    try {
+      var qtyDatasets = [{ type: 'bar', label: 'Tổng số lượng', data: data.totalCount, backgroundColor: '#16233B', borderRadius: 5 }];
+      data.countSeries.forEach(function (s, i) {
+        qtyDatasets.push({ type: 'bar', label: s.name, data: s.data, backgroundColor: MAINT_CHART_PALETTE[i % MAINT_CHART_PALETTE.length], borderRadius: 5 });
+      });
+      if (chartMaintQuarterlyQty) chartMaintQuarterlyQty.destroy();
+      chartMaintQuarterlyQty = new Chart($('#chartMaintQuarterlyQty').getContext('2d'), {
+        type: 'bar',
+        data: { labels: data.labels, datasets: qtyDatasets },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          layout: { padding: { top: 18 } },
+          plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10.5 } } } },
+          scales: {
+            x: { grid: { display: false, drawTicks: false } },
+            y: { beginAtZero: true, grid: { color: '#E8EEF5' } }
+          }
+        },
+        plugins: [barValueLabelsPlugin]
+      });
+
+      var costDatasets = data.costSeries.map(function (s, i) {
+        return { type: 'bar', label: s.name, data: s.data, backgroundColor: MAINT_CHART_PALETTE[i % MAINT_CHART_PALETTE.length], borderRadius: 3 };
+      });
+      if (chartMaintQuarterlyCost) chartMaintQuarterlyCost.destroy();
+      chartMaintQuarterlyCost = new Chart($('#chartMaintQuarterlyCost').getContext('2d'), {
+        type: 'bar',
+        data: { labels: data.labels, datasets: costDatasets },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          layout: { padding: { top: 22 } },
+          plugins: {
+            legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10.5 } } },
+            tooltip: { callbacks: { label: function (ctx) { return ctx.dataset.label + ': ' + fmtVND(ctx.raw); } } }
+          },
+          scales: {
+            x: { stacked: true, grid: { display: false } },
+            y: { stacked: true, beginAtZero: true, grid: { color: '#E8EEF5' } }
+          }
+        },
+        plugins: [stackedCostLabelsPlugin]
+      });
+    } catch (err) {
+      ['#chartMaintQuarterlyQty', '#chartMaintQuarterlyCost'].forEach(function (sel) {
+        var cont = $(sel) ? $(sel).closest('.panel') : null;
+        if (cont) cont.innerHTML = '<div class="empty-state" style="padding:24px;">Không tải được biểu đồ (thư viện Chart.js chưa sẵn sàng).</div>';
+      });
+    }
+  }
+
+  function fetchMaintenance() {
+    $('#maintTable tbody').innerHTML = skelTableRows(8, 6);
+    runServer('getMaintenanceList', [{ query: maintQuery, page: maintPage, pageSize: maintPageSize }], renderMaintTable);
+  }
+
+  function renderMaintTable(data) {
+    var tbody = $('#maintTable tbody');
+    if (!data.rows.length) {
+      tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; color:var(--ink-500); padding:24px;">Không có bản ghi phù hợp.</td></tr>';
+    } else {
+      tbody.innerHTML = data.rows.map(function (m) {
+        return '<tr><td><span class="cc-pill outline">' + esc(m.assetCode) + '</span></td>' +
+          '<td>' + esc(m.address) + '</td><td>' + esc(m.type) + '</td><td>' + esc(normalizeDateJS_(m.date)) + '</td>' +
+          '<td>' + esc(m.supplier) + '</td><td>' + esc(m.desc) + '</td>' +
+          '<td class="money">' + fmtVND(m.cost) + '</td><td>' + esc(m.note) + '</td></tr>';
+      }).join('');
+    }
+
+    var totalPages = Math.max(1, Math.ceil(data.total / data.pageSize));
+    $('#maintPagination').innerHTML =
+      '<span>Trang ' + data.page + ' / ' + totalPages + ' · ' + data.total + ' bản ghi</span>' +
+      '<button ' + (data.page <= 1 ? 'disabled' : '') + ' onclick="THTM.maintGoPage(' + (data.page - 1) + ')">← Trước</button>' +
+      '<button ' + (data.page >= totalPages ? 'disabled' : '') + ' onclick="THTM.maintGoPage(' + (data.page + 1) + ')">Sau →</button>';
+  }
+
+  function maintGoPage(p) { maintPage = p; fetchMaintenance(); }
+
+  $('#maintSearchInput').addEventListener('input', function () {
+    clearTimeout(maintDebounce);
+    var val = this.value;
+    maintDebounce = setTimeout(function () {
+      maintQuery = val.trim();
+      maintPage = 1;
+      fetchMaintenance();
+    }, 350);
+  });
+
+  // Vật tư
+  var vattuLoaded = false;
+  var vtData = null;
+  var vtCurrentYear = '';
+  var vtCurrentMonth = '';
+  var vtDefaultApplied = false;
+  var vtTrackPage = 1;
+  var vtTrackQuery = '';
+  var vtTrackStaff = '';
+  var vtTrackStatus = '';
+  var vtTrackYear = '';
+  var vtTrackMonth = '';
+  var vtTrackPageSize = 20;
+  var vtTrackDebounce = null;
+
+    /* CHỈ ĐỌC — mở tab Vật tư không được đụng vào tồn kho. Việc trừ kho nằm ở nút "Khớp vật tư"
+     (#vtCalcBtn). */
+  function loadVatTu() {
+    vattuLoaded = true;
+    loadVtStock();
+    loadVtYearsAndMonths();
+    loadVtTrackFilters();
+    fetchVtTrackList();
+  }
+
+  function reloadVatTuAll_() {
+    loadVtStock();
+    loadVtYearsAndMonths();
+    loadVtTrackFilters();
+    fetchVtTrackList();
+  }
+
+  function loadVtStock() {
+    $('#vtStockTableWrap').innerHTML = '<div class="loading-wrap"><div class="spinner"></div>Đang tải…</div>';
+    runServer('getVatTuData', [], function (data) {
+      vtData = data;
+      renderVtStockTable(data);
+    });
+  }
+
+  /** Bảng "Vật tư tồn kho theo người giữ": cột "Tổng" đứng ngay sau "Yêu cầu kỹ thuật";
+   * tiêu đề người giữ hiển thị viết tắt (abbreviateHolderName_), tên đầy đủ hiện khi hover. */
+  function renderVtStockTable(data) {
+    if (!data.materials.length) {
+      $('#vtStockTableWrap').innerHTML = '<div class="empty-state"><div class="t">Chưa có vật tư nào trong danh mục</div>Bấm "Quản lý vật tư" để thêm mới.</div>';
+      return;
+    }
+    var headCols = '<th class="vt-fixed-head">Mã vật tư</th><th class="vt-name-head">Tên vật tư</th><th class="vt-spec-head">Yêu cầu kỹ thuật</th><th class="vt-total-head">Tổng tồn</th>' +
+      data.holders.map(function (h) { return '<th class="vt-holder-head" title="' + esc(h) + '">' + esc(abbreviateHolderName_(h)) + '</th>'; }).join('');
+    var bodyRows = data.materials.map(function (m) {
+      return '<tr><td class="vt-fixed-cell"><span class="cc-pill outline">' + esc(m.code) + '</span></td><td class="vt-name-cell">' + esc(m.name) + '</td>' +
+        '<td class="vt-spec-cell">' + (m.spec ? esc(m.spec) : '—') + '</td>' +
+        '<td class="vt-total-cell">' + esc(m.total) + '</td>' +
+        data.holders.map(function (h) { return '<td style="text-align:center;">' + (m.qty[h] ? esc(m.qty[h]) : '—') + '</td>'; }).join('') +
+        '</tr>';
+    }).join('');
+    $('#vtStockTableWrap').innerHTML = '<table class="vt-compact"><thead><tr>' + headCols + '</tr></thead><tbody>' + bodyRows + '</tbody></table>';
+  }
+
+  /** Mặc định chọn THÁNG MỚI NHẤT có dữ liệu, chỉ áp dụng ở lần tải đầu tiên. */
+  function loadVtYearsAndMonths() {
+    runServer('getVatTuMonthsAvailable', [], function (monthsAvailable) {
+      if (!vtDefaultApplied && !vtCurrentYear && !vtCurrentMonth && monthsAvailable.length) {
+        vtDefaultApplied = true;
+        var latest = monthsAvailable[0].split('-');
+        vtCurrentYear = latest[0];
+        vtCurrentMonth = String(Number(latest[1]));
+      }
+      setupYearMonthFilter_(monthsAvailable, $('#vtYearSelect'), $('#vtMonthSelect'), vtCurrentYear, vtCurrentMonth, function (y, m) {
+        vtCurrentYear = y; vtCurrentMonth = m;
+        loadVtByStaff(vtCurrentYear, vtCurrentMonth);
+      });
+      vtCurrentYear = $('#vtYearSelect').value;
+      vtCurrentMonth = $('#vtMonthSelect').value;
+      loadVtByStaff(vtCurrentYear, vtCurrentMonth);
+    });
+  }
+
+  function loadVtByStaff(year, month) {
+    $('#vtByStaffTableWrap').innerHTML = '<div class="loading-wrap"><div class="spinner"></div>Đang tải…</div>';
+    runServer('getVatTuByStaffMonth', [year, month], renderVtByStaffTable);
+  }
+
+  function renderVtByStaffTable(data) {
+    if (!data.materials.length) {
+      $('#vtByStaffTableWrap').innerHTML = '<div class="tab-empty">Không có vật tư nào khớp với dữ liệu chi phí trong khoảng thời gian này.</div>';
+      return;
+    }
+    var headCols = '<th class="col-wrap">Tên vật tư</th>' + data.staffList.map(function (s) { return '<th title="' + esc(s) + '">' + esc(abbreviateHolderName_(s)) + '</th>'; }).join('') + '<th class="money">Tổng</th>';
+    var bodyRows = data.materials.map(function (m) {
+      return '<tr><td>' + esc(m.name) + '</td>' +
+        data.staffList.map(function (s) { return '<td>' + (m.byStaff[s] ? esc(m.byStaff[s]) : '—') + '</td>'; }).join('') +
+        '<td class="money" style="font-weight:700; color:var(--brand-900);">' + esc(m.total) + '</td></tr>';
+    }).join('');
+    $('#vtByStaffTableWrap').innerHTML = '<table class="data-table vt-staff-table"><thead><tr>' + headCols + '</tr></thead><tbody>' + bodyRows + '</tbody></table>';
+  }
+
+  function loadVtTrackFilters() {
+    runServer('getVatTuTrackingFilters', [], function (f) {
+      var staffSel = $('#vtTrackStaffSelect');
+      staffSel.innerHTML = '<option value="">Tên nhân viên</option>' +
+        f.staffList.map(function (s) { return '<option value="' + esc(s) + '">' + esc(s) + '</option>'; }).join('');
+      staffSel.value = vtTrackStaff;
+
+      setupYearMonthFilter_(f.monthsAvailable, $('#vtTrackYearSelect'), $('#vtTrackMonthSelect'), vtTrackYear, vtTrackMonth, function (y, m) {
+        vtTrackYear = y; vtTrackMonth = m; vtTrackPage = 1; fetchVtTrackList();
+      });
+    });
+  }
+
+  $('#vtTrackStaffSelect').addEventListener('change', function () { vtTrackStaff = this.value; vtTrackPage = 1; fetchVtTrackList(); });
+  $('#vtTrackStatusSelect').addEventListener('change', function () { vtTrackStatus = this.value; vtTrackPage = 1; fetchVtTrackList(); });
+
+  function fetchVtTrackList() {
+    $('#vtTrackTable tbody').innerHTML = skelTableRows(7, 6);
+    runServer('getVatTuTrackingList', [{
+      query: vtTrackQuery, staff: vtTrackStaff, year: vtTrackYear, month: vtTrackMonth,
+      status: vtTrackStatus,
+      page: vtTrackPage, pageSize: vtTrackPageSize
+    }], renderVtTrackTable);
+  }
+
+  var VT_SUMMARY_ORDER_ = [
+    ['done', 'Đã xuất kho'], ['wait', 'Chờ xuất kho'],
+    ['no_item', 'Chưa khớp vật tư'], ['no_holder', 'Thiếu người giữ'], ['no_qty', 'Thiếu số lượng'],
+    ['no_stock', 'Không đủ tồn']
+  ];
+
+  /* Thẻ hiện theo bộ đếm TỔNG THỂ (chưa lọc trạng thái) — nếu dùng bộ đếm đã lọc thì bấm vào một
+     thẻ là các thẻ khác về 0 rồi biến mất, không chuyển sang trạng thái khác được nữa. */
+  function renderVtTrackSummary(counts) {
+    var el = $('#vtTrackSummary');
+    if (!el) return;
+    if (!counts) { el.innerHTML = ''; return; }
+    el.innerHTML = VT_SUMMARY_ORDER_.filter(function (x) { return counts[x[0]]; })
+      .map(function (x) {
+        var on = vtTrackStatus === x[0];
+        var cls = on ? ' on' : (vtTrackStatus ? ' dim' : '');
+        return '<button type="button" class="vt-status ' + (VT_STATUS_TONE_[x[0]] || 'wait') + cls +
+          '" data-st="' + x[0] + '" title="' + (on ? 'Bấm để bỏ lọc' : 'Bấm để chỉ xem trạng thái này') + '">' +
+          '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" ' +
+          'stroke-linecap="round" stroke-linejoin="round">' + (VT_STATUS_ICONS_[x[0]] || VT_STATUS_ICONS_.wait) +
+          '</svg>' + esc(x[1] + ': ' + counts[x[0]]) + '</button>';
+      }).join('');
+  }
+
+  // Bấm thẻ -> đặt bộ lọc; bấm lại thẻ đang chọn -> bỏ lọc. Đồng bộ luôn ô select bên trên.
+  document.addEventListener('click', function (e) {
+    var b = e.target.closest ? e.target.closest('#vtTrackSummary button[data-st]') : null;
+    if (!b) return;
+    var st = b.dataset.st;
+    vtTrackStatus = (vtTrackStatus === st) ? '' : st;
+    var sel = $('#vtTrackStatusSelect');
+    if (sel) sel.value = vtTrackStatus;
+    vtTrackPage = 1;
+    fetchVtTrackList();
+  });
+
+  function renderVtTrackTable(data) {
+    renderVtTrackSummary(data.counts);
+    var tbody = $('#vtTrackTable tbody');
+    if (!data.rows.length) {
+      tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:var(--ink-500); padding:24px;">Không có bản ghi phù hợp.</td></tr>';
+    } else {
+      tbody.innerHTML = data.rows.map(function (r) {
+        return '<tr><td><span class="cost-type-badge chiphi">' + esc(r.source || 'Khác') + '</span></td>' +
+          '<td>' + esc(normalizeDateJS_(r.date)) + '</td>' +
+          /* PHẢI có class col-wrap ở ĐÂY nữa, không chỉ ở <th>. Quy tắc .wrap-cells ép mọi ô
+             nowrap và chỉ nhả cho .col-wrap — bản cũ thiếu class ở td nên địa chỉ dài kéo giãn
+             bảng ra ngoài khung. */
+          '<td class="col-wrap">' + esc(r.item) + '</td><td>' + esc(r.qty) + '</td>' +
+          '<td>' + esc(r.staff || '—') + '</td><td class="col-wrap">' + esc(r.address || '—') + '</td>' +
+          '<td>' + vtStatusBadge(r.status, r.statusLabel) +
+          (r.statusSub ? '<span class="vt-sub">' + esc(r.statusSub) + '</span>' : '') + '</td></tr>';
+      }).join('');
+    }
+    var totalPages = Math.max(1, Math.ceil(data.total / data.pageSize));
+    $('#vtTrackPagination').innerHTML =
+      '<span>Trang ' + data.page + ' / ' + totalPages + ' · ' + data.total + ' bản ghi</span>' +
+      '<button ' + (data.page <= 1 ? 'disabled' : '') + ' onclick="THTM.vtTrackGoPage(' + (data.page - 1) + ')">← Trước</button>' +
+      '<button ' + (data.page >= totalPages ? 'disabled' : '') + ' onclick="THTM.vtTrackGoPage(' + (data.page + 1) + ')">Sau →</button>';
+  }
+
+  function vtTrackGoPage(p) { vtTrackPage = p; fetchVtTrackList(); }
+
+  $('#vtTrackSearchInput').addEventListener('input', function () {
+    clearTimeout(vtTrackDebounce);
+    var val = this.value;
+    vtTrackDebounce = setTimeout(function () {
+      vtTrackQuery = val.trim();
+      vtTrackPage = 1;
+      fetchVtTrackList();
+    }, 350);
+  });
+
+  $('#vtExportBtn').addEventListener('click', function () {
+    var btn = this;
+    btn.disabled = true;
+    showToast('Đang tạo file Excel…');
+    // PHẢI truyền bộ lọc riêng của tab "Theo dõi sử dụng", nếu không sheet TheoDoiSuDung sẽ chứa
+    // toàn bộ thời gian dù người dùng đã chọn tháng/năm/nhân viên.
+    runServer('exportVatTuExcel', [vtCurrentYear, vtCurrentMonth, {
+      staff: vtTrackStaff, year: vtTrackYear, month: vtTrackMonth, query: vtTrackQuery,
+      status: vtTrackStatus
+    }], function (res) {
+      btn.disabled = false;
+      var a = document.createElement('a');
+      a.href = 'data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,' + res.base64;
+      a.download = res.filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      showToast('Đã tải file: ' + res.filename);
+    }, function () { btn.disabled = false; });
+  });
+
+  // Modal: Quản lý vật tư
+  function openVtItemsModal() {
+    resetVtItemForm();
+    renderVtItemsList();
+    $('#vtItemsModal').classList.add('active');
+  }
+  function closeVtItemsModal() { $('#vtItemsModal').classList.remove('active'); }
+
+  function renderVtItemsList() {
+    if (!vtData || !vtData.materials.length) {
+      $('#vtItemsList').innerHTML = '<div class="tab-empty">Chưa có vật tư nào.</div>';
+      return;
+    }
+    $('#vtItemsList').innerHTML = vtData.materials.map(function (m, i) {
+      var safe = esc(m.code).replace(/'/g, "\\'");
+      return '<div class="candidate-item" style="padding:10px 12px; margin-bottom:6px; cursor:default;">' +
+        '<div class="candidate-main"><div class="addr" style="font-size:13px;">' + esc(m.name) + '</div><div class="meta">' + esc(m.code) + (m.spec ? ' · ' + esc(m.spec) : '') + '</div></div>' +
+        '<div style="display:flex; gap:6px; align-items:center;">' +
+          '<span class="vt-order-btns">' +
+            '<button class="btn btn-ghost btn-icon-sm" title="Lên" ' + (i === 0 ? 'disabled' : '') + ' onclick="THTM.vtMoveItem(\'' + safe + '\',\'up\')">↑</button>' +
+            '<button class="btn btn-ghost btn-icon-sm" title="Xuống" ' + (i === vtData.materials.length - 1 ? 'disabled' : '') + ' onclick="THTM.vtMoveItem(\'' + safe + '\',\'down\')">↓</button>' +
+          '</span>' +
+          '<button class="btn btn-ghost btn-sm" onclick="THTM.vtEditItem(\'' + safe + '\')">Sửa</button>' +
+          '<button class="btn btn-ghost btn-sm" style="color:var(--danger); border-color:var(--danger-100);" onclick="THTM.vtDeleteItem(\'' + safe + '\')">Xoá</button>' +
+        '</div></div>';
+    }).join('');
+  }
+
+  function resetVtItemForm() {
+    $('#vtItemCodeInput').value = '';
+    $('#vtItemNameInput').value = '';
+    $('#vtItemSpecInput').value = '';
+    $('#vtItemOldCodeInput').value = '';
+    $('#vtItemSaveBtn').textContent = 'Lưu vật tư';
+  }
+
+  function vtEditItem(code) {
+    var m = (vtData.materials || []).find(function (x) { return x.code === code; });
+    if (!m) return;
+    $('#vtItemCodeInput').value = m.code;
+    $('#vtItemNameInput').value = m.name;
+    $('#vtItemSpecInput').value = m.spec || '';
+    $('#vtItemOldCodeInput').value = m.code;
+    $('#vtItemSaveBtn').textContent = 'Cập nhật vật tư';
+  }
+
+  function vtDeleteItem(code) {
+    confirmDialog('Xoá vật tư', 'Xoá vật tư "' + code + '" khỏi danh mục? Toàn bộ số lượng tồn của vật tư này sẽ mất.').then(function (ok) {
+      if (!ok) return;
+      runServer('deleteVatTuItem', [code], function () {
+        showToast('Đã xoá vật tư.');
+        loadVtStockThenRefreshItemsList();
+      });
+    });
+  }
+
+  function vtMoveItem(code, direction) {
+    runServer('moveVatTuItem', [code, direction], function () {
+      loadVtStockThenRefreshItemsList();
+    });
+  }
+
+  function loadVtStockThenRefreshItemsList() {
+    runServer('getVatTuData', [], function (data) {
+      vtData = data;
+      renderVtStockTable(data);
+      renderVtItemsList();
+    });
+  }
+
+  /* MỤC 2: mọi nút GHI trong màn Vật tư đều hỏi mật khẩu, hỏi lại MỖI LẦN bấm (không nhớ phiên).
+     "Xuất Excel" cố ý KHÔNG khoá vì chỉ đọc, không thay đổi gì. */
+  $('#vtManageItemsBtn').addEventListener('click', function () {
+    passwordDialog('Quản lý vật tư', 'Thao tác này THÊM / SỬA / XOÁ danh mục vật tư — cần mật khẩu để tiếp tục.')
+      .then(function (ok) { if (ok) openVtItemsModal(); });
+  });
+  $('#vtItemsModalClose').addEventListener('click', closeVtItemsModal);
+  $('#vtItemsModal').addEventListener('click', function (e) { if (e.target === this) closeVtItemsModal(); });
+  $('#vtItemFormResetBtn').addEventListener('click', resetVtItemForm);
+  $('#vtItemSaveBtn').addEventListener('click', function () {
+    var code = $('#vtItemCodeInput').value.trim();
+    var name = $('#vtItemNameInput').value.trim();
+    var spec = $('#vtItemSpecInput').value.trim();
+    var oldCode = $('#vtItemOldCodeInput').value.trim();
+    if (!code || !name) { showToast('Nhập đủ Mã vật tư và Tên vật tư.', true); return; }
+    runServer('saveVatTuItem', [{ code: code, name: name, spec: spec, oldCode: oldCode }], function () {
+      showToast('Đã lưu vật tư.');
+      resetVtItemForm();
+      loadVtStockThenRefreshItemsList();
+    });
+  });
+
+  // Modal: Người giữ vật tư
+  function openVtHoldersModal() {
+    renderVtHoldersList();
+    $('#vtHoldersModal').classList.add('active');
+  }
+  function closeVtHoldersModal() { $('#vtHoldersModal').classList.remove('active'); }
+
+  function renderVtHoldersList() {
+    if (!vtData || !vtData.holders.length) {
+      $('#vtHoldersList').innerHTML = '<div class="tab-empty">Chưa có người giữ vật tư nào.</div>';
+      return;
+    }
+    $('#vtHoldersList').innerHTML = vtData.holders.map(function (h) {
+      var safe = esc(h).replace(/'/g, "\\'");
+      var nameParts = esc(h).trim().split(/\s+/);
+      var initials = (nameParts[nameParts.length - 1] || '?').charAt(0).toUpperCase();
+      return '<div class="vt-holder-row">' +
+        '<div class="vt-holder-avatar">' + initials + '</div>' +
+        '<input type="text" value="' + esc(h) + '" class="vt-holder-name-input">' +
+        '<div style="display:flex; gap:6px; flex-shrink:0;">' +
+          '<button class="btn btn-ghost btn-sm" onclick="THTM.vtRenameHolder(\'' + safe + '\', this)">Đổi tên</button>' +
+          '<button class="btn btn-ghost btn-sm" style="color:var(--danger); border-color:var(--danger-100);" onclick="THTM.vtDeleteHolder(\'' + safe + '\')">Xoá</button>' +
+        '</div></div>';
+    }).join('');
+  }
+
+  function vtRenameHolder(oldName, btnEl) {
+    var row = btnEl.closest('.vt-holder-row');
+    var input = row.querySelector('input');
+    var newName = input.value.trim();
+    if (!newName || newName === oldName) return;
+    runServer('renameVatTuHolder', [oldName, newName], function () {
+      showToast('Đã đổi tên.');
+      loadVtStockThenRefreshHoldersList();
+    });
+  }
+
+  function vtDeleteHolder(name) {
+    confirmDialog('Xoá người giữ vật tư', 'Xoá người giữ vật tư "' + name + '"? Toàn bộ số lượng đang gán cho người này sẽ mất.').then(function (ok) {
+      if (!ok) return;
+      runServer('deleteVatTuHolder', [name], function () {
+        showToast('Đã xoá.');
+        loadVtStockThenRefreshHoldersList();
+      });
+    });
+  }
+
+  function loadVtStockThenRefreshHoldersList() {
+    runServer('getVatTuData', [], function (data) {
+      vtData = data;
+      renderVtStockTable(data);
+      renderVtHoldersList();
+    });
+  }
+
+  $('#vtManageHoldersBtn').addEventListener('click', function () {
+    passwordDialog('Người giữ vật tư', 'Thêm / đổi tên / xoá người giữ sẽ ảnh hưởng tới cột tồn kho tương ứng — cần mật khẩu để tiếp tục.')
+      .then(function (ok) { if (ok) openVtHoldersModal(); });
+  });
+  $('#vtHoldersModalClose').addEventListener('click', closeVtHoldersModal);
+  $('#vtHoldersModal').addEventListener('click', function (e) { if (e.target === this) closeVtHoldersModal(); });
+  $('#vtHolderAddBtn').addEventListener('click', function () {
+    var name = $('#vtHolderNewInput').value.trim();
+    if (!name) { showToast('Nhập tên người giữ vật tư.', true); return; }
+    runServer('addVatTuHolder', [name], function () {
+      showToast('Đã thêm người giữ vật tư.');
+      $('#vtHolderNewInput').value = '';
+      loadVtStockThenRefreshHoldersList();
+    });
+  });
+
+  // Modal: Chỉnh sửa tồn kho (ghi đè, chọn người giữ trước)
+  function openVtQtyModal() {
+    if (!vtData || !vtData.materials.length) { showToast('Chưa có vật tư nào — hãy thêm vật tư trước.', true); return; }
+    if (!vtData.holders.length) { showToast('Chưa có người giữ vật tư nào — hãy thêm người giữ trước.', true); return; }
+    $('#vtQtyHolderSelect').innerHTML = vtData.holders.map(function (h) { return '<option value="' + esc(h) + '">' + esc(h) + '</option>'; }).join('');
+    renderVtQtyTable();
+    $('#vtQtyModal').classList.add('active');
+  }
+  function closeVtQtyModal() { $('#vtQtyModal').classList.remove('active'); }
+
+  function renderVtQtyTable() {
+    var holder = $('#vtQtyHolderSelect').value;
+    $('#vtQtyTableBody').innerHTML = vtData.materials.map(function (m) {
+      var val = m.qty[holder] || 0;
+      return '<tr><td><span class="cc-pill outline">' + esc(m.code) + '</span></td><td>' + esc(m.name) + '</td>' +
+        '<td><input type="number" min="0" step="1" value="' + val + '" data-code="' + esc(m.code) + '" class="vt-qty-input" style="width:100%; border:1px solid var(--line); border-radius:6px; padding:6px 8px;"></td></tr>';
+    }).join('');
+  }
+  $('#vtQtyHolderSelect').addEventListener('change', renderVtQtyTable);
+
+  $('#vtEditQtyBtn').addEventListener('click', function () {
+    passwordDialog('Chỉnh sửa tồn kho', 'Thao tác này GHI ĐÈ trực tiếp số liệu tồn kho hiện có — cần mật khẩu để tiếp tục.').then(function (ok) {
+      if (ok) openVtQtyModal();
+    });
+  });
+  $('#vtQtyModalClose').addEventListener('click', closeVtQtyModal);
+  $('#vtQtyModal').addEventListener('click', function (e) { if (e.target === this) closeVtQtyModal(); });
+  $('#vtQtySaveBtn').addEventListener('click', function () {
+    var holder = $('#vtQtyHolderSelect').value;
+    var items = $all('.vt-qty-input', $('#vtQtyTableBody')).map(function (inp) {
+      return { code: inp.dataset.code, qty: Number(inp.value) || 0 };
+    });
+    runServer('setVatTuQtyBulk', [holder, items], function () {
+      showToast('Đã cập nhật tồn kho cho ' + holder + '.');
+      loadVtStock();
+      closeVtQtyModal();
+    });
+  });
+
+  // Modal: Cập nhật tồn kho (nhập kho, cộng dồn)
+  function openVtStockInModal() {
+    if (!vtData || !vtData.materials.length) { showToast('Chưa có vật tư nào — hãy thêm vật tư trước.', true); return; }
+    if (!vtData.holders.length) { showToast('Chưa có người giữ vật tư nào — hãy thêm người giữ trước.', true); return; }
+    $('#vtStockInHolderSelect').innerHTML = vtData.holders.map(function (h) { return '<option value="' + esc(h) + '">' + esc(h) + '</option>'; }).join('');
+    renderVtStockInTable();
+    switchVtStockInTab('nhap');
+    $('#vtStockInModal').classList.add('active');
+  }
+  function closeVtStockInModal() { $('#vtStockInModal').classList.remove('active'); }
+
+  function renderVtStockInTable() {
+    $('#vtStockInTableBody').innerHTML = vtData.materials.map(function (m) {
+      return '<tr><td><span class="cc-pill outline">' + esc(m.code) + '</span></td><td>' + esc(m.name) + '</td>' +
+        '<td><input type="number" min="0" step="1" value="0" data-code="' + esc(m.code) + '" class="vt-stockin-input" style="width:100%; border:1px solid var(--line); border-radius:6px; padding:6px 8px;"></td></tr>';
+    }).join('');
+  }
+
+  function switchVtStockInTab(tab) {
+    $all('#vtStockInTabs button').forEach(function (b) { b.classList.toggle('active', b.dataset.tab === tab); });
+    $('#vtStockInFormPanel').style.display = tab === 'nhap' ? '' : 'none';
+    $('#vtStockInHistoryPanel').style.display = tab === 'lichsu' ? '' : 'none';
+    $('#vtStockInFormFoot').style.display = tab === 'nhap' ? '' : 'none';
+    if (tab === 'lichsu') loadVtStockInHistory();
+  }
+
+  $all('#vtStockInTabs button').forEach(function (btn) {
+    btn.addEventListener('click', function () { switchVtStockInTab(btn.dataset.tab); });
+  });
+
+  function loadVtStockInHistory() {
+    $('#vtStockInHistoryTable tbody').innerHTML = skelTableRows(5, 5);
+    runServer('getVatTuStockInHistory', [], function (rows) {
+      if (!rows.length) { $('#vtStockInHistoryTable tbody').innerHTML = '<tr><td colspan="5" style="text-align:center; color:var(--ink-500); padding:20px;">Chưa có lượt nhập kho nào.</td></tr>'; return; }
+      $('#vtStockInHistoryTable tbody').innerHTML = rows.map(function (r) {
+        return '<tr><td>' + esc(normalizeDateJS_(r.date)) + '</td><td><span class="cc-pill outline">' + esc(r.code) + '</span></td>' +
+          '<td>' + esc(r.name) + '</td><td>' + esc(r.qty) + '</td><td>' + esc(r.holder) + '</td></tr>';
+      }).join('');
+    });
+  }
+
+  $('#vtStockInBtn').addEventListener('click', function () {
+    passwordDialog('Cập nhật tồn kho', 'Thao tác này CỘNG DỒN số lượng vào tồn kho hiện có — cần mật khẩu để tiếp tục.')
+      .then(function (ok) { if (ok) openVtStockInModal(); });
+  });
+
+  /* Nút này GHI vào tồn kho nên hỏi mật khẩu giống các nút ghi khác. Chạy có thể lâu (quét toàn bộ
+     sheet CHI PHÍ) nên khoá nút lại trong lúc chờ, tránh bấm hai lần. */
+  $('#vtCalcBtn').addEventListener('click', function () {
+    var btn = this;
+    passwordDialog('Khớp vật tư',
+      'Thao tác này TRỪ tồn kho theo các dòng chi phí mới chưa xử lý — cần mật khẩu để tiếp tục.')
+      .then(function (ok) {
+        if (!ok) return;
+        btn.disabled = true;
+        btn.style.opacity = '.6';
+        showToast('Đang tính toán vật tư…');
+        runServer('runVatTuAutoDeduction', [], function (res) {
+          btn.disabled = false;
+          btn.style.opacity = '';
+          showToast(vtCalcMessage_(res), res && res.success === false);
+          reloadVatTuAll_();
+        }, function () {
+          btn.disabled = false;
+          btn.style.opacity = '';
+        });
+      });
+  });
+  $('#vtStockInModalClose').addEventListener('click', closeVtStockInModal);
+  $('#vtStockInModal').addEventListener('click', function (e) { if (e.target === this) closeVtStockInModal(); });
+  $('#vtStockInSaveBtn').addEventListener('click', function () {
+    var holder = $('#vtStockInHolderSelect').value;
+    var items = $all('.vt-stockin-input', $('#vtStockInTableBody'))
+      .map(function (inp) { return { code: inp.dataset.code, qty: Number(inp.value) || 0 }; })
+      .filter(function (it) { return it.qty > 0; });
+    if (!items.length) { showToast('Nhập ít nhất 1 số lượng lớn hơn 0.', true); return; }
+    runServer('addVatTuStock', [holder, items], function (res) {
+      showToast('Đã nhập kho cho ' + res.itemsAdded + ' vật tư (' + holder + ').');
+      loadVtStock();
+      renderVtStockInTable();
+    });
+  });
+
+  // Đơn giá
+  var DONGIA_COLUMNS = {
+    bt: [
+      { key: 'maImc', label: 'Mã IMC' },
+      { key: 'noiDung', label: 'Nội dung công việc', wrap: true },
+      { key: 'dvt', label: 'ĐVT' },
+      { key: 'vatTu', label: 'Vật tư', money: true, color: '#7C3AED' },
+      { key: 'nhanCong', label: 'Nhân công', money: true, color: '#F59E0B' },
+      { key: 'tongCong', label: 'Tổng cộng', money: true, color: '#16A34A', bold: true }
+    ],
+    xd: [
+      { key: 'maImc', label: 'Mã IMC' },
+      { key: 'noiDung', label: 'Nội dung công việc', wrap: true },
+      { key: 'yeuCau', label: 'Yêu cầu kỹ thuật / vật liệu', wrap: true },
+      { key: 'dvt', label: 'ĐVT' },
+      { key: 'tongCong', label: 'Tổng cộng', money: true, color: '#16A34A', bold: true }
+    ],
+    snk: [
+      { key: 'maImc', label: 'Mã IMC' },
+      { key: 'noiDung', label: 'Nội dung công việc', wrap: true },
+      { key: 'dvt', label: 'ĐVT' },
+      { key: 'vatTu', label: 'Vật tư', money: true, color: '#7C3AED' },
+      { key: 'gasPhinLoc', label: 'Gas & phin lọc', labelLines: ['Gas &', 'phin lọc'], money: true, color: '#7C3AED' },
+      { key: 'nhanCong', label: 'Nhân công', money: true, color: '#F59E0B' },
+      { key: 'phuPhi', label: 'Phụ phí (v.chuyển/đi lại)', labelLines: ['Phụ phí (v.chuyển/', 'đi lại)'], money: true, color: '#F59E0B' },
+      { key: 'tongCong', label: 'Tổng cộng', money: true, color: '#16A34A', bold: true }
+    ]
+  };
+
+  var dongiaCache = { bt: null, xd: null, snk: null };
+  var currentDongiaCategory = 'bt';
+  var dongiaLoaded = false;
+  var dongiaSearchDebounce = null;
+
+  $all('#dongiaTabs button').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var cat = btn.dataset.cat;
+      if (cat === currentDongiaCategory && dongiaCache[cat]) return;
+      currentDongiaCategory = cat;
+      $all('#dongiaTabs button').forEach(function (b) { b.classList.remove('active'); });
+      btn.classList.add('active');
+      $('#dongiaSearchInput').value = '';
+      if (dongiaCache[cat]) renderDongia(dongiaCache[cat]);
+      else loadDongia(cat);
+    });
+  });
+
+  function loadDongia(cat) {
+    dongiaLoaded = true;
+    $('#dongiaTable tbody').innerHTML = skelTableRows(6, 6);
+    runServer('getDonGiaData', [cat], function (res) {
+      if (!res.success) { showToast(res.message, true); return; }
+      dongiaCache[cat] = res.records || [];
+      if (currentDongiaCategory === cat) renderDongia(dongiaCache[cat]);
+    });
+  }
+
+  /** Tiêu đề "Vật tư/Gas & phin lọc/Nhân công/Phụ phí" có màu chữ khớp màu số liệu cột đó. */
+  function renderDongia(list) {
+    var cols = DONGIA_COLUMNS[currentDongiaCategory];
+    $('#dongiaTheadRow').innerHTML = cols.map(function (c) {
+      var style = '';
+      if (c.money) style = 'color:' + c.color + ';' + (c.bold ? 'font-weight:800;' : 'font-weight:700;');
+      var labelHtml = c.labelLines ? c.labelLines.map(esc).join('<br>') : esc(c.label);
+      return '<th' + (style ? ' style="' + style + '"' : '') + ' class="' + (c.wrap ? 'col-wrap' : '') + (c.money ? ' money' : '') + '">' + labelHtml + '</th>';
+    }).join('');
+
+    var tbody = $('#dongiaTable tbody');
+    if (!list || !list.length) {
+      tbody.innerHTML = '<tr><td colspan="' + cols.length + '" style="text-align:center; color:var(--ink-500); padding:24px;">Không tìm thấy đơn giá phù hợp.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = list.map(function (r) {
+      if (r.isHeader) {
+        return '<tr style="background:var(--sky-100);"><td colspan="' + cols.length + '" style="font-weight:700; color:var(--brand-900);">' + esc(r.maImc) + ' — ' + esc(r.noiDung) + '</td></tr>';
+      }
+      if (r.isSubHeader) {
+        return '<tr style="background:var(--cream-50);"><td colspan="' + cols.length + '" style="font-weight:600; color:var(--ink-600); padding-left:28px;">' + esc(r.maImc) + '. ' + esc(r.noiDung) + '</td></tr>';
+      }
+      return '<tr>' + cols.map(function (c) {
+        var val = r[c.key];
+        /* BẮT BUỘC esc(): dữ liệu đến thẳng từ sheet Đơn giá, ô nào chứa < > & (ví dụ "Ø<21",
+           "<30cm", "A&B") mà chèn thô vào innerHTML là trình duyệt hiểu thành thẻ -> vỡ bảng hoặc
+           mất dòng. Bản mobile đã esc() đầy đủ, chỉ chỗ này sót. */
+        if (!c.money) return '<td' + (c.wrap ? ' class="col-wrap"' : '') + '>' + esc(val || '—') + '</td>';
+        var style = 'font-family:inherit;font-size:13px;color:' + c.color + ';' + (c.bold ? 'font-weight:700;' : 'font-weight:600;');
+        return '<td class="money" style="' + style + '">' + fmtVND(val) + '</td>';
+      }).join('') + '</tr>';
+    }).join('');
+  }
+
+  function hasDiacriticsJS_(str) {
+    var s = String(str || '');
+    return /[\u0300-\u036f]/.test(s.normalize('NFD')) || /đ|Đ/.test(s);
+  }
+
+  function smartMatchJS_(haystack, query) {
+    var q = String(query || '').trim();
+    if (!q) return true;
+    var hs = String(haystack || '');
+    if (hasDiacriticsJS_(q)) {
+      return hs.toLowerCase().indexOf(q.toLowerCase()) > -1;
+    }
+    return removeDiacriticsJS_(hs).indexOf(removeDiacriticsJS_(q)) > -1;
+  }
+
+  function filterDongia() {
+    var data = dongiaCache[currentDongiaCategory];
+    if (!data) return;
+    var q = $('#dongiaSearchInput').value.trim();
+    if (!q) { renderDongia(data); return; }
+
+    var lastHeader = {}, lastSubHeader = {};
+    data.forEach(function (r) {
+      if (r.isHeader) lastHeader[r.group] = r;
+      else if (r.isSubHeader) lastSubHeader[r.group + '||' + r.subGroup] = r;
+    });
+
+    var result = [];
+    var addedHeader = {}, addedSubHeader = {};
+    data.forEach(function (r) {
+      if (r.isHeader || r.isSubHeader) return;
+      var hay = (r.maImc || '') + ' ' + (r.noiDung || '') + ' ' + (r.yeuCau || '');
+      if (!smartMatchJS_(hay, q)) return;
+
+      if (r.group && !addedHeader[r.group] && lastHeader[r.group]) { result.push(lastHeader[r.group]); addedHeader[r.group] = true; }
+      if (r.subGroup) {
+        var subKey = r.group + '||' + r.subGroup;
+        if (!addedSubHeader[subKey] && lastSubHeader[subKey]) { result.push(lastSubHeader[subKey]); addedSubHeader[subKey] = true; }
+      }
+      result.push(r);
+    });
+    renderDongia(result);
+  }
+
+  $('#dongiaSearchInput').addEventListener('input', function () {
+    clearTimeout(dongiaSearchDebounce);
+    dongiaSearchDebounce = setTimeout(filterDongia, 200);
+  });
+
+  // Expose
+  window.THTM = {
+    pickStore: pickStore,
+    pickAssetStore: pickAssetStore,
+    viewStoreFromAsset: viewStoreFromAsset,
+    viewAssetsFromStore: viewAssetsFromStore,
+    searchAssetByCodeAndShow: searchAssetByCodeAndShow,
+    maintGoPage: maintGoPage,
+    sanakyGoPage: sanakyGoPage,
+    showSanakyAsset: showSanakyAsset,
+    backToSanakyList: backToSanakyList,
+    vtTrackGoPage: vtTrackGoPage,
+    vtEditItem: vtEditItem,
+    vtDeleteItem: vtDeleteItem,
+    vtMoveItem: vtMoveItem,
+    vtRenameHolder: vtRenameHolder,
+    vtDeleteHolder: vtDeleteHolder
+  };
+
+  /* ---- Mốc "Cập nhật lần cuối" dưới nút Làm mới ----
+     Nguồn là Script Property cache_last_success bên server, tức thời điểm dữ liệu thực sự được
+     đọc lại từ Google Sheet — chính xác hơn giờ máy người dùng lúc mở trang. Nó cũng phản ánh cả
+     lần nạp do trigger nền chạy chứ không riêng lần bấm nút. */
+  function fmtLastUpdated_(iso) {
+    if (!iso) return '—';
+    var d = new Date(iso);
+    if (isNaN(d.getTime())) return '—';
+    function p2(n) { return n < 10 ? '0' + n : String(n); }
+    return p2(d.getHours()) + ':' + p2(d.getMinutes()) + ' ' +
+           p2(d.getDate()) + '/' + p2(d.getMonth() + 1) + '/' + d.getFullYear();
+  }
+
+  /* Chỉ ghi vào phần <b>. Nhãn "Cập nhật lần cuối:" nằm ngoài trong HTML nên luôn đứng yên,
+     kể cả lúc đang tải hay khi mất kết nối. */
+  function setLastUpdatedValue_(txt) {
+    var el = $('#dataLastUpdatedValue');
+    if (el) el.textContent = txt;
+  }
+  /** Mốc đang hiện — lưu lại để khôi phục khi thao tác làm mới thất bại. */
+  function getLastUpdatedValue_() {
+    var el = $('#dataLastUpdatedValue');
+    return el ? el.textContent : '…';
+  }
+
+  /* CỐ Ý không dùng runServer(): runServer bắn toast đỏ khi lỗi. Đây chỉ là dòng chữ trang trí,
+     nếu hỏng (ví dụ mới cập nhật Index.html mà quên cập nhật Code.gs) thì im lặng GIỮ NGUYÊN mốc
+     cũ chứ không ném lỗi vào mặt người dùng mỗi lần mở trang. */
+  function loadLastUpdated() {
+    try {
+      google.script.run
+        .withSuccessHandler(function (iso) { setLastUpdatedValue_(fmtLastUpdated_(iso)); })
+        .withFailureHandler(function () { /* giữ nguyên mốc đang hiện, đừng xoá thành "—" */ })
+        .getDataLastUpdated();
+    } catch (e) { /* giữ nguyên mốc đang hiện */ }
+  }
+
+  // Làm mới dữ liệu: không reload trang (tránh trắng trang do iframe Apps Script), chỉ
+  // yêu cầu server đọc lại dữ liệu, reset các cờ "đã tải" + huỷ chart cũ, rồi tải lại view hiện tại.
+  var refreshBtn = $('#refreshDataBtn');
+  refreshBtn.addEventListener('click', function () {
+    refreshBtn.disabled = true;
+    refreshBtn.style.opacity = '.6';
+    var prevLastUpdated = getLastUpdatedValue_();   // để khôi phục nếu làm mới thất bại
+    setLastUpdatedValue_('đang cập nhật…');
+    showToast('Đang làm mới dữ liệu…');
+    runServer('refreshData', [], function (res) {
+      dashboardLoaded = false;
+      sanakyLoaded = false;
+      maintLoaded = false;
+      vattuLoaded = false;
+      dongiaLoaded = false;
+      dongiaCache = { bt: null, xd: null, snk: null };
+      vtDefaultApplied = false;
+
+      if (chartRegion) { chartRegion.destroy(); chartRegion = null; }
+      if (chartType) { chartType.destroy(); chartType = null; }
+      if (chartMaintQuarterlyQty) { chartMaintQuarterlyQty.destroy(); chartMaintQuarterlyQty = null; }
+      if (chartMaintQuarterlyCost) { chartMaintQuarterlyCost.destroy(); chartMaintQuarterlyCost = null; }
+
+      var activeView = $('.view.active');
+      var viewName = activeView ? activeView.id.replace('view-', '') : 'dashboard';
+
+      if (viewName === 'dashboard') loadDashboard();
+      else if (viewName === 'sanaky') { $('#sanakyListWrap').style.display = ''; $('#sanakyAssetDetailWrap').style.display = 'none'; loadSanakyView(); }
+      else if (viewName === 'maintenance') loadMaintenance();
+      else if (viewName === 'vattu') loadVatTu();
+      else if (viewName === 'dongia') loadDongia(currentDongiaCategory);
+      else loadDashboard();
+
+      refreshBtn.disabled = false;
+      refreshBtn.style.opacity = '';
+      /* refreshData() đã trả sẵn refreshedAt nên dùng luôn, khỏi gọi thêm getDataLastUpdated().
+         Thiếu trường này (bản Code.gs cũ) thì TRẢ MỐC CŨ TRƯỚC rồi mới hỏi lại server — nếu không
+         mà lời gọi đó cũng hỏng thì dòng chữ kẹt vĩnh viễn ở "đang cập nhật…". */
+      if (res && res.refreshedAt) setLastUpdatedValue_(fmtLastUpdated_(res.refreshedAt));
+      else { setLastUpdatedValue_(prevLastUpdated); loadLastUpdated(); }
+      showToast(refreshMessage_(res));
+    }, function () {
+      refreshBtn.disabled = false;
+      refreshBtn.style.opacity = '';
+      setLastUpdatedValue_(prevLastUpdated);   // trả mốc cũ trước khi thử hỏi lại
+      loadLastUpdated();
+    });
+  });
+
+  // initial load
+  loadLastUpdated();
+  loadDashboard();
+})();
+</script>
+</body>
+</html>

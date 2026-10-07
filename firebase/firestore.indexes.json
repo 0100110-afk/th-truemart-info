@@ -1,0 +1,9 @@
+{
+  "indexes": [],
+  "fieldOverrides": [
+    { "collectionGroup": "sheetdata", "fieldPath": "json", "indexes": [] },
+    { "collectionGroup": "vattu", "fieldPath": "json", "indexes": [] },
+    { "collectionGroup": "vattu_autolog", "fieldPath": "json", "indexes": [] },
+    { "collectionGroup": "meta", "fieldPath": "json", "indexes": [] }
+  ]
+}

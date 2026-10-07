@@ -1,0 +1,53 @@
+/* Màn đăng nhập / chờ tải — phủ lên giao diện cho tới khi dữ liệu sẵn sàng. Màu bám theo --brand-* của app. */
+#tmAuth{
+  position:fixed; inset:0; z-index:200;
+  display:flex; align-items:center; justify-content:center; padding:20px;
+  background:linear-gradient(160deg,#083A6B 0%,#0F5FA8 70%,#2E9BE0 140%);
+  font-family:'Be Vietnam Pro',system-ui,sans-serif; color:#14202B;
+  transition:opacity .25s ease, visibility .25s;
+}
+#tmAuth.hidden{opacity:0; visibility:hidden; pointer-events:none;}
+.tm-auth-card{
+  width:100%; max-width:380px; background:#fff; border-radius:20px; padding:26px 24px 22px;
+  box-shadow:0 24px 60px -18px rgba(0,0,0,.45);
+}
+.tm-auth-brand{display:flex; align-items:center; gap:12px; margin-bottom:22px;}
+.tm-auth-mark{
+  width:44px; height:44px; border-radius:12px; background:#0B4C8C; color:#fff; flex-shrink:0;
+  display:flex; align-items:center; justify-content:center;
+  font-family:'Playfair Display','Times New Roman',serif; font-weight:700; font-size:19px;
+}
+.tm-auth-word{font-family:'Quicksand','Be Vietnam Pro',sans-serif; font-weight:700; font-size:21px; color:#0B4C8C;}
+.tm-auth-word span{color:#2E9BE0;}
+.tm-auth-sub{font-size:11.5px; color:#5C6C78; margin-top:1px;}
+.tm-btn{
+  display:flex; align-items:center; justify-content:center; gap:10px; width:100%;
+  border:1px solid #E1E9F2; background:#fff; color:#0B4C8C; border-radius:12px;
+  padding:12px 16px; font:600 14px 'Be Vietnam Pro',sans-serif; cursor:pointer; margin-top:10px;
+}
+.tm-btn:active{transform:scale(.98);}
+.tm-btn-google{margin-top:0;}
+.tm-btn-primary{background:#0B4C8C; border-color:#0B4C8C; color:#fff;}
+.tm-input{
+  display:block; width:100%; box-sizing:border-box; margin-top:10px;
+  border:1px solid #E1E9F2; background:#F3F8FC; border-radius:12px; padding:12px 13px;
+  font:16px 'Be Vietnam Pro',sans-serif; outline:none; color:#14202B;   /* 16px: iOS không tự phóng to */
+}
+.tm-input:focus{border-color:#2E9BE0; background:#fff;}
+.tm-or{display:flex; align-items:center; gap:10px; margin:18px 0 4px; color:#94A3AF; font-size:12px;}
+.tm-or::before,.tm-or::after{content:''; flex:1; height:1px; background:#E1E9F2;}
+.tm-link{background:none; border:none; color:#136FBF; font:600 12.5px 'Be Vietnam Pro',sans-serif; cursor:pointer; margin-top:10px; padding:4px 0;}
+.tm-auth-err{min-height:18px; margin-top:8px; font-size:12.5px; font-weight:600; color:#C1443A;}
+.tm-auth-note{font-size:11.5px; color:#5C6C78; line-height:1.5; margin-top:6px;}
+.tm-auth-msg{font-size:13.5px; line-height:1.55; color:#41525F;}
+.tm-auth-loading{display:flex; flex-direction:column; align-items:center; gap:14px; padding:14px 0 8px; color:#5C6C78; font-size:13px;}
+.tm-spin{width:30px; height:30px; border-radius:50%; border:3px solid #E1E9F2; border-top-color:#2E9BE0; animation:tmspin .7s linear infinite;}
+@keyframes tmspin{to{transform:rotate(360deg);}}
+
+/* Ô tài khoản trong sidebar bản máy tính */
+.tm-userbox{margin:0 0 12px; padding:10px 12px; border-radius:10px; background:rgba(255,255,255,.07); font-size:11.5px; color:rgba(255,255,255,.75);}
+.tm-userbox-mail{white-space:nowrap; overflow:hidden; text-overflow:ellipsis; color:#fff; font-weight:600;}
+.tm-userbox-row{display:flex; align-items:center; justify-content:space-between; gap:8px; margin-top:6px;}
+.tm-userbox-row button{border:1px solid rgba(255,255,255,.25); background:transparent; color:#fff; border-radius:8px; padding:4px 10px; font:600 11px 'Be Vietnam Pro',sans-serif; cursor:pointer;}
+.tm-userbox-row button:hover{background:rgba(255,255,255,.12);}
+.sidebar.collapsed .tm-userbox{display:none;}

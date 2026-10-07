@@ -1,0 +1,17 @@
+{
+  "name": "TH true mart · Quản lý hệ thống",
+  "short_name": "TH truemart",
+  "description": "Quản lý cửa hàng, tài sản, Sanaky, bảo dưỡng, vật tư và đơn giá — Phòng Dự án & Xây dựng",
+  "lang": "vi",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#0B4C8C",
+  "theme_color": "#0B4C8C",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
