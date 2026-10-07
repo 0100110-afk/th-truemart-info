@@ -24,6 +24,11 @@
  *        Property: FIREBASE_SA     Value: dán TOÀN BỘ nội dung file JSON vừa tải.
  *   3. Chọn hàm caiDatDongBoFirebase trong thanh công cụ -> Run -> cấp quyền.
  *
+ * PHIẾU SỬA CHỮA (app th-truemart-repair-app, dự án Firebase RIÊNG) — cấp quyền chung sheet APP USERS:
+ *   4. Firebase của app Phiếu sửa chữa -> Service accounts -> Generate new private key.
+ *   5. Script Properties -> Add:  FIREBASE_SA_PSC = nội dung file JSON đó.
+ *   6. Chạy hàm caiDatPhieuSuaChua (hoặc menu App TM -> "Cài đặt cấp quyền Phiếu sửa chữa").
+ *
  * Định dạng dữ liệu trên Firestore: xem đầu file js/app.js trong repo.
  */
 
@@ -42,7 +47,14 @@ const FS_TAB_DG_BT = 'DON GIA BT';
 const FS_TAB_DG_XD = 'DON GIA XD';
 const FS_TAB_DG_SNK = 'DON GIA SNK';
 
-const FS_PROP_SA = 'FIREBASE_SA';
+const FS_PROP_SA = 'FIREBASE_SA';              // Firebase của Hệ thống quản lý (th-truemart-info)
+const FS_PROP_SA_PSC = 'FIREBASE_SA_PSC';      // Firebase của app Phiếu sửa chữa
+const FS_PROP_PSC_ON = 'fs_psc_enabled';       // '1' sau khi chạy caiDatPhieuSuaChua
+const FS_PROP_PSC_HASH = 'fs_psc_users_hash';
+const FS_PROP_ACCOUNTS = 'fs_accounts_done';   // { "<prop>|<email>": "created" | "existing" }
+// Địa chỉ 2 app — dùng trong email gửi người mới
+const FS_URL_TM = 'https://th-truemart-info.vercel.app';
+const FS_URL_PSC = 'https://th-truemart-repair-app.vercel.app';
 const FS_PROP_MIRROR_REV = 'fs_vattu_mirror_rev';
 const FS_PROP_USERS_HASH = 'fs_users_hash';
 const FS_SHEET_USERS = 'APP USERS';
@@ -86,6 +98,8 @@ function onOpen() {
     .addItem('Kéo vật tư từ app về sheet', 'keoVatTuVeSheet')
     .addSeparator()
     .addItem('Cài đặt / cài lại đồng bộ', 'caiDatDongBoFirebase')
+    .addItem('Cài đặt cấp quyền Phiếu sửa chữa', 'caiDatPhieuSuaChua')
+    .addItem('Gửi lại email đặt mật khẩu (dòng đang chọn)', 'guiLaiEmailDatMatKhau')
     .addItem('Xem tình trạng đồng bộ', 'xemTinhTrangDongBo')
     .addToUi();
 }
@@ -100,13 +114,11 @@ function caiDatDongBoFirebase() {
   if (!us) {
     us = ss.insertSheet(FS_SHEET_USERS);
     const me = Session.getActiveUser().getEmail() || Session.getEffectiveUser().getEmail() || '';
-    us.getRange(1, 1, 1, 3).setValues([['Email', 'Quyền', 'Ghi chú']]).setFontWeight('bold');
-    if (me) us.getRange(2, 1, 1, 3).setValues([[me, 'admin', 'Người cài đặt']]);
-    us.getRange(2, 2, 200, 1).setDataValidation(SpreadsheetApp.newDataValidation()
-      .requireValueInList(['admin', 'editor', 'viewer'], true).build());
-    us.setFrozenRows(1);
+    us.getRange(1, 1, 1, 2).setValues([['Email', 'Hệ thống quản lý']]);
+    if (me) us.getRange(2, 1, 1, 2).setValues([[me, 'admin']]);
     us.setColumnWidth(1, 260);
   }
+  fsEnsureUsersLayout_(us);
 
   // Trigger: xoá trigger cũ của file này rồi tạo lại
   const mine = ['fsOnEdit', 'fsTick'];
@@ -173,7 +185,7 @@ function xemTinhTrangDongBo() {
 function fsOnEdit(e) {
   try {
     const name = e && e.range ? e.range.getSheet().getName() : '';
-    if (name === FS_SHEET_USERS) { fsWithLock_(function () { fsSyncUsers_(false); }); return; }
+    if (name === FS_SHEET_USERS) { fsWithLock_(function () { fsSyncAllUsers_(false); }); return; }
     const fromDg = e && e.source && e.source.getId && e.source.getId() === FS_DG_FILE_ID;
     const src = fsSources_().filter(function (s) { return s.name === name && !!s.external === !!fromDg; })[0];
     if (!src) return;
@@ -208,7 +220,7 @@ function fsSyncAll_(force) {
         missing.push(src.name + ' (lỗi: ' + err.message + ')');
       }
     });
-    fsSyncUsers_(force);
+    fsSyncAllUsers_(force);
     fsWriteMetaOnly_(meta);    // cập nhật mốc "Cập nhật lần cuối" kể cả khi không bảng nào đổi
   });
   return { changed: changed, missing: missing };
@@ -289,36 +301,334 @@ function fsWriteMetaOnly_(meta) {
   fsCommit_([fsMetaWrite_(meta)]);
 }
 
-// ============================== NGƯỜI DÙNG (sheet APP USERS -> users/<email>) ==============================
+// ============================== NGƯỜI DÙNG (sheet APP USERS) ==============================
+//
+// Một sheet cấp quyền cho CẢ HAI app:
+//
+//   Email | Hệ thống quản lý | Phiếu sửa chữa | Ghi chú | Tài khoản (tự động)
+//
+//   Hệ thống quản lý: admin / editor (được sửa vật tư) / viewer (chỉ xem) / trống = không vào được
+//       -> Firebase th-truemart-info: users/<email> { role }
+//   Phiếu sửa chữa:   admin / nhân viên / trống = không vào được
+//       -> Firebase của app sửa chữa: members/<email> (mọi người được vào) + admins/<email> (admin)
+//   Tài khoản (tự động): Sync.gs ghi — đừng gõ tay.
+//
+// Cột nhận theo TÊN tiêu đề (không theo vị trí), nên chèn thêm cột khác hay đổi thứ tự đều được.
+// Thêm email mới có quyền -> Sync.gs tự tạo tài khoản đăng nhập và gửi email đặt mật khẩu.
 
-function fsSyncUsers_(force) {
+const FS_COL_EMAIL = 'Email';
+const FS_COL_TM = 'Hệ thống quản lý';
+const FS_COL_PSC = 'Phiếu sửa chữa';
+const FS_COL_NOTE = 'Ghi chú';
+const FS_COL_STATUS = 'Tài khoản (tự động)';
+
+/** Chuẩn hoá tiêu đề APP USERS: đổi "Quyền" (bản đầu) -> "Hệ thống quản lý", thêm các cột còn thiếu. */
+function fsEnsureUsersLayout_(sh) {
+  const lastCol = Math.max(sh.getLastColumn(), 1);
+  let headers = sh.getRange(1, 1, 1, lastCol).getDisplayValues()[0];
+  const idx = function (name) {
+    const k = fsStripAccents_(name);
+    return headers.findIndex(function (h) { return fsStripAccents_(h) === k; });
+  };
+  if (idx(FS_COL_TM) < 0 && idx('Quyền') > -1) {
+    sh.getRange(1, idx('Quyền') + 1).setValue(FS_COL_TM);
+    headers = sh.getRange(1, 1, 1, lastCol).getDisplayValues()[0];
+  }
+  if (idx(FS_COL_EMAIL) < 0) throw new Error('Sheet ' + FS_SHEET_USERS + ' phải có cột "Email" ở dòng tiêu đề.');
+  if (idx(FS_COL_TM) < 0) { sh.insertColumnAfter(idx(FS_COL_EMAIL) + 1); sh.getRange(1, idx(FS_COL_EMAIL) + 2).setValue(FS_COL_TM); }
+  headers = sh.getRange(1, 1, 1, Math.max(sh.getLastColumn(), 1)).getDisplayValues()[0];
+  if (idx(FS_COL_PSC) < 0) { sh.insertColumnAfter(idx(FS_COL_TM) + 1); sh.getRange(1, idx(FS_COL_TM) + 2).setValue(FS_COL_PSC); }
+  headers = sh.getRange(1, 1, 1, Math.max(sh.getLastColumn(), 1)).getDisplayValues()[0];
+  if (idx(FS_COL_NOTE) < 0) { sh.getRange(1, headers.filter(String).length + 1).setValue(FS_COL_NOTE); }
+  headers = sh.getRange(1, 1, 1, Math.max(sh.getLastColumn(), 1)).getDisplayValues()[0];
+  if (idx(FS_COL_STATUS) < 0) { sh.getRange(1, headers.filter(String).length + 1).setValue(FS_COL_STATUS); }
+  headers = sh.getRange(1, 1, 1, Math.max(sh.getLastColumn(), 1)).getDisplayValues()[0];
+
+  const n = Math.max(sh.getMaxRows() - 1, 1);
+  sh.getRange(2, idx(FS_COL_TM) + 1, n, 1).setDataValidation(SpreadsheetApp.newDataValidation()
+    .requireValueInList(['admin', 'editor', 'viewer'], true).setAllowInvalid(true).build());
+  sh.getRange(2, idx(FS_COL_PSC) + 1, n, 1).setDataValidation(SpreadsheetApp.newDataValidation()
+    .requireValueInList(['admin', 'nhân viên'], true).setAllowInvalid(true).build());
+  sh.getRange(1, 1, 1, headers.filter(String).length).setFontWeight('bold');
+  sh.setFrozenRows(1);
+}
+
+/** Đọc APP USERS -> [{ row, email, tm, psc }]. tm: admin|editor|viewer|'' ; psc: admin|staff|'' */
+function fsReadUsers_() {
   const sh = SpreadsheetApp.getActive().getSheetByName(FS_SHEET_USERS);
-  if (!sh || sh.getLastRow() < 2) return;
-  const vals = sh.getRange(2, 1, sh.getLastRow() - 1, 2).getDisplayValues();
+  if (!sh || sh.getLastRow() < 2) return { sh: sh, cols: null, rows: [] };
+  const vals = sh.getRange(1, 1, sh.getLastRow(), Math.max(sh.getLastColumn(), 1)).getDisplayValues();
+  const H = vals[0].map(fsStripAccents_);
+  const col = function (name) { return H.indexOf(fsStripAccents_(name)); };
+  const cols = { email: col(FS_COL_EMAIL), tm: col(FS_COL_TM) > -1 ? col(FS_COL_TM) : col('Quyền'),
+    psc: col(FS_COL_PSC), status: col(FS_COL_STATUS) };
+  if (cols.email < 0) cols.email = 0;
+  const rows = [];
+  for (let i = 1; i < vals.length; i++) {
+    const email = String(vals[i][cols.email] || '').trim().toLowerCase();
+    if (!email || email.indexOf('@') < 1) continue;
+    rows.push({
+      row: i + 1, email: email,
+      tm: cols.tm > -1 ? fsTmRole_(vals[i][cols.tm]) : '',
+      psc: cols.psc > -1 ? fsPscRole_(vals[i][cols.psc]) : '',
+      status: cols.status > -1 ? vals[i][cols.status] : ''
+    });
+  }
+  return { sh: sh, cols: cols, rows: rows };
+}
+
+function fsTmRole_(v) {
+  const raw = fsStripAccents_(v);
+  if (!raw) return '';
+  if (raw.indexOf('admin') > -1 || raw.indexOf('quan tri') > -1) return 'admin';
+  if (raw.indexOf('editor') > -1 || raw.indexOf('sua') > -1) return 'editor';
+  return 'viewer';   // ghi gì khác (viewer, xem, x...) = chỉ xem
+}
+
+function fsPscRole_(v) {
+  const raw = fsStripAccents_(v);
+  if (!raw) return '';
+  if (raw.indexOf('admin') > -1 || raw.indexOf('quan tri') > -1) return 'admin';
+  return 'staff';    // nhân viên / nv / user / x ... = nhân viên
+}
+
+function fsPscOn_() {
+  return fsHasTarget_(FS_PROP_SA_PSC) && PropertiesService.getScriptProperties().getProperty(FS_PROP_PSC_ON) === '1';
+}
+
+/** Đồng bộ quyền cho cả hai app + tạo tài khoản cho người mới. Gọi trong fsWithLock_. */
+function fsSyncAllUsers_(force) {
+  const data = fsReadUsers_();
+  if (!data.sh) return;
+  try { fsSyncTmUsers_(data.rows, force); } catch (e) { console.error('Quyền Hệ thống quản lý: ' + e.message); }
+  if (fsPscOn_()) {
+    try { fsSyncPscUsers_(data.rows, force); } catch (e) { console.error('Quyền Phiếu sửa chữa: ' + e.message); }
+  }
+  try { fsProvisionAccounts_(data); } catch (e) { console.error('Tạo tài khoản: ' + e.message); }
+}
+
+function fsSyncTmUsers_(rows, force) {
   const want = {};
-  vals.forEach(function (r) {
-    const email = String(r[0] || '').trim().toLowerCase();
-    if (!email || email.indexOf('@') < 1) return;
-    const raw = fsStripAccents_(r[1]);
-    let role = 'viewer';
-    if (raw.indexOf('admin') > -1 || raw.indexOf('quan tri') > -1) role = 'admin';
-    else if (raw.indexOf('editor') > -1 || raw.indexOf('sua') > -1) role = 'editor';
-    want[email] = role;
-  });
+  rows.forEach(function (r) { if (r.tm) want[r.email] = r.tm; });
   const hash = fsMd5_(JSON.stringify(want));
   const props = PropertiesService.getScriptProperties();
   if (!force && props.getProperty(FS_PROP_USERS_HASH) === hash) return;
 
-  const existing = fsListDocs_('users').map(function (d) { return d.name.split('/').pop(); });
+  const existing = fsListDocs_('users').map(function (d) { return decodeURIComponent(d.name.split('/').pop()); });
   const writes = Object.keys(want).map(function (email) {
     return { update: { name: fsDocName_('users/' + email), fields: { role: { stringValue: want[email] } } } };
   });
   existing.forEach(function (id) {
-    if (!want.hasOwnProperty(decodeURIComponent(id))) writes.push({ delete: fsDocName_('users/' + decodeURIComponent(id)) });
+    if (!want.hasOwnProperty(id)) writes.push({ delete: fsDocName_('users/' + id) });
   });
   if (writes.length) fsCommit_(writes);
   props.setProperty(FS_PROP_USERS_HASH, hash);
 }
+
+function fsSyncPscUsers_(rows, force) {
+  const want = {};
+  rows.forEach(function (r) { if (r.psc) want[r.email] = r.psc; });
+  const hash = fsMd5_(JSON.stringify(want));
+  const props = PropertiesService.getScriptProperties();
+  if (!force && props.getProperty(FS_PROP_PSC_HASH) === hash) return;
+
+  fsWithTarget_(FS_PROP_SA_PSC, function () {
+    const now = new Date().toISOString();
+    const members = fsListDocs_('members').map(function (d) { return decodeURIComponent(d.name.split('/').pop()); });
+    const admins = fsListDocs_('admins').map(function (d) { return decodeURIComponent(d.name.split('/').pop()); });
+    const writes = [];
+    Object.keys(want).forEach(function (email) {
+      writes.push({ update: { name: fsDocName_('members/' + email), fields: {
+        role: { stringValue: want[email] }, via: { stringValue: 'sheet' }, updatedAt: { timestampValue: now } } } });
+      if (want[email] === 'admin' && admins.indexOf(email) < 0) {
+        writes.push({ update: { name: fsDocName_('admins/' + email), fields: { role: { stringValue: 'admin' } } } });
+      }
+    });
+    members.forEach(function (email) { if (!want.hasOwnProperty(email)) writes.push({ delete: fsDocName_('members/' + email) }); });
+    admins.forEach(function (email) { if (want[email] !== 'admin') writes.push({ delete: fsDocName_('admins/' + email) }); });
+    if (writes.length) fsCommit_(writes);
+  });
+  props.setProperty(FS_PROP_PSC_HASH, hash);
+}
+
+// ---------- Tạo tài khoản + email đặt mật khẩu ----------
+
+function fsAccountsDone_() {
+  try { return JSON.parse(PropertiesService.getScriptProperties().getProperty(FS_PROP_ACCOUNTS) || '{}'); }
+  catch (e) { return {}; }
+}
+
+/**
+ * Với mỗi email có quyền ở một app mà CHƯA xử lý: tạo tài khoản nếu chưa có (rồi gửi một email đặt
+ * mật khẩu gộp cho mọi app mới tạo), hoặc đánh dấu "đã xác minh" nếu đã có tài khoản sẵn.
+ * Ghi kết quả vào cột "Tài khoản (tự động)". Mỗi email/app chỉ xử lý MỘT lần.
+ */
+function fsProvisionAccounts_(data) {
+  const targets = [{ prop: FS_PROP_SA, key: 'tm', name: 'Hệ thống quản lý', url: FS_URL_TM }];
+  if (fsPscOn_()) targets.push({ prop: FS_PROP_SA_PSC, key: 'psc', name: 'Phiếu sửa chữa', url: FS_URL_PSC });
+  const done = fsAccountsDone_();
+  const statusByRow = {};
+  let changed = false;
+
+  data.rows.forEach(function (r) {
+    const links = [];
+    const notes = [];
+    targets.forEach(function (t) {
+      if (!r[t.key]) return;
+      const k = t.prop + '|' + r.email;
+      if (done[k]) { notes.push(t.name + ': ' + (done[k] === 'created' ? 'đã tạo' : 'đã có') + ' tài khoản'); return; }
+      try {
+        fsWithTarget_(t.prop, function () {
+          const u = fsAuthLookup_(r.email);
+          if (u) {
+            if (!u.emailVerified) fsAuthMarkVerified_(u.localId);
+            done[k] = 'existing';
+            notes.push(t.name + ': đã có tài khoản');
+          } else {
+            fsAuthCreate_(r.email);
+            links.push({ app: t.name, url: t.url, link: fsAuthResetLink_(r.email, t.url) });
+            done[k] = 'created';
+            notes.push(t.name + ': đã tạo tài khoản');
+          }
+        });
+        changed = true;
+      } catch (e) {
+        notes.push(t.name + ': LỖI ' + e.message.slice(0, 120));
+      }
+    });
+    if (links.length) {
+      try {
+        fsSendWelcomeMail_(r.email, links);
+        notes.push('đã gửi email đặt mật khẩu ' + Utilities.formatDate(new Date(), 'Asia/Ho_Chi_Minh', 'dd/MM HH:mm'));
+      } catch (e) {
+        notes.push('LỖI gửi email: ' + e.message.slice(0, 120));
+      }
+    }
+    if (notes.length) statusByRow[r.row] = notes.join(' · ');
+  });
+
+  if (changed) PropertiesService.getScriptProperties().setProperty(FS_PROP_ACCOUNTS, JSON.stringify(done));
+  fsWriteStatus_(data, statusByRow);
+}
+
+function fsWriteStatus_(data, statusByRow) {
+  if (!data.cols || data.cols.status < 0) return;
+  Object.keys(statusByRow).forEach(function (row) {
+    const r = data.rows.filter(function (x) { return String(x.row) === String(row); })[0];
+    if (r && r.status === statusByRow[row]) return;     // không đổi thì khỏi ghi
+    data.sh.getRange(Number(row), data.cols.status + 1).setValue(statusByRow[row]);
+  });
+}
+
+function fsSendWelcomeMail_(email, links) {
+  const lines = links.map(function (l) {
+    return '<li style="margin:0 0 14px"><b>' + l.app + '</b> — <a href="' + l.url + '">' + l.url.replace('https://', '') + '</a><br>' +
+      '<a href="' + l.link + '" style="display:inline-block;margin-top:6px;padding:8px 16px;background:#0B4C8C;color:#fff;' +
+      'border-radius:8px;text-decoration:none;font-weight:600">Đặt mật khẩu</a></li>';
+  }).join('');
+  const html =
+    '<div style="font-family:Arial,sans-serif;font-size:14px;color:#14202B;line-height:1.55">' +
+    '<p>Chào bạn,</p><p>Bạn vừa được cấp tài khoản truy cập ứng dụng TH truemart với email <b>' + email + '</b>:</p>' +
+    '<ul style="padding-left:18px">' + lines + '</ul>' +
+    '<p>Bấm <b>Đặt mật khẩu</b> để tạo mật khẩu, rồi đăng nhập bằng email này và mật khẩu vừa đặt.<br>' +
+    'Link đặt mật khẩu hết hạn sau <b>1 giờ</b>. Quá hạn thì vào app, bấm <b>Quên mật khẩu?</b> để nhận link mới.</p>' +
+    '<p>Nếu email này là Gmail, bạn cũng có thể bấm <b>Đăng nhập bằng Google</b> mà không cần mật khẩu.</p>' +
+    '<p style="color:#5B6B63;font-size:12px">Email gửi tự động từ hệ thống quản lý của Phòng Dự án và Xây dựng.</p></div>';
+  MailApp.sendEmail({ to: email, subject: 'TH truemart — Tài khoản đăng nhập của bạn', htmlBody: html, name: 'TH truemart' });
+}
+
+/** Menu: gửi lại email đặt mật khẩu cho dòng đang chọn trong APP USERS (link cũ hết hạn sau 1 giờ). */
+function guiLaiEmailDatMatKhau() {
+  const ss = SpreadsheetApp.getActive();
+  const sh = ss.getActiveSheet();
+  if (sh.getName() !== FS_SHEET_USERS) { fsAlert_('Mở sheet ' + FS_SHEET_USERS + ' và chọn một ô ở dòng của người cần gửi.'); return; }
+  const data = fsReadUsers_();
+  const row = sh.getActiveRange().getRow();
+  const r = data.rows.filter(function (x) { return x.row === row; })[0];
+  if (!r) { fsAlert_('Dòng đang chọn không có email hợp lệ.'); return; }
+  const links = [];
+  if (r.tm) fsWithTarget_(FS_PROP_SA, function () {
+    if (fsAuthLookup_(r.email)) links.push({ app: 'Hệ thống quản lý', url: FS_URL_TM, link: fsAuthResetLink_(r.email, FS_URL_TM) });
+  });
+  if (r.psc && fsPscOn_()) fsWithTarget_(FS_PROP_SA_PSC, function () {
+    if (fsAuthLookup_(r.email)) links.push({ app: 'Phiếu sửa chữa', url: FS_URL_PSC, link: fsAuthResetLink_(r.email, FS_URL_PSC) });
+  });
+  if (!links.length) { fsAlert_('Chưa có tài khoản nào cho ' + r.email + '. Đợi vài giây cho đồng bộ tạo tài khoản rồi thử lại.'); return; }
+  fsSendWelcomeMail_(r.email, links);
+  fsAlert_('Đã gửi email đặt mật khẩu tới ' + r.email + '.');
+}
+
+/**
+ * CHẠY 1 LẦN sau khi dán FIREBASE_SA_PSC. Chạy lại bao nhiêu lần cũng được.
+ *  1. Chuẩn hoá cột APP USERS (thêm cột "Phiếu sửa chữa", "Tài khoản (tự động)").
+ *  2. Nhập NGƯỜI DÙNG ĐANG CÓ của app sửa chữa vào sheet (admin giữ admin, còn lại "nhân viên"),
+ *     đánh dấu email của họ đã xác minh — để không ai mất quyền khi rules mới bắt buộc điều đó.
+ *  3. Đẩy quyền lên Firebase của app sửa chữa.
+ */
+function caiDatPhieuSuaChua() {
+  fsWithTarget_(FS_PROP_SA_PSC, function () { fsSa_(); });   // báo lỗi rõ nếu chưa cấu hình
+  const ss = SpreadsheetApp.getActive();
+  let sh = ss.getSheetByName(FS_SHEET_USERS);
+  if (!sh) { sh = ss.insertSheet(FS_SHEET_USERS); sh.getRange(1, 1).setValue(FS_COL_EMAIL); }
+  fsEnsureUsersLayout_(sh);
+
+  const done = fsAccountsDone_();
+  const added = [], updated = [];
+  fsWithLock_(function () {
+    const data = fsReadUsers_();
+    const byEmail = {};
+    data.rows.forEach(function (r) { byEmail[r.email] = r; });
+    const H = sh.getRange(1, 1, 1, sh.getLastColumn()).getDisplayValues()[0].map(fsStripAccents_);
+    const cEmail = H.indexOf(fsStripAccents_(FS_COL_EMAIL)) + 1;
+    const cPsc = H.indexOf(fsStripAccents_(FS_COL_PSC)) + 1;
+
+    fsWithTarget_(FS_PROP_SA_PSC, function () {
+      const admins = fsListDocs_('admins').map(function (d) { return decodeURIComponent(d.name.split('/').pop()); });
+      const users = fsAuthListAll_();
+      const seen = {};
+      users.forEach(function (u) {
+        const email = String(u.email || '').toLowerCase();
+        if (!email || seen[email] || u.disabled) return;
+        seen[email] = true;
+        if (!u.emailVerified) fsAuthMarkVerified_(u.localId);
+        done[FS_PROP_SA_PSC + '|' + email] = 'existing';
+        const role = admins.indexOf(email) > -1 ? 'admin' : 'nhân viên';
+        const r = byEmail[email];
+        if (!r) {
+          const row = sh.getLastRow() + 1;
+          sh.getRange(row, cEmail).setValue(email);
+          sh.getRange(row, cPsc).setValue(role);
+          added.push(email + ' (' + role + ')');
+        } else if (!r.psc) {
+          sh.getRange(r.row, cPsc).setValue(role);
+          updated.push(email + ' (' + role + ')');
+        }
+      });
+      // Admin có trong danh sách admins nhưng chưa từng tạo tài khoản (hiếm) vẫn giữ quyền admin
+      admins.forEach(function (email) {
+        if (seen[email] || byEmail[email]) return;
+        const row = sh.getLastRow() + 1;
+        sh.getRange(row, cEmail).setValue(email);
+        sh.getRange(row, cPsc).setValue('admin');
+        added.push(email + ' (admin)');
+      });
+    });
+    PropertiesService.getScriptProperties().setProperty(FS_PROP_ACCOUNTS, JSON.stringify(done));
+    PropertiesService.getScriptProperties().setProperty(FS_PROP_PSC_ON, '1');
+    PropertiesService.getScriptProperties().deleteProperty(FS_PROP_PSC_HASH);
+    SpreadsheetApp.flush();
+    fsSyncAllUsers_(true);
+  });
+
+  const msg = 'Đã cài cấp quyền Phiếu sửa chữa.\n' +
+    '- Thêm vào APP USERS: ' + (added.length ? '\n    ' + added.join('\n    ') : '(không có)') + '\n' +
+    '- Điền quyền cho dòng có sẵn: ' + (updated.length ? '\n    ' + updated.join('\n    ') : '(không có)') + '\n\n' +
+    'Kiểm tra lại cột "Phiếu sửa chữa": xoá quyền của ai không còn làm, đổi "nhân viên" <-> "admin" nếu cần.\n' +
+    'Từ giờ cấp/thu quyền app sửa chữa NGAY TRONG SHEET NÀY.';
+  fsAlert_(msg);
+  return msg;
+}
+
 
 // ============================== KHO VẬT TƯ ==============================
 
@@ -436,28 +746,46 @@ function fsWriteTable_(ss, name, headers, rows, firstColText) {
 
 // ============================== FIRESTORE REST ==============================
 
+// Dự án Firebase đang thao tác. Mặc định = Hệ thống quản lý. Đổi tạm bằng fsWithTarget_().
+let fsTarget_ = FS_PROP_SA;
+
+/** Chạy fn với dự án Firebase khác (vd FS_PROP_SA_PSC), xong trả lại như cũ. */
+function fsWithTarget_(prop, fn) {
+  const prev = fsTarget_;
+  fsTarget_ = prop;
+  try { return fn(); } finally { fsTarget_ = prev; }
+}
+
+function fsHasTarget_(prop) {
+  return !!PropertiesService.getScriptProperties().getProperty(prop);
+}
+
 function fsSa_() {
-  const raw = PropertiesService.getScriptProperties().getProperty(FS_PROP_SA);
-  if (!raw) throw new Error('Chưa cấu hình: thêm Script Property "' + FS_PROP_SA + '" = nội dung file JSON service account của Firebase.');
+  const prop = fsTarget_;
+  const raw = PropertiesService.getScriptProperties().getProperty(prop);
+  if (!raw) throw new Error('Chưa cấu hình: thêm Script Property "' + prop + '" = nội dung file JSON service account của Firebase.');
   let sa;
   try { sa = JSON.parse(raw); }
   catch (e) {
-    throw new Error('FIREBASE_SA phải là NỘI DUNG file .json (bắt đầu bằng dấu { ), không phải tên file. ' +
+    throw new Error(prop + ' phải là NỘI DUNG file .json (bắt đầu bằng dấu { ), không phải tên file. ' +
       'Mở file .json bằng Notepad -> Ctrl+A -> Ctrl+C -> dán vào Giá trị. Hiện đang là: "' + String(raw).slice(0, 40) + '"');
   }
-  if (!sa.client_email || !sa.private_key || !sa.project_id) throw new Error('FIREBASE_SA không đúng định dạng file JSON service account.');
+  if (!sa.client_email || !sa.private_key || !sa.project_id) throw new Error(prop + ' không đúng định dạng file JSON service account.');
   return sa;
 }
 
 function fsToken_() {
+  const cacheKey = 'fs_token2_' + fsTarget_;
   const cache = CacheService.getScriptCache();
-  const hit = cache.get('fs_token');
+  const hit = cache.get(cacheKey);
   if (hit) return hit;
   const sa = fsSa_();
   const now = Math.floor(Date.now() / 1000);
   const enc = function (o) { return Utilities.base64EncodeWebSafe(JSON.stringify(o)).replace(/=+$/, ''); };
   const unsigned = enc({ alg: 'RS256', typ: 'JWT' }) + '.' + enc({
-    iss: sa.client_email, scope: 'https://www.googleapis.com/auth/datastore',
+    iss: sa.client_email,
+    // datastore = Firestore; identitytoolkit = tạo tài khoản / gửi link đặt mật khẩu
+    scope: 'https://www.googleapis.com/auth/datastore https://www.googleapis.com/auth/identitytoolkit',
     aud: 'https://oauth2.googleapis.com/token', iat: now, exp: now + 3600
   });
   const sig = Utilities.base64EncodeWebSafe(Utilities.computeRsaSha256Signature(unsigned, sa.private_key)).replace(/=+$/, '');
@@ -465,9 +793,9 @@ function fsToken_() {
     method: 'post', muteHttpExceptions: true,
     payload: { grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer', assertion: unsigned + '.' + sig }
   });
-  if (res.getResponseCode() !== 200) throw new Error('Không lấy được token Firebase: ' + res.getContentText());
+  if (res.getResponseCode() !== 200) throw new Error('Không lấy được token Firebase (' + fsTarget_ + '): ' + res.getContentText());
   const tok = JSON.parse(res.getContentText()).access_token;
-  cache.put('fs_token', tok, 3000);
+  cache.put(cacheKey, tok, 3000);
   return tok;
 }
 
@@ -481,13 +809,62 @@ function fsFetch_(method, url, body) {
   const res = UrlFetchApp.fetch(url, opt);
   const code = res.getResponseCode();
   if (code === 404) return null;
-  if (code >= 300) throw new Error('Firestore ' + code + ': ' + res.getContentText().slice(0, 500));
+  if (code >= 300) throw new Error('Firebase ' + code + ': ' + res.getContentText().slice(0, 500));
   const txt = res.getContentText();
   return txt ? JSON.parse(txt) : {};
 }
 
 function fsBaseUrl_() {
   return 'https://firestore.googleapis.com/v1/projects/' + fsSa_().project_id + '/databases/(default)/documents';
+}
+
+// ---------- Firebase Authentication (Identity Toolkit, quyền quản trị) ----------
+
+function fsAuthUrl_(action) {
+  return 'https://identitytoolkit.googleapis.com/v1/projects/' + fsSa_().project_id + '/accounts' + (action || '');
+}
+
+/** Tài khoản theo email, null nếu chưa có. */
+function fsAuthLookup_(email) {
+  const r = fsFetch_('post', fsAuthUrl_(':lookup'), { email: [email] });
+  return (r && r.users && r.users[0]) || null;
+}
+
+/** Tạo tài khoản đăng nhập (chưa có mật khẩu). emailVerified = true vì quản trị đã xác nhận email này
+ *  bằng cách ghi vào APP USERS — rules của cả hai app chỉ nhận email đã xác minh. */
+function fsAuthCreate_(email) {
+  return fsFetch_('post', fsAuthUrl_(''), { email: email, emailVerified: true });
+}
+
+function fsAuthMarkVerified_(localId) {
+  return fsFetch_('post', fsAuthUrl_(':update'), { localId: localId, emailVerified: true });
+}
+
+/** Link đặt mật khẩu (hết hạn sau 1 giờ — Firebase quy định). Không gửi email: mình tự gửi bằng MailApp
+ *  với nội dung tiếng Việt. */
+function fsAuthResetLink_(email, continueUrl) {
+  const body = { requestType: 'PASSWORD_RESET', email: email, returnOobLink: true };
+  if (continueUrl) body.continueUrl = continueUrl;
+  try {
+    return fsFetch_('post', fsAuthUrl_(':sendOobCode'), body).oobLink;
+  } catch (e) {
+    if (!continueUrl) throw e;
+    // Tên miền app chưa nằm trong Authorized domains -> lấy link không kèm đường quay về
+    delete body.continueUrl;
+    return fsFetch_('post', fsAuthUrl_(':sendOobCode'), body).oobLink;
+  }
+}
+
+/** Toàn bộ tài khoản đăng nhập của dự án. */
+function fsAuthListAll_() {
+  const out = [];
+  let token = '';
+  do {
+    const r = fsFetch_('get', fsAuthUrl_(':batchGet') + '?maxResults=500' + (token ? '&nextPageToken=' + encodeURIComponent(token) : ''));
+    ((r && r.users) || []).forEach(function (u) { out.push(u); });
+    token = r && r.nextPageToken;
+  } while (token);
+  return out;
 }
 
 function fsGetDoc_(path) {

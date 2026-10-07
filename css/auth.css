@@ -70,3 +70,31 @@
 .tm-userbox-row button{border:1px solid rgba(255,255,255,.25); background:transparent; color:#fff; border-radius:8px; padding:4px 10px; font:600 11px 'Be Vietnam Pro',sans-serif; cursor:pointer;}
 .tm-userbox-row button:hover{background:rgba(255,255,255,.12);}
 .sidebar.collapsed .tm-userbox{display:none;}
+
+/* Hộp Tài khoản (đặt mật khẩu / liên kết Google) */
+#tmAccount{
+  position:fixed; inset:0; z-index:210; display:none; align-items:center; justify-content:center; padding:16px;
+  background:rgba(8,30,55,.45); font-family:'Be Vietnam Pro',system-ui,sans-serif; color:#14202B;
+}
+#tmAccount.open{display:flex;}
+.tm-acc-card{
+  width:100%; max-width:400px; max-height:calc(100vh - 32px); overflow-y:auto; box-sizing:border-box;
+  background:#fff; border-radius:16px; padding:20px 22px 18px; box-shadow:0 12px 40px -8px rgba(11,76,140,.32);
+  display:flex; flex-direction:column; gap:10px;
+}
+.tm-acc-head{display:flex; align-items:center; justify-content:space-between; font-size:16px; color:#0B4C8C;}
+.tm-acc-x{border:none; background:none; font-size:22px; line-height:1; color:#94A3AF; cursor:pointer; padding:2px 6px;}
+.tm-acc-row{display:flex; justify-content:space-between; gap:12px; font-size:13px;}
+.tm-acc-row span{color:#5B6B63;}
+.tm-acc-row b{color:#0B4C8C; overflow-wrap:anywhere; text-align:right;}
+.tm-acc-title{margin-top:4px; font-size:11px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; color:#5B6B63;}
+.tm-acc-method{display:flex; justify-content:space-between; padding:9px 12px; border:1px solid #E1E9F2; border-radius:8px; font-size:13px;}
+.tm-acc-method b{font-weight:600; color:#5B6B63;}
+.tm-acc-method.on b{color:#136FBF;}
+.tm-acc-msg{font-size:12.5px; color:#C1443A; font-weight:500;}
+.tm-acc-msg:empty{display:none;}
+.tm-acc-msg.ok{color:#136FBF;}
+.tm-acc-actions{display:flex; flex-wrap:wrap; gap:8px;}
+.tm-acc-actions .tm-btn{flex:1 1 140px; margin-top:0;}
+.tm-acc-pw .tm-btn{margin-top:0;}
+.tm-acc-card .tm-auth-note{margin:4px 0 0; text-align:center;}

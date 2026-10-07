@@ -13,7 +13,8 @@
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-app.js';
 import {
   getAuth, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult,
-  signInWithEmailAndPassword, sendPasswordResetEmail, signOut
+  signInWithEmailAndPassword, sendPasswordResetEmail, signOut,
+  EmailAuthProvider, linkWithPopup, linkWithCredential, updatePassword, unlink, getAdditionalUserInfo
 } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js';
 import {
   getFirestore, doc, getDoc, getDocs, collection, query, where, runTransaction, serverTimestamp
@@ -144,8 +145,7 @@ function authErrText(err) {
 }
 
 function loginGoogle() {
-  const provider = new GoogleAuthProvider();
-  provider.setCustomParameters({ prompt: 'select_account' });
+  const provider = googleProvider();
   signInWithPopup(auth, provider).catch((err) => {
     const c = (err && err.code) || '';
     // Trình duyệt trong Zalo/Facebook chặn popup -> chuyển sang chuyển hướng toàn trang
@@ -371,6 +371,100 @@ function buildApi() {
   return api;
 }
 
+// Rules bắt buộc email đã xác minh. Token cũ (cấp trước khi Sync.gs đánh dấu đã xác minh)
+// còn mang false tới 1 giờ -> gặp false thì xin token mới một lần. Mất mạng: null.
+async function emailVerifiedClaim(u) {
+  try {
+    let t = await u.getIdTokenResult();
+    if (t.claims.email_verified !== true) t = await u.getIdTokenResult(true);
+    return t.claims.email_verified === true;
+  } catch (e) { return null; }
+}
+
+// ============================== HỘP TÀI KHOẢN: dùng được cả mật khẩu lẫn Google ==============================
+
+function googleProvider() {
+  const p = new GoogleAuthProvider();
+  p.setCustomParameters({ prompt: 'select_account' });
+  return p;
+}
+
+function accountErrText(err) {
+  const c = (err && err.code) || '';
+  if (c === 'app/google-email-mismatch') return err.message;
+  if (c.includes('weak-password')) return 'Mật khẩu quá ngắn — cần ít nhất 6 ký tự.';
+  if (c.includes('requires-recent-login')) return 'Để đổi mật khẩu, hãy đăng xuất rồi đăng nhập lại, sau đó thử lại ngay.';
+  if (c.includes('credential-already-in-use') || c.includes('email-already-in-use')) return 'Tài khoản Google này đã gắn với một tài khoản khác.';
+  if (c.includes('provider-already-linked')) return 'Tài khoản đã liên kết Google rồi.';
+  return authErrText(err) || 'Không thực hiện được, vui lòng thử lại.';
+}
+
+function showAccountDialog() {
+  let el = document.getElementById('tmAccount');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'tmAccount';
+    document.body.appendChild(el);
+    el.addEventListener('click', (e) => { if (e.target === el) el.classList.remove('open'); });
+  }
+  const u = auth.currentUser;
+  const ids = (u.providerData || []).map((p) => p.providerId);
+  const hasPw = ids.includes('password'), hasG = ids.includes('google.com');
+  const roleTxt = currentRole === 'admin' ? 'Quản trị' : currentRole === 'editor' ? 'Được sửa' : 'Chỉ xem';
+  const method = (name, on) => '<div class="tm-acc-method' + (on ? ' on' : '') + '"><span>' + name + '</span><b>' + (on ? 'Đang dùng' : 'Chưa có') + '</b></div>';
+  el.innerHTML = '<div class="tm-acc-card" role="dialog" aria-label="Tài khoản">' +
+    '<div class="tm-acc-head"><b>Tài khoản</b><button type="button" class="tm-acc-x" aria-label="Đóng">×</button></div>' +
+    '<div class="tm-acc-row"><span>Email</span><b>' + esc(u.email) + '</b></div>' +
+    '<div class="tm-acc-row"><span>Quyền</span><b>' + roleTxt + '</b></div>' +
+    '<div class="tm-acc-title">Cách đăng nhập</div>' + method('Email + mật khẩu', hasPw) + method('Google', hasG) +
+    '<div class="tm-acc-msg" id="tmAccMsg"></div>' +
+    '<div class="tm-acc-actions">' +
+      (hasG ? '' : '<button type="button" class="tm-btn" id="tmAccLinkG">Liên kết Google</button>') +
+      '<button type="button" class="tm-btn" id="tmAccPwBtn">' + (hasPw ? 'Đổi mật khẩu' : 'Đặt mật khẩu') + '</button>' +
+    '</div>' +
+    '<form id="tmAccPwForm" class="tm-acc-pw" hidden>' +
+      '<div class="tm-field"><label>' + (hasPw ? 'Mật khẩu mới' : 'Mật khẩu') + '</label><input class="tm-input" type="password" id="tmAccPw1" autocomplete="new-password" placeholder="Ít nhất 6 ký tự"></div>' +
+      '<div class="tm-field"><label>Nhập lại mật khẩu</label><input class="tm-input" type="password" id="tmAccPw2" autocomplete="new-password"></div>' +
+      '<button type="submit" class="tm-btn tm-btn-primary">Lưu mật khẩu</button>' +
+    '</form>' +
+    '<p class="tm-auth-note">Liên kết ở đây thì giữ được cả hai cách đăng nhập.</p>' +
+  '</div>';
+  el.classList.add('open');
+  const msg = (t, ok) => { const m = document.getElementById('tmAccMsg'); m.textContent = t; m.className = 'tm-acc-msg' + (ok ? ' ok' : ''); };
+  el.querySelector('.tm-acc-x').onclick = () => el.classList.remove('open');
+  const linkBtn = document.getElementById('tmAccLinkG');
+  if (linkBtn) linkBtn.onclick = async () => {
+    linkBtn.disabled = true; msg('');
+    try {
+      const r = await linkWithPopup(u, googleProvider());
+      const gEmail = String((getAdditionalUserInfo(r) && getAdditionalUserInfo(r).profile && getAdditionalUserInfo(r).profile.email) || '').toLowerCase();
+      if (gEmail && gEmail !== String(u.email).toLowerCase()) {
+        await unlink(u, 'google.com');
+        const e = new Error('Tài khoản Google ' + gEmail + ' không trùng email ' + u.email + '. Hãy chọn đúng Gmail ' + u.email + '.');
+        e.code = 'app/google-email-mismatch'; throw e;
+      }
+      showAccountDialog(); msg('Đã liên kết Google. Từ giờ đăng nhập được bằng cả Google lẫn mật khẩu.', true);
+    } catch (err) { msg(accountErrText(err)); linkBtn.disabled = false; }
+  };
+  document.getElementById('tmAccPwBtn').onclick = () => {
+    document.getElementById('tmAccPwForm').hidden = false;
+    document.getElementById('tmAccPwBtn').hidden = true;
+    document.getElementById('tmAccPw1').focus();
+  };
+  document.getElementById('tmAccPwForm').onsubmit = async (e) => {
+    e.preventDefault();
+    const p1 = document.getElementById('tmAccPw1').value, p2 = document.getElementById('tmAccPw2').value;
+    if (p1.length < 6) { msg('Mật khẩu cần ít nhất 6 ký tự.'); return; }
+    if (p1 !== p2) { msg('Hai lần nhập mật khẩu không khớp.'); return; }
+    try {
+      if (hasPw) await updatePassword(u, p1);
+      else await linkWithCredential(u, EmailAuthProvider.credential(u.email, p1));
+      showAccountDialog();
+      msg(hasPw ? 'Đã đổi mật khẩu.' : 'Đã đặt mật khẩu. Từ giờ đăng nhập được bằng email ' + u.email + ' và mật khẩu này.', true);
+    } catch (err) { msg(accountErrText(err)); }
+  };
+}
+
 function injectUserBox() {
   const email = currentUser.email || '';
   const roleTxt = (currentRole === 'viewer') ? 'Chỉ xem' : 'Được sửa';
@@ -379,7 +473,7 @@ function injectUserBox() {
     const box = document.createElement('div');
     box.className = 'tm-userbox';
     box.innerHTML = '<div class="tm-userbox-mail" title="' + esc(email) + '">' + esc(email) + '</div>' +
-      '<div class="tm-userbox-row"><span>' + roleTxt + '</span><button type="button" id="tmLogoutBtn">Đăng xuất</button></div>';
+      '<div class="tm-userbox-row"><button type="button" id="tmAccountBtn">Tài khoản</button><button type="button" id="tmLogoutBtn">Đăng xuất</button></div>';
     foot.insertBefore(box, foot.firstChild);
   }
   const sheetBody = document.querySelector('#moreSheet .sheet-body');   // bản điện thoại
@@ -389,8 +483,21 @@ function injectUserBox() {
     it.id = 'tmLogoutBtn';
     it.innerHTML = '<div class="more-ic ic" style="background:#F7E1DE;color:#C1443A;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5M21 12H9"/></svg></div>' +
       '<div class="more-main"><div class="more-title">Đăng xuất</div><div class="more-sub">' + esc(email) + ' · ' + roleTxt + '</div></div>';
+    const acc = document.createElement('div');
+    acc.className = 'more-item';
+    acc.id = 'tmAccountBtnM';
+    acc.innerHTML = '<div class="more-ic ic" style="background:#E3F0FA;color:#0B4C8C;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg></div>' +
+      '<div class="more-main"><div class="more-title">Tài khoản</div><div class="more-sub">Cách đăng nhập, đặt / đổi mật khẩu</div></div>';
+    sheetBody.appendChild(acc);
+    acc.addEventListener('click', () => {
+      const closeBtn = document.querySelector('#moreSheet .sheet-close, #moreSheet [data-close]');
+      if (closeBtn) closeBtn.click();
+      showAccountDialog();
+    });
     sheetBody.appendChild(it);
   }
+  const accBtn = document.getElementById('tmAccountBtn');
+  if (accBtn) accBtn.addEventListener('click', showAccountDialog);
   const btn = document.getElementById('tmLogoutBtn');
   if (btn) btn.addEventListener('click', doLogout);
 }
@@ -426,6 +533,14 @@ async function start(user) {
     return;
   }
   if (!currentRole) { showNoAccess(user.email); return; }
+  if (await emailVerifiedClaim(user) === false) {
+    showAuth('<div class="tm-auth-msg"><b>Email chưa được xác nhận</b><br>' + esc(user.email) +
+      '<br><br>Liên hệ quản trị viên, sau đó bấm "Thử lại".</div>' +
+      '<button class="tm-btn tm-btn-primary" type="button" onclick="location.reload()">Thử lại</button>' +
+      '<button class="tm-btn" type="button" id="tmLogout4">Đăng xuất</button>');
+    const b4 = document.getElementById('tmLogout4'); if (b4) b4.onclick = doLogout;
+    return;
+  }
 
   showLoading('Đang tải dữ liệu…');
   let offline = false;

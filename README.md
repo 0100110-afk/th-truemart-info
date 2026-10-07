@@ -18,7 +18,7 @@ cài được lên điện thoại như app (PWA). Google Sheet **vẫn là nơi
 |---|---|---|
 | DS CH, TAI SAN, BAO DUONG, CHI PHI, SANAKY (file **TM**) | **Google Sheet** | Sửa như cũ, app thấy sau vài giây |
 | DON GIA BT, DON GIA XD, DON GIA SNK (file **DG**) | **Google Sheet** | File riêng, cũng đẩy ngay khi sửa |
-| APP USERS (ai được vào app) | **Google Sheet** | Cột Quyền: `admin` / `editor` (được sửa vật tư) / `viewer` (chỉ xem) |
+| APP USERS (ai được vào **cả hai app**) | **Google Sheet** | Cột *Hệ thống quản lý*: `admin` / `editor` (sửa vật tư) / `viewer` (chỉ xem). Cột *Phiếu sửa chữa*: `admin` / `nhân viên`. Để trống = không vào được. Email mới → tự tạo tài khoản + gửi email đặt mật khẩu |
 | VAT TU, VAT TU NHAP KHO, VAT TU TU DONG TRU | **App** | Sheet chỉ là bản sao, **đừng sửa tay** — lần kéo sau sẽ ghi đè |
 
 Giao diện giữ **nguyên văn** Index.html / IndexMobile.html; logic tính toán giữ **nguyên văn** Code.gs
@@ -50,7 +50,17 @@ Giao diện giữ **nguyên văn** Index.html / IndexMobile.html; logic tính to
    đưa kho vật tư hiện có lên app và đẩy toàn bộ bảng lên Firestore.
 6. Tải lại file Sheet → có menu **App TM** (Đồng bộ toàn bộ / Kéo vật tư về / Xem tình trạng).
 
-### 3. Thêm người dùng
+### 3. Thêm người dùng (dùng chung cho app Phiếu sửa chữa)
+
+Sheet **APP USERS**: `Email | Hệ thống quản lý | Phiếu sửa chữa | Ghi chú | Tài khoản (tự động)`.
+- Thêm dòng → vài giây sau có quyền. Email chưa có tài khoản → Sync.gs tự tạo và gửi email
+  *"Đặt mật khẩu"* (link hết hạn 1 giờ; gửi lại: chọn dòng → menu **App TM → Gửi lại email đặt mật khẩu**).
+- Xoá quyền / xoá dòng → mất quyền ngay.
+- Bật cột *Phiếu sửa chữa*: thêm Script Property `FIREBASE_SA_PSC` (khoá service account của Firebase
+  app sửa chữa) rồi chạy `caiDatPhieuSuaChua` — hàm này nhập sẵn người dùng đang có của app sửa chữa.
+- Trong app: bấm **Tài khoản** để *Liên kết Google* hoặc *Đặt / Đổi mật khẩu* — một người dùng được cả hai cách.
+
+#### (Cách cũ, vẫn dùng được)
 - Điền email vào sheet **APP USERS** + chọn quyền. Có hiệu lực sau vài giây.
 - Người có Gmail/Google Workspace: bấm "Đăng nhập bằng Google" là vào.
 - Người không có tài khoản Google (hoặc mở trong Zalo — Zalo chặn đăng nhập Google): vào

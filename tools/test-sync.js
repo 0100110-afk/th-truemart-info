@@ -16,9 +16,13 @@ function mkSheet(name, values, display) {
         getDisplayValues: () => { const o = []; for (let i = r - 1; i < r - 1 + nr; i++) { const a = []; for (let j = c - 1; j < c - 1 + nc; j++) a.push(v[i] ? (display ? display[i][j] : (v[i][j] instanceof Date ? '01/02/2026' : String(v[i][j] ?? ''))) : ''); o.push(a); } return o; },
         setValues(arr) { arr.forEach((row, i) => { v[r - 1 + i] = v[r - 1 + i] || []; row.forEach((x, j) => { v[r - 1 + i][c - 1 + j] = x; }); }); return this; },
         clearContent() { for (let i = r - 1; i < r - 1 + nr; i++) if (v[i]) for (let j = c - 1; j < c - 1 + nc; j++) v[i][j] = ''; while (v.length && v[v.length - 1].every((x) => x === '')) v.pop(); return this; },
-        setNumberFormat() { return this; }, setFontWeight() { return this; }, setDataValidation() { return this; }
+        setValue(x) { v[r - 1] = v[r - 1] || []; v[r - 1][c - 1] = x; return this; },
+        setNumberFormat() { return this; }, setFontWeight() { return this; }, setDataValidation() { return this; },
+        getRow: () => r
       };
     },
+    insertColumnAfter(col) { v.forEach((row) => { while (row.length < col) row.push(''); row.splice(col, 0, ''); }); },
+    getMaxRows: () => Math.max(v.length, 1000), setFrozenRows() {}, setColumnWidth() {},
     _v: () => v
   };
 }
@@ -44,31 +48,49 @@ const DG_ID = '1RFVctqPlPvLodhscIMxIMLrRgIEjSLLUlFUsqI2anSQ';
 const dgFile = { getId: () => DG_ID, getSheetByName: (n) => ext[n] || null };
 const ss = { getId: () => 'TM_ID', getSheetByName: (n) => sheets[n] || null, insertSheet: (n) => (sheets[n] = mkSheet(n, [])) };
 
-// ---- Firestore giả (REST) ----
-const store = {};
+// ---- Firestore + Firebase Auth giả (REST), HAI dự án: p1 = Hệ thống quản lý, p2 = Phiếu sửa chữa ----
+const stores = { p1: {}, p2: {} };
+const store = stores.p1;
 const PFX = 'projects/p1/databases/(default)/documents/';
+const authUsers = { p1: [{ localId: 'u_me', email: 'me@x.vn', emailVerified: true }],
+  p2: [{ localId: 'u_old', email: 'kythuat.cu@gmail.com', emailVerified: false }, { localId: 'u_adm', email: 'quantri@th.com', emailVerified: false }] };
+const sentMail = [];
+let tokenProjects = [];
 function resp(code, obj) { return { getResponseCode: () => code, getContentText: () => (obj === undefined ? '' : JSON.stringify(obj)) }; }
 const UrlFetchApp = { fetch(url, opt) {
-  if (url.includes('oauth2')) return resp(200, { access_token: 't' });
-  const base = 'https://firestore.googleapis.com/v1/' + PFX;
+  if (url.includes('oauth2')) { tokenProjects.push(1); return resp(200, { access_token: 't' }); }
+  let m = url.match(/identitytoolkit\.googleapis\.com\/v1\/projects\/(p\d)\/accounts(.*)$/);
+  if (m) {
+    const P = m[1], action = m[2].split('?')[0], body = opt.payload ? JSON.parse(opt.payload) : {};
+    const list = authUsers[P];
+    if (action === ':lookup') { const u = list.filter((x) => body.email.includes(x.email)); return resp(200, u.length ? { users: u } : {}); }
+    if (action === '') { if (list.some((x) => x.email === body.email)) return resp(400, { error: 'EMAIL_EXISTS' }); const u = { localId: 'n' + list.length, email: body.email, emailVerified: body.emailVerified }; list.push(u); return resp(200, u); }
+    if (action === ':update') { list.find((x) => x.localId === body.localId).emailVerified = body.emailVerified; return resp(200, {}); }
+    if (action === ':sendOobCode') return resp(200, { email: body.email, oobLink: 'https://x.firebaseapp.com/__/auth/action?mode=resetPassword&p=' + P + '&e=' + body.email });
+    if (action === ':batchGet') return resp(200, { users: list });
+    return resp(404);
+  }
+  m = url.match(/firestore\.googleapis\.com\/v1\/projects\/(p\d)\/databases\/\(default\)\/documents(.*)$/);
+  const P = m[1], st = stores[P], pfx = 'projects/' + P + '/databases/(default)/documents/';
   if (url.endsWith(':commit')) {
     const body = JSON.parse(opt.payload);
     body.writes.forEach((w) => {
-      if (w.delete) delete store[w.delete.replace(PFX, '')];
-      else { const id = w.update.name.replace(PFX, ''); if (w.currentDocument && w.currentDocument.exists === false && store[id]) throw new Error('exists'); store[id] = { name: w.update.name, fields: w.update.fields }; }
+      if (w.delete) delete st[w.delete.replace(pfx, '')];
+      else { const id = w.update.name.replace(pfx, ''); if (w.currentDocument && w.currentDocument.exists === false && st[id]) throw new Error('exists'); st[id] = { name: w.update.name, fields: w.update.fields }; }
     });
     return resp(200, {});
   }
-  const rest = decodeURIComponent(url.replace(base, '').split('?')[0]);
-  if (store[rest]) return resp(200, store[rest]);
-  const docs = Object.keys(store).filter((k) => k.startsWith(rest + '/') && !k.slice(rest.length + 1).includes('/')).map((k) => store[k]);
-  if (docs.length || ['users', 'vattu_autolog'].includes(rest)) return resp(200, { documents: docs });
+  const rest = decodeURIComponent(m[2].replace(/^\//, '').split('?')[0]);
+  if (st[rest]) return resp(200, st[rest]);
+  const docs = Object.keys(st).filter((k) => k.startsWith(rest + '/') && !k.slice(rest.length + 1).includes('/')).map((k) => st[k]);
+  if (docs.length || ['users', 'vattu_autolog', 'members', 'admins'].includes(rest)) return resp(200, { documents: docs });
   return resp(404);
 } };
 const props = { FIREBASE_SA: JSON.stringify({ client_email: 'x', private_key: 'k', project_id: 'p1' }) };
 const ctx = {
   console, JSON, Math, Date, Number, String, Object, Array, Set, RegExp, Error,
-  SpreadsheetApp: { getActive: () => ss, getActiveSpreadsheet: () => ss, openById: (id) => { if (id !== DG_ID) throw new Error('bad id'); return dgFile; }, getUi: () => { throw new Error('no ui'); }, newDataValidation: () => ({ requireValueInList() { return this; }, build() {} }) },
+  SpreadsheetApp: { getActive: () => ss, getActiveSpreadsheet: () => ss, openById: (id) => { if (id !== DG_ID) throw new Error('bad id'); return dgFile; }, getUi: () => { throw new Error('no ui'); }, flush() {}, newDataValidation: () => ({ requireValueInList() { return this; }, setAllowInvalid() { return this; }, build() {} }) },
+  MailApp: { sendEmail: (o) => sentMail.push(o) },
   PropertiesService: { getScriptProperties: () => ({ getProperty: (k) => props[k] || null, setProperty: (k, v) => { props[k] = v; }, deleteProperty: (k) => delete props[k] }) },
   CacheService: { getScriptCache: () => ({ get: () => null, put() {}, getAll: () => ({}), putAll() {} }) },
   LockService: { getDocumentLock: () => ({ tryLock: () => true, releaseLock() {} }), getScriptLock: () => ({ tryLock: () => true, releaseLock() {} }) },
@@ -84,7 +106,7 @@ const ctx = {
 };
 vm.createContext(ctx);
 vm.runInContext(fs.readFileSync(R('apps-script/Sync.gs'), 'utf8') +   /* Sync.gs chạy MỘT MÌNH, không cần Code.gs */
-  '\nthis.__t = { caiDatDongBoFirebase, fsSyncAll_, fsMirrorVatTu_, fsOnEdit };', ctx);
+  '\nthis.__t = { caiDatDongBoFirebase, caiDatPhieuSuaChua, fsSyncAll_, fsMirrorVatTu_, fsOnEdit, guiLaiEmailDatMatKhau };', ctx);
 
 let fails = 0; const ok = (c, m) => { console.log((c ? 'OK  ' : 'SAI ') + m); if (!c) fails++; };
 ctx.__t.caiDatDongBoFirebase();
@@ -94,6 +116,10 @@ ok(Object.keys(store).filter((k) => k.startsWith('sheetdata/chiphi')).every((k) 
 ok(meta.sheets.stores.rowCount === 1, 'bỏ dòng trống');
 ok(!!meta.sheets.sanaky && !!meta.sheets.dongia_bt && !!meta.sheets.dongia_xd && !!meta.sheets.dongia_snk, 'Sanaky (tab trong TM) + 3 tab Đơn giá (file DG) đều được đẩy lên');
 ok(store['users/a@thmilk.vn'].fields.role.stringValue === 'editor' && store['users/b@thmilk.vn'].fields.role.stringValue === 'viewer', 'users: email chữ thường + quyền');
+const uh = sheets['APP USERS']._v()[0];
+ok(uh[1] === 'Hệ thống quản lý' && uh[2] === 'Phiếu sửa chữa' && uh.includes('Tài khoản (tự động)'), 'APP USERS: đổi "Quyền" -> "Hệ thống quản lý", thêm cột Phiếu sửa chữa + trạng thái');
+ok(authUsers.p1.some((u) => u.email === 'a@thmilk.vn' && u.emailVerified) && sentMail.some((m) => m.to === 'a@thmilk.vn'), 'email mới có quyền QL -> tự tạo tài khoản + gửi email đặt mật khẩu');
+ok(String(sheets['APP USERS']._v()[1][4]).includes('đã gửi email'), 'cột Tài khoản (tự động) ghi trạng thái');
 ok(!!store['vattu/state'], 'kho vật tư được đưa lên lần đầu');
 
 // Đồng bộ lại không đổi gì -> không ghi sheetdata
@@ -145,5 +171,29 @@ const vt = sheets['VAT TU']._v();
 ok(vt[1][4] === 7, 'kéo tồn kho mới về sheet VAT TU');
 ok(sheets['VAT TU TU DONG TRU']._v().length === 6001, 'sổ trừ kho về sheet đủ 6000 dòng');
 ok(sheets['VAT TU NHAP KHO']._v()[1][4] === 'Nguyễn Duy Đức', 'lịch sử nhập kho giữ nguyên');
+// ---- Cấp quyền Phiếu sửa chữa từ cùng sheet APP USERS ----
+stores.p2['admins/quantri@th.com'] = { name: 'projects/p2/databases/(default)/documents/admins/quantri@th.com', fields: { role: { stringValue: 'admin' } } };
+props.FIREBASE_SA_PSC = JSON.stringify({ client_email: 'y', private_key: 'k', project_id: 'p2' });
+const mailsBefore = sentMail.length;
+ctx.__t.caiDatPhieuSuaChua();
+const U = () => sheets['APP USERS']._v();
+const rowOf = (e) => U().find((r) => String(r[0]).toLowerCase() === e);
+ok(rowOf('kythuat.cu@gmail.com') && rowOf('kythuat.cu@gmail.com')[2] === 'nhân viên' && rowOf('quantri@th.com')[2] === 'admin', 'nhập người dùng đang có của app sửa chữa vào sheet (giữ admin)');
+ok(authUsers.p2.every((u) => u.emailVerified), 'tài khoản cũ của app sửa chữa được đánh dấu đã xác minh');
+ok(!!stores.p2['members/kythuat.cu@gmail.com'] && !!stores.p2['members/quantri@th.com'] && !!stores.p2['admins/quantri@th.com'], 'members + admins đẩy sang Firebase app sửa chữa');
+ok(sentMail.length === mailsBefore, 'người cũ KHÔNG bị gửi email đặt mật khẩu');
+// Thêm nhân viên mới + nâng 1 người lên admin + thu quyền 1 người
+U().push(['moi.vao@gmail.com', '', 'nhân viên', '', '']);
+rowOf('kythuat.cu@gmail.com')[2] = 'admin';
+rowOf('quantri@th.com')[2] = '';
+ctx.__t.fsOnEdit({ range: { getSheet: () => sheets['APP USERS'] } });
+ok(!!stores.p2['members/moi.vao@gmail.com'] && stores.p2['members/moi.vao@gmail.com'].fields.role.stringValue === 'staff', 'thêm dòng -> members có ngay');
+ok(authUsers.p2.some((u) => u.email === 'moi.vao@gmail.com' && u.emailVerified), 'người mới -> tạo tài khoản app sửa chữa (đã xác minh)');
+const mail = sentMail[sentMail.length - 1];
+ok(mail.to === 'moi.vao@gmail.com' && mail.htmlBody.includes('Phiếu sửa chữa') && !mail.htmlBody.includes('Hệ thống quản lý'), 'email chỉ chứa link app được cấp');
+ok(!!stores.p2['admins/kythuat.cu@gmail.com'], 'nâng lên admin -> có trong admins');
+ok(!stores.p2['admins/quantri@th.com'] && !stores.p2['members/quantri@th.com'], 'xoá quyền -> gỡ khỏi admins + members');
+const n0 = sentMail.length; ctx.__t.fsSyncAll_(false);
+ok(sentMail.length === n0, 'quét lại không gửi email lặp');
 console.log(fails ? 'THẤT BẠI ' + fails : 'TẤT CẢ OK');
 process.exit(fails ? 1 : 0);
