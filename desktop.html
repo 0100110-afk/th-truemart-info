@@ -14,6 +14,7 @@
   <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
   <link rel="stylesheet" href="css/auth.css">
   <!-- Thứ tự quan trọng: shim + core phải có TRƯỚC script inline của giao diện bên dưới -->
+  <script src="js/ui-scale.js"></script>
   <script src="js/gas-shim.js"></script>
   <script src="js/vendor/md5.min.js"></script>
   <script src="js/vendor/xlsx.mini.min.js" defer></script>
@@ -2015,6 +2016,8 @@
       if (!dataset) return;
       var cfg = PIE_SMALL_CFG_;
       var bg = dataset.backgroundColor;
+      // realData = số thật; dataset.data có thể đã được nâng tối thiểu để lát quá nhỏ vẫn nhìn thấy.
+      var realData = dataset.realData || dataset.data;
 
       // Chỉ tính trên các lát CÒN HIỆN. Trước đây total cộng cả lát đã ẩn qua chú thích nên vừa
       // vẽ số của lát đã ẩn (đè lên vành), vừa tính sai ngưỡng "lát nhỏ" cho các lát còn lại.
@@ -2022,12 +2025,12 @@
         return chart.getDataVisibility ? chart.getDataVisibility(i) : !(meta.data[i] && meta.data[i].hidden);
       };
       var total = 0;
-      dataset.data.forEach(function (v, i) { if (visible(i)) total += (v || 0); });
+      realData.forEach(function (v, i) { if (visible(i)) total += (v || 0); });
       if (!total) return;
 
       var smallLabels = [];
       meta.data.forEach(function (arc, i) {
-        var value = dataset.data[i];
+        var value = realData[i];
         if (!value || !visible(i) || arc.hidden) return;
         var midAngle = (arc.startAngle + arc.endAngle) / 2;
 
@@ -2055,8 +2058,9 @@
       // Giới hạn kẹp nhãn: dùng cả bề mặt canvas (trừ 2px mép) chứ KHÔNG dùng chartArea, vì
       // donut chiếm trọn chiều cao chartArea -> kẹp theo chartArea sẽ đẩy nhãn đè lên vành.
       // Riêng mép dưới thì chặn ở chartArea.bottom để nhãn không lấn xuống phần chú thích.
+      // top 9: chữ căn giữa theo chiều dọc, chừa nửa chiều cao chữ để số trên cùng không bị cắt.
       var bounds = {
-        top: 2, bottom: (chart.chartArea ? chart.chartArea.bottom : chart.height) - 2,
+        top: 9, bottom: (chart.chartArea ? chart.chartArea.bottom : chart.height) - 2,
         left: 2, right: chart.width - 2
       };
       layoutSmallPieLabels_(smallLabels, cfg, bounds);
@@ -2104,6 +2108,14 @@
     var typeLabels = Object.keys(data.byType).sort(function (a, b) { return data.byType[b] - data.byType[a]; });
     var typeValues = typeLabels.map(function (k) { return data.byType[k]; });
     var typeColors = typeLabels.map(function (lbl) { return TYPE_COLOR_MAP_[typeBadgeClass(lbl)] || '#93A2AC'; });
+    // Lát quá nhỏ (vd 1/434 cửa hàng) chỉ rộng ~1° và bị viền trắng nuốt mất -> vẽ tối thiểu 1,2%
+    // vòng tròn cho NHÌN THẤY được; số, chú thích, tooltip vẫn dùng số thật (realData).
+    var typeTotal = typeValues.reduce(function (a, b) { return a + (b || 0); }, 0);
+    var typeShown = typeValues.map(function (v) { return v > 0 ? Math.max(v, typeTotal * 0.012) : 0; });
+    var typeBorder = typeValues.map(function (v) { return typeTotal && v / typeTotal < 0.02 ? 1 : 2; });
+    // Chừa đủ chỗ phía trên cho leader line + số của các lát nhỏ (thường nằm sát đỉnh vòng).
+    var typeSmallN = typeValues.filter(function (v) { return v > 0 && typeTotal && v / typeTotal < PIE_SMALL_CFG_.smallPct; }).length;
+    var typePadTop = typeSmallN ? PIE_SMALL_CFG_.bendBase + (typeSmallN - 1) * PIE_SMALL_CFG_.bendStep + 16 : 12;
 
     if (chartRegion) chartRegion.destroy();
     chartRegion = new Chart($('#chartRegion').getContext('2d'), {
@@ -2122,14 +2134,15 @@
     if (chartType) chartType.destroy();
     chartType = new Chart($('#chartType').getContext('2d'), {
       type: 'doughnut',
-      data: { labels: typeLabels, datasets: [{ data: typeValues, backgroundColor: typeColors, borderWidth: 2, borderColor: '#fff' }] },
+      data: { labels: typeLabels, datasets: [{ data: typeShown, realData: typeValues, backgroundColor: typeColors, borderWidth: typeBorder, borderColor: '#fff' }] },
       options: {
         responsive: true,
         maintainAspectRatio: false,
         // Chú thích tắt ở đây, dựng bằng HTML qua renderTypeLegend_ để căn được thẳng hàng.
         // padding.bottom là chỗ chừa cho dòng chú thích HTML, alignChartBaselines_ sẽ tính lại đúng.
-        layout: { padding: { top: 26, right: 30, bottom: 24, left: 30 } },
-        plugins: { legend: { display: false } },
+        layout: { padding: { top: Math.max(26, typePadTop), right: 30, bottom: 24, left: 30 } },
+        plugins: { legend: { display: false },
+          tooltip: { callbacks: { label: function (c) { return c.label + ': ' + typeValues[c.dataIndex]; } } } },
         cutout: '62%'
       },
       plugins: [pieLabelsPlugin]

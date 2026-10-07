@@ -17,7 +17,7 @@ HEAD = '''<meta charset="utf-8">
   <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
   <link rel="stylesheet" href="css/auth.css">
   <!-- Thứ tự quan trọng: shim + core phải có TRƯỚC script inline của giao diện bên dưới -->
-  <script src="js/gas-shim.js"></script>
+  {uiscale}<script src="js/gas-shim.js"></script>
   <script src="js/vendor/md5.min.js"></script>
   {xlsx}<script src="js/core.js"></script>
 '''
@@ -43,7 +43,8 @@ def build(src, dst, desktop):
     has_vp = 'name="viewport"' in s
     head = HEAD.format(
         viewport='' if has_vp else '<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">\n  ',
-        xlsx='<script src="js/vendor/xlsx.mini.min.js" defer></script>\n  ' if desktop else '')
+        xlsx='<script src="js/vendor/xlsx.mini.min.js" defer></script>\n  ' if desktop else '',
+        uiscale='<script src="js/ui-scale.js"></script>\n  ' if desktop else '')
     i = s.index('<head>') + len('<head>')
     s = s[:i] + '\n  ' + head + s[i:]
     i = s.index('<body>') + len('<body>')

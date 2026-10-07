@@ -454,6 +454,8 @@ function showAccountDialog(okMsg) {
       '<div class="tm-acc-actions"><button type="submit" class="btn btn-primary" id="tmAccSave">Lưu mật khẩu</button>' +
       '<button type="button" class="btn btn-ghost" id="tmAccCancel">Huỷ</button></div>' +
     '</form>' +
+    // Điện thoại: không còn mục Đăng xuất trong "Danh mục khác" -> đặt ở cuối hộp này.
+    (document.getElementById('moreSheet') ? '<div class="tm-acc-bottom"><button type="button" class="btn btn-ghost tm-acc-logout" id="tmAccLogout">Đăng xuất</button></div>' : '') +
   '</div>';
   shell.open();
   const msg = (t, ok) => { const m = document.getElementById('tmAccMsg'); if (!m) return; m.textContent = t; m.className = 'tm-acc-msg' + (ok ? ' ok' : ''); };
@@ -486,6 +488,8 @@ function showAccountDialog(okMsg) {
       await afterChange('Đã liên kết Google. Từ giờ đăng nhập được bằng cả Google lẫn mật khẩu.');
     } catch (err) { msg(accountErrText(err)); linkBtn.disabled = false; }
   };
+  const lo = document.getElementById('tmAccLogout');
+  if (lo) lo.onclick = doLogout;
   document.getElementById('tmAccPwBtn').onclick = () => {
     document.getElementById('tmAccPwForm').hidden = false;
     document.getElementById('tmAccActions').hidden = true;
@@ -525,25 +529,23 @@ function injectUserBox() {
       '<div class="tm-userbox-row"><button type="button" id="tmAccountBtn">Tài khoản</button><button type="button" id="tmLogoutBtn">Đăng xuất</button></div>';
     foot.insertBefore(box, foot.firstChild);
   }
-  const sheetBody = document.querySelector('#moreSheet .sheet-body');   // bản điện thoại
-  if (sheetBody) {
-    const it = document.createElement('div');
-    it.className = 'more-item';
-    it.id = 'tmLogoutBtn';
-    it.innerHTML = '<div class="more-ic ic" style="background:#F7E1DE;color:#C1443A;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5M21 12H9"/></svg></div>' +
-      '<div class="more-main"><div class="more-title">Đăng xuất</div><div class="more-sub">' + esc(email) + ' · ' + roleTxt + '</div></div>';
-    const acc = document.createElement('div');
-    acc.className = 'more-item';
-    acc.id = 'tmAccountBtnM';
-    acc.innerHTML = '<div class="more-ic ic" style="background:#E3F0FA;color:#0B4C8C;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg></div>' +
-      '<div class="more-main"><div class="more-title">Tài khoản</div><div class="more-sub">Cách đăng nhập, đặt / đổi mật khẩu</div></div>';
-    sheetBody.appendChild(acc);
-    acc.addEventListener('click', () => {
-      const closeBtn = document.querySelector('#moreSheet .sheet-close, #moreSheet [data-close]');
-      if (closeBtn) closeBtn.click();
-      showAccountDialog();
-    });
-    sheetBody.appendChild(it);
+  // Bản điện thoại: nút Tài khoản nằm cạnh nút Làm mới trên thanh tiêu đề (giống TH true care);
+  // Đăng xuất nằm trong hộp Tài khoản.
+  const refresh = document.getElementById('refreshBtn');
+  if (refresh && document.getElementById('moreSheet') && !document.getElementById('tmAccIconBtn')) {
+    const wrap = document.createElement('div');
+    wrap.className = 'tm-appbar-actions';
+    refresh.parentNode.insertBefore(wrap, refresh);
+    wrap.appendChild(refresh);
+    const acc = document.createElement('button');
+    acc.type = 'button';
+    acc.className = 'appbar-refresh';
+    acc.id = 'tmAccIconBtn';
+    acc.title = 'Tài khoản';
+    acc.setAttribute('aria-label', 'Tài khoản');
+    acc.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>';
+    acc.addEventListener('click', () => showAccountDialog());
+    wrap.appendChild(acc);
   }
   const accBtn = document.getElementById('tmAccountBtn');
   if (accBtn) accBtn.addEventListener('click', () => showAccountDialog());

@@ -93,3 +93,16 @@ body.tm-viewer #vtCalcBtn{display:none !important;}
 .tm-acc-pw .field label{color:var(--brand-900,#0B4C8C); font-size:12px; font-weight:600;}
 .tm-acc-pw .field input{background:#fff; border:1px solid var(--line,#E1E9F2); border-radius:8px;}
 .tm-acc-pw .field input:focus{background:#fff; border-color:var(--line,#E1E9F2); outline:2px solid var(--brand-500,#2E9BE0); outline-offset:1px;}
+
+/* Bản điện thoại: nút Tài khoản cạnh nút Làm mới trên thanh tiêu đề */
+.tm-appbar-actions{display:flex; gap:8px; flex-shrink:0;}
+.tm-acc-bottom{display:flex; margin-top:6px; padding-top:12px; border-top:1px solid var(--line,#E1E9F2);}
+.tm-acc-bottom .btn{flex:1;}
+.tm-acc .btn.tm-acc-logout{color:#C1443A;}
+
+/* ---- Tự co giãn theo màn hình (js/ui-scale.js đặt zoom cho <html>) ----
+   Khi trang bị thu nhỏ/phóng to bằng CSS zoom, đơn vị vh cũng bị nhân theo -> sidebar 100vh sẽ hụt
+   chiều cao. Chia lại cho hệ số zoom (--uiz) để luôn phủ đúng chiều cao cửa sổ. */
+html.uiz .shell{min-height:calc(100vh / var(--uiz));}
+html.uiz .sidebar{height:calc(100vh / var(--uiz));}
+html.uiz .modal{max-height:calc(90vh / var(--uiz));}

@@ -1267,11 +1267,12 @@
         return chart.getDataVisibility?chart.getDataVisibility(i):!(meta.data[i]&&meta.data[i].hidden);
       };
       var total=0;
-      ds.data.forEach(function(v,i){ if(visible(i)) total+=(v||0); });
+      var realData=ds.realData||ds.data;   // số thật; ds.data có thể đã nâng tối thiểu cho lát quá nhỏ
+      realData.forEach(function(v,i){ if(visible(i)) total+=(v||0); });
       if(!total) return;
 
       meta.data.forEach(function(arc,i){
-        var val=ds.data[i];
+        var val=realData[i];
         if(!val||!visible(i)||arc.hidden) return;
         var angle=(arc.startAngle+arc.endAngle)/2;
         if(val/total<cfg.smallPct){
@@ -1293,7 +1294,7 @@
       if(!smallLabels.length) return;
 
       // Kẹp theo bề mặt canvas chứ không theo chartArea (donut chiếm trọn chiều cao chartArea).
-      var bounds={top:2,bottom:(chart.chartArea?chart.chartArea.bottom:chart.height)-2,
+      var bounds={top:9,bottom:(chart.chartArea?chart.chartArea.bottom:chart.height)-2,
                   left:2,right:chart.width-2};
       layoutSmallPieLabels_(smallLabels,cfg,bounds);
 
@@ -1356,15 +1357,21 @@
     var tl=Object.keys(d.byType).sort(function(a,b){return d.byType[b]-d.byType[a];});
     var tv=tl.map(function(k){return d.byType[k];});
     var tc=tl.map(function(lbl){return TYPE_COLOR_MAP_[typeBadgeCls(lbl)]||'#93A2AC';});
+    // Lát quá nhỏ: vẽ tối thiểu 1,2% vòng cho nhìn thấy; số/chú thích/tooltip vẫn là số thật.
+    var tTot=tv.reduce(function(a,b){return a+(b||0);},0);
+    var tShown=tv.map(function(v){return v>0?Math.max(v,tTot*0.012):0;});
+    var tBorder=tv.map(function(v){return tTot&&v/tTot<0.02?1:2;});
+    var tSmallN=tv.filter(function(v){return v>0&&tTot&&v/tTot<PIE_SMALL_CFG_.smallPct;}).length;
+    var tPadTop=tSmallN?PIE_SMALL_CFG_.bendBase+(tSmallN-1)*PIE_SMALL_CFG_.bendStep+16:12;
     if(chartType) chartType.destroy();
     chartType=new Chart($('#chartType').getContext('2d'),{
       type:'doughnut',
-      data:{labels:tl,datasets:[{data:tv,backgroundColor:tc,borderWidth:2,borderColor:'#fff'}]},
+      data:{labels:tl,datasets:[{data:tShown,realData:tv,backgroundColor:tc,borderWidth:tBorder,borderColor:'#fff'}]},
       options:{responsive:true,maintainAspectRatio:false,
         // Chừa chỗ cho leader line của lát nhỏ (trên nhiều nhất, dưới ít vì đã có chú thích riêng).
-        layout:{padding:{top:24,right:26,bottom:6,left:26}},cutout:'62%',
+        layout:{padding:{top:Math.max(24,tPadTop),right:26,bottom:6,left:26}},cutout:'62%',
         plugins:{legend:{display:false},
-          tooltip:{callbacks:{label:function(ctx){return ctx.label+': '+ctx.raw;}}}}},
+          tooltip:{callbacks:{label:function(ctx){return ctx.label+': '+tv[ctx.dataIndex];}}}}},
       plugins:[pieValueLabels]
     });
     renderChartLegend('#chartTypeLegend',tl,Array.isArray(tc)?tc:tl.map(function(){return tc;}),tv);
