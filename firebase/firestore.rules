@@ -3,16 +3,19 @@ rules_version = '2';
 // - Danh sách người dùng nằm ở users/<email> (Sync.gs ghi từ sheet "APP USERS"; app KHÔNG ghi được).
 // - Dữ liệu bảng (meta, sheetdata) chỉ Sync.gs ghi bằng service account (bỏ qua rules) -> app chỉ đọc.
 // - Kho vật tư: viewer chỉ đọc, editor/admin được ghi.
-// - Bắt buộc EMAIL ĐÃ XÁC MINH: Google luôn xác minh; tài khoản mật khẩu do Sync.gs tạo được
-//   đánh dấu xác minh. Ai tự đăng ký bằng SDK với email của người trong danh sách -> bị chặn.
+// - Chống mạo danh: tài khoản phải ĐÚNG uid mà Sync.gs ghi trong users/<email>, HOẶC email đã
+//   xác minh. Ai tự đăng ký bằng SDK với email của người trong danh sách: khác uid + chưa xác minh
+//   -> bị chặn. Người dùng thật liên kết thêm mật khẩu (Firebase đặt lại "chưa xác minh") vẫn
+//   vào được vì uid không đổi.
 service cloud.firestore {
   match /databases/{database}/documents {
     function email() { return request.auth.token.email.lower(); }
     function profile() { return get(/databases/$(database)/documents/users/$(email())); }
     function member() {
       return request.auth != null && request.auth.token.email != null
-        && request.auth.token.get('email_verified', false) == true
-        && exists(/databases/$(database)/documents/users/$(email()));
+        && exists(/databases/$(database)/documents/users/$(email()))
+        && (profile().data.get('uid', '') == request.auth.uid
+            || request.auth.token.get('email_verified', false) == true);
     }
     function editor() { return member() && profile().data.role in ['editor', 'admin']; }
 

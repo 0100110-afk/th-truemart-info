@@ -98,22 +98,18 @@ function showLoading(msg) {
 
 function showLogin(errMsg) {
   showAuth(
-    '<form id="tmEmailForm" autocomplete="on">' +
-      '<div class="tm-fields">' +
-        '<div class="tm-field"><label for="tmEmail">Email</label>' +
-          '<input class="tm-input" type="email" id="tmEmail" placeholder="ten@example.com" autocomplete="username" required></div>' +
-        '<div class="tm-field"><label for="tmPass">Mật khẩu</label>' +
-          '<input class="tm-input" type="password" id="tmPass" placeholder="••••••••" autocomplete="current-password" required></div>' +
-      '</div>' +
-      '<div class="tm-auth-err" id="tmAuthErr">' + esc(errMsg || '') + '</div>' +
-      '<button class="tm-btn tm-btn-primary" type="submit" id="tmSubmit">Đăng nhập</button>' +
-    '</form>' +
-    '<div class="tm-or"><span>hoặc</span></div>' +
     '<button class="tm-btn tm-btn-google" id="tmGoogleBtn" type="button">' +
       '<svg viewBox="0 0 48 48" width="18" height="18"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z"/><path fill="#FF3D00" d="m6.3 14.7 6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-7.9l-6.5 5C9.5 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.1-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.4-.4-3.5z"/></svg>' +
       'Đăng nhập bằng Google</button>' +
-    '<button class="tm-link" type="button" id="tmForgot">Quên mật khẩu?</button>' +
-    '<p class="tm-auth-note">Tài khoản do quản trị viên cung cấp.</p>'
+    '<div class="tm-or"><span>hoặc</span></div>' +
+    '<form id="tmEmailForm" autocomplete="on">' +
+      '<input class="tm-input" type="email" id="tmEmail" placeholder="Email" autocomplete="username" required>' +
+      '<input class="tm-input" type="password" id="tmPass" placeholder="Mật khẩu" autocomplete="current-password" required>' +
+      '<button class="tm-btn tm-btn-primary" type="submit" id="tmSubmit">Đăng nhập</button>' +
+      '<button class="tm-link" type="button" id="tmForgot">Quên mật khẩu?</button>' +
+    '</form>' +
+    '<div class="tm-auth-err" id="tmAuthErr">' + esc(errMsg || '') + '</div>' +
+    '<div class="tm-auth-note">Tài khoản do quản trị viên cung cấp.</div>'
   );
   $('#tmGoogleBtn').onclick = loginGoogle;
   $('#tmEmailForm').onsubmit = (e) => {
@@ -399,75 +395,128 @@ function accountErrText(err) {
   return authErrText(err) || 'Không thực hiện được, vui lòng thử lại.';
 }
 
-function showAccountDialog() {
-  let el = document.getElementById('tmAccount');
-  if (!el) {
-    el = document.createElement('div');
-    el.id = 'tmAccount';
-    document.body.appendChild(el);
-    el.addEventListener('click', (e) => { if (e.target === el) el.classList.remove('open'); });
+const ROLE_TEXT = (r) => (r === 'admin' ? 'Quản trị' : 'Người dùng');
+
+/** Khung hộp thoại theo đúng giao diện đang mở: bản máy tính dùng .modal, bản điện thoại dùng
+ *  .sheet (bottom sheet) — để chữ, cỡ chữ, nút, ô nhập giống hệt các hộp thoại khác của app. */
+function accountShell() {
+  const mobile = !!document.getElementById('moreSheet');
+  let wrap = document.getElementById('tmAccWrap');
+  if (!wrap) {
+    wrap = document.createElement('div');
+    wrap.id = 'tmAccWrap';
+    wrap.innerHTML = mobile
+      ? '<div class="sheet-overlay" id="tmAccOverlay"></div>' +
+        '<div class="sheet" id="tmAccSheet"><div class="sheet-grip"></div>' +
+        '<div class="sheet-head"><h3>Tài khoản</h3><button class="sheet-close" type="button" id="tmAccClose">✕</button></div>' +
+        '<div class="sheet-body" id="tmAccBody"></div></div>'
+      : '<div class="modal-overlay" id="tmAccOverlay"><div class="modal" style="max-width:440px">' +
+        '<div class="modal-head"><h3>Tài khoản</h3><button class="modal-close" type="button" id="tmAccClose">✕</button></div>' +
+        '<div class="modal-body" id="tmAccBody"></div></div></div>';
+    document.body.appendChild(wrap);
+    const close = () => {
+      document.getElementById('tmAccOverlay').classList.remove('active');
+      const sh = document.getElementById('tmAccSheet'); if (sh) sh.classList.remove('active');
+    };
+    document.getElementById('tmAccClose').onclick = close;
+    document.getElementById('tmAccOverlay').addEventListener('click', (e) => { if (e.target.id === 'tmAccOverlay') close(); });
   }
+  return {
+    body: document.getElementById('tmAccBody'),
+    open() {
+      document.getElementById('tmAccOverlay').classList.add('active');
+      const sh = document.getElementById('tmAccSheet'); if (sh) sh.classList.add('active');
+    },
+    close() { document.getElementById('tmAccClose').click(); }
+  };
+}
+
+function showAccountDialog(okMsg) {
+  const shell = accountShell();
   const u = auth.currentUser;
+  if (!u) { shell.close(); return; }
   const ids = (u.providerData || []).map((p) => p.providerId);
   const hasPw = ids.includes('password'), hasG = ids.includes('google.com');
-  const roleTxt = currentRole === 'admin' ? 'Quản trị' : currentRole === 'editor' ? 'Được sửa' : 'Chỉ xem';
   const method = (name, on) => '<div class="tm-acc-method' + (on ? ' on' : '') + '"><span>' + name + '</span><b>' + (on ? 'Đang dùng' : 'Chưa có') + '</b></div>';
-  el.innerHTML = '<div class="tm-acc-card" role="dialog" aria-label="Tài khoản">' +
-    '<div class="tm-acc-head"><b>Tài khoản</b><button type="button" class="tm-acc-x" aria-label="Đóng">×</button></div>' +
+  shell.body.innerHTML = '<div class="tm-acc">' +
     '<div class="tm-acc-row"><span>Email</span><b>' + esc(u.email) + '</b></div>' +
-    '<div class="tm-acc-row"><span>Quyền</span><b>' + roleTxt + '</b></div>' +
+    '<div class="tm-acc-row"><span>Quyền</span><b>' + ROLE_TEXT(currentRole) + '</b></div>' +
     '<div class="tm-acc-title">Cách đăng nhập</div>' + method('Email + mật khẩu', hasPw) + method('Google', hasG) +
     '<div class="tm-acc-msg" id="tmAccMsg"></div>' +
-    '<div class="tm-acc-actions">' +
-      (hasG ? '' : '<button type="button" class="tm-btn" id="tmAccLinkG">Liên kết Google</button>') +
-      '<button type="button" class="tm-btn" id="tmAccPwBtn">' + (hasPw ? 'Đổi mật khẩu' : 'Đặt mật khẩu') + '</button>' +
+    '<div class="tm-acc-actions" id="tmAccActions">' +
+      (hasG ? '' : '<button type="button" class="btn btn-ghost" id="tmAccLinkG">Liên kết Google</button>') +
+      '<button type="button" class="btn btn-ghost" id="tmAccPwBtn">' + (hasPw ? 'Đổi mật khẩu' : 'Đặt mật khẩu') + '</button>' +
     '</div>' +
     '<form id="tmAccPwForm" class="tm-acc-pw" hidden>' +
-      '<div class="tm-field"><label>' + (hasPw ? 'Mật khẩu mới' : 'Mật khẩu') + '</label><input class="tm-input" type="password" id="tmAccPw1" autocomplete="new-password" placeholder="Ít nhất 6 ký tự"></div>' +
-      '<div class="tm-field"><label>Nhập lại mật khẩu</label><input class="tm-input" type="password" id="tmAccPw2" autocomplete="new-password"></div>' +
-      '<button type="submit" class="tm-btn tm-btn-primary">Lưu mật khẩu</button>' +
+      '<div class="field"><label>' + (hasPw ? 'Mật khẩu mới' : 'Mật khẩu') + '</label><input type="password" id="tmAccPw1" autocomplete="new-password" placeholder="Ít nhất 6 ký tự"></div>' +
+      '<div class="field"><label>Nhập lại mật khẩu</label><input type="password" id="tmAccPw2" autocomplete="new-password"></div>' +
+      '<div class="tm-acc-actions"><button type="submit" class="btn btn-primary" id="tmAccSave">Lưu mật khẩu</button>' +
+      '<button type="button" class="btn btn-ghost" id="tmAccCancel">Huỷ</button></div>' +
     '</form>' +
-    '<p class="tm-auth-note">Liên kết ở đây thì giữ được cả hai cách đăng nhập.</p>' +
+    '<p class="tm-acc-note">Liên kết ở đây thì giữ được cả hai cách đăng nhập.</p>' +
   '</div>';
-  el.classList.add('open');
-  const msg = (t, ok) => { const m = document.getElementById('tmAccMsg'); m.textContent = t; m.className = 'tm-acc-msg' + (ok ? ' ok' : ''); };
-  el.querySelector('.tm-acc-x').onclick = () => el.classList.remove('open');
+  shell.open();
+  const msg = (t, ok) => { const m = document.getElementById('tmAccMsg'); if (!m) return; m.textContent = t; m.className = 'tm-acc-msg' + (ok ? ' ok' : ''); };
+  if (okMsg) msg(okMsg, true);
+
+  // Sau khi liên kết/đổi mật khẩu, Firebase có thể buộc đăng nhập lại (phiên cũ bị thu hồi).
+  // Khi đó auth.currentUser = null: đóng hộp và để màn đăng nhập hiện ra, kèm lời nhắn.
+  const afterChange = async (okText) => {
+    try { await u.reload(); } catch (e) { /* phiên bị thu hồi -> xử lý bên dưới */ }
+    if (!auth.currentUser) {
+      shell.close();
+      showLogin(okText + ' Vui lòng đăng nhập lại.');
+      return;
+    }
+    showAccountDialog(okText);
+  };
+
   const linkBtn = document.getElementById('tmAccLinkG');
   if (linkBtn) linkBtn.onclick = async () => {
     linkBtn.disabled = true; msg('');
     try {
       const r = await linkWithPopup(u, googleProvider());
-      const gEmail = String((getAdditionalUserInfo(r) && getAdditionalUserInfo(r).profile && getAdditionalUserInfo(r).profile.email) || '').toLowerCase();
+      const info = getAdditionalUserInfo(r);
+      const gEmail = String((info && info.profile && info.profile.email) || '').toLowerCase();
       if (gEmail && gEmail !== String(u.email).toLowerCase()) {
         await unlink(u, 'google.com');
         const e = new Error('Tài khoản Google ' + gEmail + ' không trùng email ' + u.email + '. Hãy chọn đúng Gmail ' + u.email + '.');
         e.code = 'app/google-email-mismatch'; throw e;
       }
-      showAccountDialog(); msg('Đã liên kết Google. Từ giờ đăng nhập được bằng cả Google lẫn mật khẩu.', true);
+      await afterChange('Đã liên kết Google. Từ giờ đăng nhập được bằng cả Google lẫn mật khẩu.');
     } catch (err) { msg(accountErrText(err)); linkBtn.disabled = false; }
   };
   document.getElementById('tmAccPwBtn').onclick = () => {
     document.getElementById('tmAccPwForm').hidden = false;
-    document.getElementById('tmAccPwBtn').hidden = true;
+    document.getElementById('tmAccActions').hidden = true;
+    msg('');
     document.getElementById('tmAccPw1').focus();
+  };
+  document.getElementById('tmAccCancel').onclick = () => {
+    document.getElementById('tmAccPwForm').hidden = true;
+    document.getElementById('tmAccActions').hidden = false;
   };
   document.getElementById('tmAccPwForm').onsubmit = async (e) => {
     e.preventDefault();
     const p1 = document.getElementById('tmAccPw1').value, p2 = document.getElementById('tmAccPw2').value;
     if (p1.length < 6) { msg('Mật khẩu cần ít nhất 6 ký tự.'); return; }
     if (p1 !== p2) { msg('Hai lần nhập mật khẩu không khớp.'); return; }
+    const save = document.getElementById('tmAccSave');
+    save.disabled = true; save.textContent = 'Đang lưu...';
     try {
       if (hasPw) await updatePassword(u, p1);
       else await linkWithCredential(u, EmailAuthProvider.credential(u.email, p1));
-      showAccountDialog();
-      msg(hasPw ? 'Đã đổi mật khẩu.' : 'Đã đặt mật khẩu. Từ giờ đăng nhập được bằng email ' + u.email + ' và mật khẩu này.', true);
-    } catch (err) { msg(accountErrText(err)); }
+      await afterChange(hasPw ? 'Đã đổi mật khẩu.' : 'Đã đặt mật khẩu. Từ giờ đăng nhập được bằng email ' + u.email + ' và mật khẩu này.');
+    } catch (err) {
+      msg(accountErrText(err));
+      save.disabled = false; save.textContent = 'Lưu mật khẩu';
+    }
   };
 }
 
 function injectUserBox() {
   const email = currentUser.email || '';
-  const roleTxt = (currentRole === 'viewer') ? 'Chỉ xem' : 'Được sửa';
+  const roleTxt = ROLE_TEXT(currentRole);
   const foot = document.querySelector('.sidebar-foot');                 // bản máy tính
   if (foot) {
     const box = document.createElement('div');
@@ -508,7 +557,12 @@ async function checkRole(user) {
   const email = String(user.email || '').toLowerCase();
   try {
     const snap = await getDoc(doc(db, 'users', email));
-    const role = snap.exists() ? String(snap.data().role || 'viewer') : null;
+    let role = snap.exists() ? String(snap.data().role || 'viewer') : null;
+    // Khớp rules: tài khoản phải đúng uid Sync.gs đã ghi, HOẶC email đã xác minh.
+    // (Liên kết mật khẩu vào tài khoản Google làm Firebase đặt lại "chưa xác minh" —
+    //  uid vẫn giữ nguyên nên vẫn vào được.)
+    const uid = snap.exists() ? snap.data().uid : '';
+    if (role && uid && uid !== user.uid && await emailVerifiedClaim(user) === false) role = null;
     try { localStorage.setItem('tm_role', JSON.stringify({ email, role })); } catch (e) { /* bỏ qua */ }
     return role;
   } catch (e) {
@@ -533,14 +587,6 @@ async function start(user) {
     return;
   }
   if (!currentRole) { showNoAccess(user.email); return; }
-  if (await emailVerifiedClaim(user) === false) {
-    showAuth('<div class="tm-auth-msg"><b>Email chưa được xác nhận</b><br>' + esc(user.email) +
-      '<br><br>Liên hệ quản trị viên, sau đó bấm "Thử lại".</div>' +
-      '<button class="tm-btn tm-btn-primary" type="button" onclick="location.reload()">Thử lại</button>' +
-      '<button class="tm-btn" type="button" id="tmLogout4">Đăng xuất</button>');
-    const b4 = document.getElementById('tmLogout4'); if (b4) b4.onclick = doLogout;
-    return;
-  }
 
   showLoading('Đang tải dữ liệu…');
   let offline = false;

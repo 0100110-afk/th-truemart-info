@@ -115,7 +115,9 @@ ok(meta.sheets.chiphi.n >= 2, 'CHI PHI 6000 dòng được cắt thành ' + meta
 ok(Object.keys(store).filter((k) => k.startsWith('sheetdata/chiphi')).every((k) => Buffer.byteLength(store[k].fields.json.stringValue) < 1000000), 'mỗi mảnh < 1MB');
 ok(meta.sheets.stores.rowCount === 1, 'bỏ dòng trống');
 ok(!!meta.sheets.sanaky && !!meta.sheets.dongia_bt && !!meta.sheets.dongia_xd && !!meta.sheets.dongia_snk, 'Sanaky (tab trong TM) + 3 tab Đơn giá (file DG) đều được đẩy lên');
-ok(store['users/a@thmilk.vn'].fields.role.stringValue === 'editor' && store['users/b@thmilk.vn'].fields.role.stringValue === 'viewer', 'users: email chữ thường + quyền');
+ok(store['users/a@thmilk.vn'].fields.role.stringValue === 'editor' && store['users/b@thmilk.vn'].fields.role.stringValue === 'viewer', 'users: email chữ thường + quyền (giá trị cũ vẫn hiểu)');
+ok(sheets['APP USERS']._v()[1][1] === 'user' && sheets['APP USERS']._v()[2][1] === 'user', 'cột quyền chuẩn hoá về admin / user');
+ok(!!store['users/a@thmilk.vn'].fields.uid.stringValue, 'users ghi kèm uid');
 const uh = sheets['APP USERS']._v()[0];
 ok(uh[1] === 'Hệ thống quản lý' && uh[2] === 'Phiếu sửa chữa' && uh.includes('Tài khoản (tự động)'), 'APP USERS: đổi "Quyền" -> "Hệ thống quản lý", thêm cột Phiếu sửa chữa + trạng thái');
 ok(authUsers.p1.some((u) => u.email === 'a@thmilk.vn' && u.emailVerified) && sentMail.some((m) => m.to === 'a@thmilk.vn'), 'email mới có quyền QL -> tự tạo tài khoản + gửi email đặt mật khẩu');
@@ -178,17 +180,21 @@ const mailsBefore = sentMail.length;
 ctx.__t.caiDatPhieuSuaChua();
 const U = () => sheets['APP USERS']._v();
 const rowOf = (e) => U().find((r) => String(r[0]).toLowerCase() === e);
-ok(rowOf('kythuat.cu@gmail.com') && rowOf('kythuat.cu@gmail.com')[2] === 'nhân viên' && rowOf('quantri@th.com')[2] === 'admin', 'nhập người dùng đang có của app sửa chữa vào sheet (giữ admin)');
+ok(rowOf('kythuat.cu@gmail.com') && rowOf('kythuat.cu@gmail.com')[2] === 'user' && rowOf('quantri@th.com')[2] === 'admin', 'nhập người dùng đang có của app sửa chữa vào sheet (giữ admin)');
 ok(authUsers.p2.every((u) => u.emailVerified), 'tài khoản cũ của app sửa chữa được đánh dấu đã xác minh');
 ok(!!stores.p2['members/kythuat.cu@gmail.com'] && !!stores.p2['members/quantri@th.com'] && !!stores.p2['admins/quantri@th.com'], 'members + admins đẩy sang Firebase app sửa chữa');
 ok(sentMail.length === mailsBefore, 'người cũ KHÔNG bị gửi email đặt mật khẩu');
 // Thêm nhân viên mới + nâng 1 người lên admin + thu quyền 1 người
-U().push(['moi.vao@gmail.com', '', 'nhân viên', '', '']);
+U().push(['moi.vao@gmail.com', '', 'nhân viên', '', '']);   // gõ kiểu cũ -> tự đổi thành 'user'
 rowOf('kythuat.cu@gmail.com')[2] = 'admin';
 rowOf('quantri@th.com')[2] = '';
 ctx.__t.fsOnEdit({ range: { getSheet: () => sheets['APP USERS'] } });
 ok(!!stores.p2['members/moi.vao@gmail.com'] && stores.p2['members/moi.vao@gmail.com'].fields.role.stringValue === 'staff', 'thêm dòng -> members có ngay');
 ok(authUsers.p2.some((u) => u.email === 'moi.vao@gmail.com' && u.emailVerified), 'người mới -> tạo tài khoản app sửa chữa (đã xác minh)');
+const newUid = authUsers.p2.find((u) => u.email === 'moi.vao@gmail.com').localId;
+ok(stores.p2['members/moi.vao@gmail.com'].fields.uid.stringValue === newUid, 'members ghi kèm uid của tài khoản');
+ok(stores.p2['members/kythuat.cu@gmail.com'].fields.uid.stringValue === 'u_old', 'người cũ nhập vào cũng có uid');
+ok(rowOf('moi.vao@gmail.com')[2] === 'user', 'giá trị cũ "nhân viên" tự đổi thành "user"');
 const mail = sentMail[sentMail.length - 1];
 ok(mail.to === 'moi.vao@gmail.com' && mail.htmlBody.includes('Phiếu sửa chữa') && !mail.htmlBody.includes('Hệ thống quản lý'), 'email chỉ chứa link app được cấp');
 ok(!!stores.p2['admins/kythuat.cu@gmail.com'], 'nâng lên admin -> có trong admins');

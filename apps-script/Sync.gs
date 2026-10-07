@@ -307,10 +307,12 @@ function fsWriteMetaOnly_(meta) {
 //
 //   Email | Hệ thống quản lý | Phiếu sửa chữa | Ghi chú | Tài khoản (tự động)
 //
-//   Hệ thống quản lý: admin / editor (được sửa vật tư) / viewer (chỉ xem) / trống = không vào được
-//       -> Firebase th-truemart-info: users/<email> { role }
-//   Phiếu sửa chữa:   admin / nhân viên / trống = không vào được
-//       -> Firebase của app sửa chữa: members/<email> (mọi người được vào) + admins/<email> (admin)
+//   Hai cột quyền chỉ dùng HAI giá trị:  admin  /  user   (để trống = không vào được)
+//   Hệ thống quản lý -> Firebase th-truemart-info: users/<email> { role, uid }
+//       admin = Quản trị, user = Người dùng (cả hai đều sửa được vật tư như bản Apps Script cũ)
+//   Phiếu sửa chữa   -> Firebase của app sửa chữa: members/<email> { role, uid } + admins/<email>
+//       admin = Quản trị (sửa bảng giá, cửa hàng, xem mọi phiếu), user = Người dùng (phiếu của mình)
+//   uid = mã tài khoản Sync.gs tạo/tra được — rules dùng để chặn người tự đăng ký trùng email.
 //   Tài khoản (tự động): Sync.gs ghi — đừng gõ tay.
 //
 // Cột nhận theo TÊN tiêu đề (không theo vị trí), nên chèn thêm cột khác hay đổi thứ tự đều được.
@@ -346,9 +348,9 @@ function fsEnsureUsersLayout_(sh) {
 
   const n = Math.max(sh.getMaxRows() - 1, 1);
   sh.getRange(2, idx(FS_COL_TM) + 1, n, 1).setDataValidation(SpreadsheetApp.newDataValidation()
-    .requireValueInList(['admin', 'editor', 'viewer'], true).setAllowInvalid(true).build());
+    .requireValueInList(['admin', 'user'], true).setAllowInvalid(true).build());
   sh.getRange(2, idx(FS_COL_PSC) + 1, n, 1).setDataValidation(SpreadsheetApp.newDataValidation()
-    .requireValueInList(['admin', 'nhân viên'], true).setAllowInvalid(true).build());
+    .requireValueInList(['admin', 'user'], true).setAllowInvalid(true).build());
   sh.getRange(1, 1, 1, headers.filter(String).length).setFontWeight('bold');
   sh.setFrozenRows(1);
 }
@@ -381,15 +383,33 @@ function fsTmRole_(v) {
   const raw = fsStripAccents_(v);
   if (!raw) return '';
   if (raw.indexOf('admin') > -1 || raw.indexOf('quan tri') > -1) return 'admin';
-  if (raw.indexOf('editor') > -1 || raw.indexOf('sua') > -1) return 'editor';
-  return 'viewer';   // ghi gì khác (viewer, xem, x...) = chỉ xem
+  if (raw === 'viewer' || raw.indexOf('chi xem') > -1) return 'viewer';   // giá trị cũ, vẫn hiểu
+  return 'editor';   // user (và mọi giá trị khác) = người dùng, được sửa vật tư như bản cũ
 }
 
 function fsPscRole_(v) {
   const raw = fsStripAccents_(v);
   if (!raw) return '';
   if (raw.indexOf('admin') > -1 || raw.indexOf('quan tri') > -1) return 'admin';
-  return 'staff';    // nhân viên / nv / user / x ... = nhân viên
+  return 'staff';    // user (và mọi giá trị khác) = người dùng
+}
+
+/** Đưa các giá trị cũ (nhân viên, editor, viewer...) về đúng 2 giá trị admin / user cho dễ đọc. */
+function fsNormalizeRoleCells_(data) {
+  if (!data.sh || !data.cols) return;
+  [data.cols.tm, data.cols.psc].forEach(function (c) {
+    if (c < 0) return;
+    const rng = data.sh.getRange(2, c + 1, Math.max(data.sh.getLastRow() - 1, 1), 1);
+    const vals = rng.getDisplayValues();
+    let changed = false;
+    const out = vals.map(function (r) {
+      const raw = fsStripAccents_(r[0]);
+      if (!raw || raw === 'admin' || raw === 'user') return [r[0]];
+      changed = true;
+      return [(raw.indexOf('admin') > -1 || raw.indexOf('quan tri') > -1) ? 'admin' : 'user'];
+    });
+    if (changed) rng.setValues(out);
+  });
 }
 
 function fsPscOn_() {
@@ -398,25 +418,36 @@ function fsPscOn_() {
 
 /** Đồng bộ quyền cho cả hai app + tạo tài khoản cho người mới. Gọi trong fsWithLock_. */
 function fsSyncAllUsers_(force) {
-  const data = fsReadUsers_();
+  let data = fsReadUsers_();
   if (!data.sh) return;
-  try { fsSyncTmUsers_(data.rows, force); } catch (e) { console.error('Quyền Hệ thống quản lý: ' + e.message); }
-  if (fsPscOn_()) {
-    try { fsSyncPscUsers_(data.rows, force); } catch (e) { console.error('Quyền Phiếu sửa chữa: ' + e.message); }
-  }
+  try { fsNormalizeRoleCells_(data); } catch (e) { console.error('Chuẩn hoá quyền: ' + e.message); }
+  // Tạo tài khoản TRƯỚC để biết uid, rồi mới ghi quyền (kèm uid) lên Firestore
   try { fsProvisionAccounts_(data); } catch (e) { console.error('Tạo tài khoản: ' + e.message); }
+  const done = fsAccountsDone_();
+  try { fsSyncTmUsers_(data.rows, force, done); } catch (e) { console.error('Quyền Hệ thống quản lý: ' + e.message); }
+  if (fsPscOn_()) {
+    try { fsSyncPscUsers_(data.rows, force, done); } catch (e) { console.error('Quyền Phiếu sửa chữa: ' + e.message); }
+  }
 }
 
-function fsSyncTmUsers_(rows, force) {
+/** uid đã biết của email ở một dự án ('' nếu chưa biết). */
+function fsUidOf_(done, prop, email) {
+  const v = done[prop + '|' + email];
+  return (v && typeof v === 'object' && v.uid) ? v.uid : '';
+}
+
+function fsSyncTmUsers_(rows, force, done) {
+  done = done || fsAccountsDone_();
   const want = {};
-  rows.forEach(function (r) { if (r.tm) want[r.email] = r.tm; });
+  rows.forEach(function (r) { if (r.tm) want[r.email] = { role: r.tm, uid: fsUidOf_(done, FS_PROP_SA, r.email) }; });
   const hash = fsMd5_(JSON.stringify(want));
   const props = PropertiesService.getScriptProperties();
   if (!force && props.getProperty(FS_PROP_USERS_HASH) === hash) return;
 
   const existing = fsListDocs_('users').map(function (d) { return decodeURIComponent(d.name.split('/').pop()); });
   const writes = Object.keys(want).map(function (email) {
-    return { update: { name: fsDocName_('users/' + email), fields: { role: { stringValue: want[email] } } } };
+    return { update: { name: fsDocName_('users/' + email), fields: {
+      role: { stringValue: want[email].role }, uid: { stringValue: want[email].uid } } } };
   });
   existing.forEach(function (id) {
     if (!want.hasOwnProperty(id)) writes.push({ delete: fsDocName_('users/' + id) });
@@ -425,9 +456,10 @@ function fsSyncTmUsers_(rows, force) {
   props.setProperty(FS_PROP_USERS_HASH, hash);
 }
 
-function fsSyncPscUsers_(rows, force) {
+function fsSyncPscUsers_(rows, force, done) {
+  done = done || fsAccountsDone_();
   const want = {};
-  rows.forEach(function (r) { if (r.psc) want[r.email] = r.psc; });
+  rows.forEach(function (r) { if (r.psc) want[r.email] = { role: r.psc, uid: fsUidOf_(done, FS_PROP_SA_PSC, r.email) }; });
   const hash = fsMd5_(JSON.stringify(want));
   const props = PropertiesService.getScriptProperties();
   if (!force && props.getProperty(FS_PROP_PSC_HASH) === hash) return;
@@ -438,14 +470,15 @@ function fsSyncPscUsers_(rows, force) {
     const admins = fsListDocs_('admins').map(function (d) { return decodeURIComponent(d.name.split('/').pop()); });
     const writes = [];
     Object.keys(want).forEach(function (email) {
+      const w = want[email];
       writes.push({ update: { name: fsDocName_('members/' + email), fields: {
-        role: { stringValue: want[email] }, via: { stringValue: 'sheet' }, updatedAt: { timestampValue: now } } } });
-      if (want[email] === 'admin' && admins.indexOf(email) < 0) {
-        writes.push({ update: { name: fsDocName_('admins/' + email), fields: { role: { stringValue: 'admin' } } } });
+        role: { stringValue: w.role }, uid: { stringValue: w.uid }, via: { stringValue: 'sheet' }, updatedAt: { timestampValue: now } } } });
+      if (w.role === 'admin') {
+        writes.push({ update: { name: fsDocName_('admins/' + email), fields: { role: { stringValue: 'admin' }, uid: { stringValue: w.uid } } } });
       }
     });
     members.forEach(function (email) { if (!want.hasOwnProperty(email)) writes.push({ delete: fsDocName_('members/' + email) }); });
-    admins.forEach(function (email) { if (want[email] !== 'admin') writes.push({ delete: fsDocName_('admins/' + email) }); });
+    admins.forEach(function (email) { if (!want[email] || want[email].role !== 'admin') writes.push({ delete: fsDocName_('admins/' + email) }); });
     if (writes.length) fsCommit_(writes);
   });
   props.setProperty(FS_PROP_PSC_HASH, hash);
@@ -476,18 +509,23 @@ function fsProvisionAccounts_(data) {
     targets.forEach(function (t) {
       if (!r[t.key]) return;
       const k = t.prop + '|' + r.email;
-      if (done[k]) { notes.push(t.name + ': ' + (done[k] === 'created' ? 'đã tạo' : 'đã có') + ' tài khoản'); return; }
+      const prev = done[k];
+      const prevState = prev && typeof prev === 'object' ? prev.s : prev;   // bản cũ lưu chuỗi, chưa có uid
+      if (prev && typeof prev === 'object' && prev.uid) {
+        notes.push(t.name + ': ' + (prevState === 'created' ? 'đã tạo' : 'đã có') + ' tài khoản');
+        return;
+      }
       try {
         fsWithTarget_(t.prop, function () {
           const u = fsAuthLookup_(r.email);
           if (u) {
-            if (!u.emailVerified) fsAuthMarkVerified_(u.localId);
-            done[k] = 'existing';
-            notes.push(t.name + ': đã có tài khoản');
+            if (!prev && !u.emailVerified) fsAuthMarkVerified_(u.localId);
+            done[k] = { s: prevState || 'existing', uid: u.localId };
+            notes.push(t.name + ': ' + (prevState === 'created' ? 'đã tạo' : 'đã có') + ' tài khoản');
           } else {
-            fsAuthCreate_(r.email);
+            const created = fsAuthCreate_(r.email);
             links.push({ app: t.name, url: t.url, link: fsAuthResetLink_(r.email, t.url) });
-            done[k] = 'created';
+            done[k] = { s: 'created', uid: created.localId };
             notes.push(t.name + ': đã tạo tài khoản');
           }
         });
@@ -561,7 +599,7 @@ function guiLaiEmailDatMatKhau() {
 /**
  * CHẠY 1 LẦN sau khi dán FIREBASE_SA_PSC. Chạy lại bao nhiêu lần cũng được.
  *  1. Chuẩn hoá cột APP USERS (thêm cột "Phiếu sửa chữa", "Tài khoản (tự động)").
- *  2. Nhập NGƯỜI DÙNG ĐANG CÓ của app sửa chữa vào sheet (admin giữ admin, còn lại "nhân viên"),
+ *  2. Nhập NGƯỜI DÙNG ĐANG CÓ của app sửa chữa vào sheet (admin giữ admin, còn lại "user"),
  *     đánh dấu email của họ đã xác minh — để không ai mất quyền khi rules mới bắt buộc điều đó.
  *  3. Đẩy quyền lên Firebase của app sửa chữa.
  */
@@ -591,8 +629,8 @@ function caiDatPhieuSuaChua() {
         if (!email || seen[email] || u.disabled) return;
         seen[email] = true;
         if (!u.emailVerified) fsAuthMarkVerified_(u.localId);
-        done[FS_PROP_SA_PSC + '|' + email] = 'existing';
-        const role = admins.indexOf(email) > -1 ? 'admin' : 'nhân viên';
+        done[FS_PROP_SA_PSC + '|' + email] = { s: 'existing', uid: u.localId };
+        const role = admins.indexOf(email) > -1 ? 'admin' : 'user';
         const r = byEmail[email];
         if (!r) {
           const row = sh.getLastRow() + 1;
@@ -623,7 +661,7 @@ function caiDatPhieuSuaChua() {
   const msg = 'Đã cài cấp quyền Phiếu sửa chữa.\n' +
     '- Thêm vào APP USERS: ' + (added.length ? '\n    ' + added.join('\n    ') : '(không có)') + '\n' +
     '- Điền quyền cho dòng có sẵn: ' + (updated.length ? '\n    ' + updated.join('\n    ') : '(không có)') + '\n\n' +
-    'Kiểm tra lại cột "Phiếu sửa chữa": xoá quyền của ai không còn làm, đổi "nhân viên" <-> "admin" nếu cần.\n' +
+    'Kiểm tra lại cột "Phiếu sửa chữa": xoá quyền của ai không còn làm, đổi "user" <-> "admin" nếu cần.\n' +
     'Từ giờ cấp/thu quyền app sửa chữa NGAY TRONG SHEET NÀY.';
   fsAlert_(msg);
   return msg;

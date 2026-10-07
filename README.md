@@ -18,7 +18,7 @@ cài được lên điện thoại như app (PWA). Google Sheet **vẫn là nơi
 |---|---|---|
 | DS CH, TAI SAN, BAO DUONG, CHI PHI, SANAKY (file **TM**) | **Google Sheet** | Sửa như cũ, app thấy sau vài giây |
 | DON GIA BT, DON GIA XD, DON GIA SNK (file **DG**) | **Google Sheet** | File riêng, cũng đẩy ngay khi sửa |
-| APP USERS (ai được vào **cả hai app**) | **Google Sheet** | Cột *Hệ thống quản lý*: `admin` / `editor` (sửa vật tư) / `viewer` (chỉ xem). Cột *Phiếu sửa chữa*: `admin` / `nhân viên`. Để trống = không vào được. Email mới → tự tạo tài khoản + gửi email đặt mật khẩu |
+| APP USERS (ai được vào **cả hai app**) | **Google Sheet** | Hai cột quyền (*Hệ thống quản lý*, *Phiếu sửa chữa*) chỉ ghi `admin` hoặc `user`. Để trống = không vào được. Email mới → tự tạo tài khoản + gửi email đặt mật khẩu |
 | VAT TU, VAT TU NHAP KHO, VAT TU TU DONG TRU | **App** | Sheet chỉ là bản sao, **đừng sửa tay** — lần kéo sau sẽ ghi đè |
 
 Giao diện giữ **nguyên văn** Index.html / IndexMobile.html; logic tính toán giữ **nguyên văn** Code.gs
