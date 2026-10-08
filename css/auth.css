@@ -113,3 +113,12 @@ html.uiz .modal{max-height:calc(90vh / var(--uiz));}
 html:not([data-ui="mobile"]) .brand{box-sizing:border-box; height:80px; padding-top:0; padding-bottom:0;}
 html:not([data-ui="mobile"]) .topbar{box-sizing:border-box; min-height:80px; padding-top:0; padding-bottom:0;}
 html:not([data-ui="mobile"]) .sidebar.collapsed .brand{padding-top:0; padding-bottom:0;}
+
+/* ---- Bản điện thoại: khối logo trên thanh tiêu đề cùng cỡ/khoảng cách với TH true care và
+   Phiếu sửa chữa: ô TH 40px, chữ "truemart" 17px, tên trang in đậm ngay bên dưới cách 2px ---- */
+.appbar .brand-mark{width:40px; height:40px; border-radius:10px;}
+.appbar .brand-th{font-size:18px;}
+.appbar .brand-star{width:15px; height:15px; right:-7px;}
+.appbar .appbar-wordmark{font-size:17px; line-height:1.15;}
+.appbar .appbar-page{margin-top:0; padding-top:2px; font-size:11px; font-weight:700; line-height:1.4; letter-spacing:.05em; color:rgba(255,255,255,.62);}
+.appbar .appbar-brand{gap:12px;}
