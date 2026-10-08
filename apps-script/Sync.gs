@@ -40,6 +40,7 @@
 
 // Vị trí dữ liệu. Đổi tên tab / file ở đây nếu sau này bạn di chuyển sheet.
 const FS_TAB_STORES = 'DS CH';
+const FS_TAB_STORES_OFF = 'CH OFF';   // cửa hàng đã đóng — biểu đồ Đang hoạt động / Đóng cửa theo Miền
 const FS_TAB_ASSETS = 'TAI SAN';
 const FS_TAB_MAINT = 'BAO DUONG';
 const FS_TAB_CHIPHI = 'CHI PHI';
@@ -89,6 +90,7 @@ function fsSources_() {
     { key: 'maint',  name: FS_TAB_MAINT,  mode: 'raw', sheet: function () { return active.getSheetByName(FS_TAB_MAINT); } },
     { key: 'chiphi', name: FS_TAB_CHIPHI, mode: 'raw', sheet: function () { return active.getSheetByName(FS_TAB_CHIPHI); } },
     { key: 'sanaky', name: FS_TAB_SANAKY, mode: 'display', sheet: function () { return active.getSheetByName(FS_TAB_SANAKY); } },
+    { key: 'storesoff', name: FS_TAB_STORES_OFF, mode: 'raw', sheet: function () { return active.getSheetByName(FS_TAB_STORES_OFF); } },
     { key: 'ncctabs', name: FS_TAB_NCC_TABS, mode: 'display', sheet: function () { return fsEnsureNccTabsSheet_(active); } },
     // Đơn giá ở file DG riêng. Mở thẳng bằng ID (không dùng getDongiaSpreadsheet_ vì hàm đó lặng lẽ
     // quay về file TM khi ID sai -> đồng bộ báo "không tìm thấy" mà không rõ vì sao).

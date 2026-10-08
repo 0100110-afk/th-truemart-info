@@ -20,7 +20,7 @@ var TMCore = (function () {
 
   function sheetKeyOf_(name) {
     var m = {};
-    m[SHEET_STORES] = 'stores'; m[SHEET_ASSETS] = 'assets'; m[SHEET_MAINT] = 'maint'; m[SHEET_CHIPHI] = 'chiphi'; m[SHEET_NCC_TABS] = 'ncctabs';
+    m[SHEET_STORES] = 'stores'; m[SHEET_ASSETS] = 'assets'; m[SHEET_MAINT] = 'maint'; m[SHEET_CHIPHI] = 'chiphi'; m[SHEET_NCC_TABS] = 'ncctabs'; m[SHEET_STORES_OFF] = 'storesoff';
     return m[name] || null;
   }
 

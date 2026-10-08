@@ -21,7 +21,7 @@ import {
 } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js';
 import { FIREBASE_CONFIG, APP_TITLE } from './firebase-config.js';
 
-const SHEET_KEYS = ['stores', 'assets', 'maint', 'chiphi', 'sanaky', 'ncctabs', 'dongia_bt', 'dongia_xd', 'dongia_snk'];
+const SHEET_KEYS = ['stores', 'assets', 'maint', 'chiphi', 'sanaky', 'ncctabs', 'storesoff', 'dongia_bt', 'dongia_xd', 'dongia_snk'];
 const AUTOLOG_CHUNK_MAX = 2500;   // ~110 byte/dòng -> ~275KB/tài liệu, xa trần 1MB của Firestore
 
 const fbApp = initializeApp(FIREBASE_CONFIG);

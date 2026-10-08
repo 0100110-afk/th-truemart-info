@@ -742,9 +742,17 @@
   }
 
   /* Người giữ vật tư: avatar tròn + tên + nút thao tác */
-  .vt-holder-row{display:flex; align-items:center; gap:10px; padding:10px 12px; border:1px solid var(--line); border-radius:10px; margin-bottom:8px; background:var(--cream-50);}
-  .vt-holder-avatar{width:32px; height:32px; border-radius:50%; background:var(--brand-900); color:var(--white); display:flex; align-items:center; justify-content:center; font-weight:700; font-size:13px; flex-shrink:0;}
-  .vt-holder-name-input{flex:1; min-width:0; border:1px solid var(--line); border-radius:8px; padding:8px 10px; font-size:13px; background:var(--white); color:var(--ink-900);}
+  /* Một danh sách liền: các dòng ngăn bằng đường kẻ mảnh, không khung/khoảng trống riêng từng người.
+     Ô tên trông như chữ thường, chỉ hiện viền khi rê chuột / đang sửa. */
+  #vtHoldersList{border:1px solid var(--line); border-radius:12px; overflow:hidden; background:var(--white);}
+  #vtHoldersList:has(.tab-empty){border:0;}
+  .vt-holder-row{display:flex; align-items:center; gap:10px; padding:7px 10px 7px 12px; border-bottom:1px solid var(--line);}
+  .vt-holder-row:last-child{border-bottom:0;}
+  .vt-holder-row:hover{background:var(--cream-50);}
+  .vt-holder-avatar{width:28px; height:28px; border-radius:50%; background:#E6EEF8; color:var(--brand-800); display:flex; align-items:center; justify-content:center; font-weight:700; font-size:12px; flex-shrink:0;}
+  .vt-holder-name-input{flex:1; min-width:0; border:1px solid transparent; border-radius:7px; padding:6px 8px; font-size:13.5px; background:transparent; color:var(--ink-900);}
+  .vt-holder-name-input:hover{border-color:var(--line);}
+  .vt-holder-name-input:focus{border-color:var(--brand-500); background:var(--white); outline:none;}
 
   /* Nút bị khoá bằng mật khẩu (Chỉnh sửa tồn kho) */
   .btn-lock-icon{width:13px; height:13px; flex-shrink:0;}
@@ -774,6 +782,11 @@
     .detail-grid{grid-template-columns:1fr;}
     .detail-grid.cols-2{grid-template-columns:1fr;}
   }
+.region-legend { display:flex; justify-content:center; gap:18px; margin-top:8px; font-size:12px; color:var(--ink-500); }
+  .region-legend:empty { display:none; }
+  .region-legend .rl-item { display:inline-flex; align-items:center; gap:6px; }
+  .region-legend .rl-dots { display:inline-flex; gap:2px; }
+  .region-legend .rl-dots i { width:10px; height:10px; border-radius:3px; display:inline-block; }
 </style>
 </head>
 <body>
@@ -889,6 +902,7 @@
             <div class="card panel">
               <h3>Số lượng cửa hàng theo Miền</h3>
               <div class="chart-container"><canvas id="chartRegion"></canvas></div>
+              <div class="region-legend" id="chartRegionLegend"></div>
             </div>
             <div class="card panel">
               <h3>Loại cửa hàng</h3>
@@ -1247,6 +1261,23 @@
       </div>
       <div class="modal-foot">
         <button class="btn btn-primary btn-sm" id="vtQtySaveBtn">Lưu số lượng</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: Xác nhận trước khi ghi tồn kho (liệt kê các dòng sẽ thay đổi) -->
+  <div class="modal-overlay" id="vtConfirmModal" style="z-index:1200;">
+    <div class="modal modal-wide">
+      <div class="modal-head"><h3 id="vtConfirmTitle">Xác nhận cập nhật tồn kho</h3><button class="modal-close" id="vtConfirmClose">×</button></div>
+      <div class="modal-body">
+        <div id="vtConfirmSummary" style="font-size:13px; color:var(--ink-700); margin-bottom:10px;"></div>
+        <div class="table-wrap" style="max-height:360px; overflow-y:auto; border:1px solid var(--line); border-radius:10px;">
+          <table class="data-table" id="vtConfirmTable"><thead></thead><tbody></tbody></table>
+        </div>
+      </div>
+      <div class="modal-foot">
+        <button class="btn btn-ghost btn-sm" id="vtConfirmBackBtn">Quay lại sửa</button>
+        <button class="btn btn-primary btn-sm" id="vtConfirmOkBtn">Xác nhận cập nhật</button>
       </div>
     </div>
   </div>
@@ -2004,6 +2035,7 @@
   }
 
   /** Vẽ số ngay trên đỉnh mỗi cột. */
+  var REGION_CLOSED_COLOR_ = '#B4BEC9';
   var barValueLabelsPlugin = {
     id: 'barValueLabels',
     afterDatasetsDraw: function (chart) {
@@ -2263,10 +2295,26 @@
     var typeSmallN = typeValues.filter(function (v) { return v > 0 && typeTotal && v / typeTotal < PIE_SMALL_CFG_.smallPct; }).length;
     var typePadTop = typeSmallN ? PIE_SMALL_CFG_.bendBase + (typeSmallN - 1) * PIE_SMALL_CFG_.bendStep + 16 : 12;
 
+    // Đang hoạt động (DS CH) + Đóng cửa (CH OFF) cạnh nhau theo từng Miền — luôn là số TOÀN BỘ,
+    // không theo bộ lọc năm/miền (server trả sẵn regionStatus). Thiếu dữ liệu thì về cách vẽ cũ.
+    var rs = data.regionStatus;
+    var regionDatasets = [{ label: 'Đang hoạt động', data: regionValues, backgroundColor: regionColors, borderRadius: 6, maxBarThickness: 42 }];
+    if (rs && rs.labels && rs.labels.length) {
+      regionLabels = rs.labels.slice();
+      regionColors = regionLabels.map(function (lbl) { return CHART_REGION_COLOR_MAP_[lbl] || '#2E90FA'; });
+      regionDatasets = [
+        { label: 'Đang hoạt động', data: rs.open, backgroundColor: regionColors, borderRadius: 6, maxBarThickness: 38, categoryPercentage: 0.62, barPercentage: 0.9 },
+        { label: 'Đóng cửa', data: rs.closed, backgroundColor: REGION_CLOSED_COLOR_, borderRadius: 6, maxBarThickness: 38, categoryPercentage: 0.62, barPercentage: 0.9 }
+      ];
+      $('#chartRegionLegend').innerHTML =
+        '<span class="rl-item"><span class="rl-dots">' + regionColors.map(function (c) { return '<i style="background:' + c + '"></i>'; }).join('') + '</span>Đang hoạt động</span>' +
+        '<span class="rl-item"><span class="rl-dots"><i style="background:' + REGION_CLOSED_COLOR_ + '"></i></span>Đóng cửa</span>';
+    } else { $('#chartRegionLegend').innerHTML = ''; }
+
     if (chartRegion) chartRegion.destroy();
     chartRegion = new Chart($('#chartRegion').getContext('2d'), {
       type: 'bar',
-      data: { labels: regionLabels, datasets: [{ data: regionValues, backgroundColor: regionColors, borderRadius: 6, maxBarThickness: 42 }] },
+      data: { labels: regionLabels, datasets: regionDatasets },
       options: {
         responsive: true,
         maintainAspectRatio: false,
@@ -2989,7 +3037,7 @@
       return;
     }
     try {
-      var qtyDatasets = [{ type: 'bar', label: 'Tổng số lượng', data: data.totalCount, backgroundColor: '#16233B', borderRadius: 5 }];
+      var qtyDatasets = [{ type: 'bar', label: 'Tổng số lượng', data: data.totalCount, backgroundColor: '#0E9384', borderRadius: 5 }];
       data.countSeries.forEach(function (s, i) {
         qtyDatasets.push({ type: 'bar', label: s.name, data: s.data, backgroundColor: MAINT_CHART_PALETTE[i % MAINT_CHART_PALETTE.length], borderRadius: 5 });
       });
@@ -3483,16 +3531,55 @@
   });
   $('#vtQtyModalClose').addEventListener('click', closeVtQtyModal);
   $('#vtQtyModal').addEventListener('click', function (e) { if (e.target === this) closeVtQtyModal(); });
+  /* Bảng xác nhận: chưa ghi gì cho tới khi bấm "Xác nhận cập nhật". */
+  var vtConfirmAction_ = null;
+  function vtMatName_(code) {
+    var m = (vtData && vtData.materials || []).filter(function (x) { return x.code === code; })[0];
+    return m ? m.name : '';
+  }
+  function openVtConfirm_(title, summary, head, rows, onOk) {
+    $('#vtConfirmTitle').textContent = title;
+    $('#vtConfirmSummary').innerHTML = summary;
+    $('#vtConfirmTable thead').innerHTML = '<tr>' + head.map(function (h) { return '<th' + (h.num ? ' style="text-align:center;"' : '') + '>' + h.label + '</th>'; }).join('') + '</tr>';
+    $('#vtConfirmTable tbody').innerHTML = rows.join('');
+    vtConfirmAction_ = onOk;
+    $('#vtConfirmOkBtn').disabled = false;
+    $('#vtConfirmModal').classList.add('active');
+  }
+  function closeVtConfirm_() { $('#vtConfirmModal').classList.remove('active'); vtConfirmAction_ = null; }
+  $('#vtConfirmClose').addEventListener('click', closeVtConfirm_);
+  $('#vtConfirmBackBtn').addEventListener('click', closeVtConfirm_);
+  $('#vtConfirmOkBtn').addEventListener('click', function () {
+    var fn = vtConfirmAction_; if (!fn) return;
+    this.disabled = true; closeVtConfirm_(); fn();
+  });
+  function vtNumCell_(v, strong) { return '<td style="text-align:center;' + (strong ? ' font-weight:700; color:var(--brand-900);' : '') + '">' + v + '</td>'; }
+
   $('#vtQtySaveBtn').addEventListener('click', function () {
     var holder = $('#vtQtyHolderSelect').value;
     var items = $all('.vt-qty-input', $('#vtQtyTableBody')).map(function (inp) {
       return { code: inp.dataset.code, qty: Number(inp.value) || 0 };
     });
-    runServer('setVatTuQtyBulk', [holder, items], function () {
-      showToast('Đã cập nhật tồn kho cho ' + holder + '.');
-      loadVtStock();
-      closeVtQtyModal();
-    });
+    var cur = {};
+    (vtData.materials || []).forEach(function (m) { cur[m.code] = (m.qty && m.qty[holder]) || 0; });
+    var changed = items.filter(function (it) { return it.qty !== cur[it.code]; });
+    if (!changed.length) { showToast('Không có thay đổi nào để cập nhật.'); return; }
+    openVtConfirm_('Xác nhận chỉnh sửa tồn kho (ghi đè)',
+      'Người giữ: <strong>' + esc(holder) + '</strong> · <strong>' + changed.length + '</strong> vật tư thay đổi. Số mới sẽ GHI ĐÈ số hiện tại.',
+      [{ label: 'Mã vật tư' }, { label: 'Tên vật tư' }, { label: 'Số hiện tại', num: 1 }, { label: 'Số mới', num: 1 }, { label: 'Chênh lệch', num: 1 }],
+      changed.map(function (it) {
+        var d = it.qty - cur[it.code];
+        return '<tr><td><span class="cc-pill outline">' + esc(it.code) + '</span></td><td>' + esc(vtMatName_(it.code)) + '</td>' +
+          vtNumCell_(cur[it.code]) + vtNumCell_(it.qty, true) +
+          '<td style="text-align:center; font-weight:600; color:' + (d > 0 ? 'var(--success, #12B76A)' : 'var(--danger)') + ';">' + (d > 0 ? '+' : '') + d + '</td></tr>';
+      }),
+      function () {
+        runServer('setVatTuQtyBulk', [holder, items], function () {
+          showToast('Đã cập nhật tồn kho cho ' + holder + '.');
+          loadVtStock();
+          closeVtQtyModal();
+        });
+      });
   });
 
   // Modal: Cập nhật tồn kho (nhập kho, cộng dồn)
@@ -3571,11 +3658,23 @@
       .map(function (inp) { return { code: inp.dataset.code, qty: Number(inp.value) || 0 }; })
       .filter(function (it) { return it.qty > 0; });
     if (!items.length) { showToast('Nhập ít nhất 1 số lượng lớn hơn 0.', true); return; }
-    runServer('addVatTuStock', [holder, items], function (res) {
-      showToast('Đã nhập kho cho ' + res.itemsAdded + ' vật tư (' + holder + ').');
-      loadVtStock();
-      renderVtStockInTable();
-    });
+    var cur = {};
+    (vtData.materials || []).forEach(function (m) { cur[m.code] = (m.qty && m.qty[holder]) || 0; });
+    openVtConfirm_('Xác nhận nhập kho',
+      'Người nhận: <strong>' + esc(holder) + '</strong> · <strong>' + items.length + '</strong> vật tư. Số nhập thêm sẽ CỘNG DỒN vào số hiện có.',
+      [{ label: 'Mã vật tư' }, { label: 'Tên vật tư' }, { label: 'Số hiện có', num: 1 }, { label: 'Nhập thêm', num: 1 }, { label: 'Sau khi nhập', num: 1 }],
+      items.map(function (it) {
+        return '<tr><td><span class="cc-pill outline">' + esc(it.code) + '</span></td><td>' + esc(vtMatName_(it.code)) + '</td>' +
+          vtNumCell_(cur[it.code] || 0) + '<td style="text-align:center; font-weight:600; color:var(--success, #12B76A);">+' + it.qty + '</td>' +
+          vtNumCell_((cur[it.code] || 0) + it.qty, true) + '</tr>';
+      }),
+      function () {
+        runServer('addVatTuStock', [holder, items], function (res) {
+          showToast('Đã nhập kho cho ' + res.itemsAdded + ' vật tư (' + holder + ').');
+          loadVtStock();
+          renderVtStockInTable();
+        });
+      });
   });
 
   // Đơn giá

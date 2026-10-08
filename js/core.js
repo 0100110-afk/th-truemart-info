@@ -19,7 +19,7 @@ var TMCore = (function () {
 
   function sheetKeyOf_(name) {
     var m = {};
-    m[SHEET_STORES] = 'stores'; m[SHEET_ASSETS] = 'assets'; m[SHEET_MAINT] = 'maint'; m[SHEET_CHIPHI] = 'chiphi'; m[SHEET_NCC_TABS] = 'ncctabs';
+    m[SHEET_STORES] = 'stores'; m[SHEET_ASSETS] = 'assets'; m[SHEET_MAINT] = 'maint'; m[SHEET_CHIPHI] = 'chiphi'; m[SHEET_NCC_TABS] = 'ncctabs'; m[SHEET_STORES_OFF] = 'storesoff';
     return m[name] || null;
   }
 
@@ -842,6 +842,7 @@ var TMCore = (function () {
       byRegionColors: byRegionColors,
       byType: byType,
       byTypeColors: byTypeColors,
+      regionStatus: getRegionOpenClosed_(),
       recentCosts: recentCosts
     };
   }
@@ -880,6 +881,36 @@ var TMCore = (function () {
         };
       });
     return { rows: rows.slice((page - 1) * pageSize, page * pageSize), total: rows.length, page: page, pageSize: pageSize };
+  }
+
+  const SHEET_STORES_OFF = 'CH OFF';
+
+  /** Cửa hàng đã đóng (sheet CH OFF). Chưa có sheet / chưa đồng bộ -> danh sách rỗng. */
+  function readStoresOff_() {
+    let rows = [];
+    try { rows = sheetToObjects_(SHEET_STORES_OFF); } catch (e) { rows = []; }
+    return (rows || []).filter(function (r) {
+      return String(r[COLS.STORE_COST_CENTER] || '').trim() || String(r[COLS.STORE_ADDRESS] || '').trim();
+    });
+  }
+
+  /** Biểu đồ "Số lượng cửa hàng theo Miền": Đang hoạt động (DS CH) và Đóng cửa (CH OFF) theo từng miền.
+   *  Luôn tính trên TOÀN BỘ dữ liệu — không phụ thuộc bộ lọc năm/miền của trang Tổng quan. */
+  function getRegionOpenClosed_() {
+    const groups = ['MB', 'MT', 'MN'];
+    const open = { MB: 0, MT: 0, MN: 0 }, closed = { MB: 0, MT: 0, MN: 0 };
+    getStoresCached_().forEach(function (s) {
+      if (!String(s[COLS.STORE_COST_CENTER] || '').trim()) return;
+      const g = regionGroup_(s[COLS.STORE_REGION]); if (open[g] !== undefined) open[g]++;
+    });
+    readStoresOff_().forEach(function (s) {
+      const g = regionGroup_(s[COLS.STORE_REGION]); if (closed[g] !== undefined) closed[g]++;
+    });
+    return {
+      labels: groups.map(function (g) { return REGION_GROUP_LABELS[g]; }),
+      open: groups.map(function (g) { return open[g]; }),
+      closed: groups.map(function (g) { return closed[g]; })
+    };
   }
 
   /** Giá trị cho bộ lọc Danh sách cửa hàng: Tỉnh/Thành phố và Loại cửa hàng có trong DS CH. */

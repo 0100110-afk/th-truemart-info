@@ -559,7 +559,12 @@
   .chart-legend-item{display:flex; align-items:center; gap:6px; font-size:11.5px; color:var(--ink-600); font-weight:600;}
   .chart-legend-dot{width:9px; height:9px; border-radius:3px; flex-shrink:0;}
   .chart-legend-item .n{color:var(--ink-300); font-weight:500;}
-  </style>
+  .region-legend{display:flex;justify-content:center;gap:14px;margin-top:6px;font-size:11px;color:var(--ink-500);}
+.region-legend:empty{display:none;}
+.region-legend .rl-item{display:inline-flex;align-items:center;gap:5px;}
+.region-legend .rl-dots{display:inline-flex;gap:2px;}
+.region-legend .rl-dots i{width:9px;height:9px;border-radius:3px;display:inline-block;}
+</style>
 </head>
 <body>
   <div id="tmAuth" class="is-loading"></div>
@@ -606,6 +611,7 @@
       <div class="card chart-card" style="margin-top:8px;">
         <h3>Cửa hàng theo Miền</h3>
         <div class="chart-box"><canvas id="chartRegion"></canvas></div>
+        <div class="region-legend" id="chartRegionLegend"></div>
       </div>
       <div class="card chart-card" style="margin-top:10px;">
         <h3>Loại cửa hàng</h3>
@@ -843,6 +849,21 @@
     <div class="sheet-foot"><button class="btn btn-primary btn-block" id="stockInSaveBtn">Lưu nhập kho</button></div>
   </div>
 
+  <!-- SHEET: xác nhận nhập kho — liệt kê các dòng sẽ cập nhật, bấm Xác nhận mới ghi -->
+  <div class="sheet-overlay" id="vtConfirmOverlay"></div>
+  <div class="sheet" id="vtConfirmSheet">
+    <div class="sheet-grip"></div>
+    <div class="sheet-head"><h3>Xác nhận nhập kho</h3><button class="sheet-close" data-close="vtConfirm">✕</button></div>
+    <div class="sheet-body">
+      <div id="vtConfirmSummary" style="font-size:12.5px; color:var(--ink-700); margin-bottom:10px; line-height:1.45;"></div>
+      <div id="vtConfirmRows"></div>
+    </div>
+    <div class="sheet-foot" style="display:flex; gap:10px;">
+      <button class="btn btn-ghost" style="flex:1;" id="vtConfirmBackBtn">Quay lại sửa</button>
+      <button class="btn btn-primary" style="flex:1;" id="vtConfirmOkBtn">Xác nhận</button>
+    </div>
+  </div>
+
   <div class="sheet-overlay" id="pwOverlay"></div>
   <div class="sheet" id="pwSheet">
     <div class="sheet-grip"></div>
@@ -1008,10 +1029,12 @@
   function closeSheet(id){ $('#'+id+'Overlay').classList.remove('active'); $('#'+id+'Sheet').classList.remove('active'); }
   $('#moreOverlay').addEventListener('click',function(){closeSheet('more');});
   $('#stockInOverlay').addEventListener('click',function(){closeSheet('stockIn');});
+  $('#vtConfirmOverlay').addEventListener('click',function(){closeSheet('vtConfirm');});
   $all('.sheet-close').forEach(function(b){
     b.addEventListener('click',function(){
       var which=b.dataset.close;
       if(which==='pw'){ closePw_(false); return; }   // đóng/huỷ -> coi như không nhập mật khẩu
+      if(which==='vtConfirm'){ closeSheet('vtConfirm'); return; }
       closeSheet(which==='more'?'more':'stockIn');
     });
   });
@@ -1381,10 +1404,20 @@
     var rcSrc=d.byRegionColors&&d.byRegionColors.length?d.byRegionColors:null;
     // Màu cột theo Miền: cùng bảng màu với app TH true care
     var rc=rl.map(function(lbl){return CHART_REGION_COLOR_MAP_[lbl]||(rcSrc&&rcSrc[origRl.indexOf(lbl)])||'#2E90FA';});
+    // Đang hoạt động (DS CH) + Đóng cửa (CH OFF) theo Miền — luôn số toàn bộ, không theo bộ lọc.
+    var rs=d.regionStatus, CLOSED='#B4BEC9';
+    var rds=[{label:'Đang hoạt động',data:rv,backgroundColor:rc,borderRadius:7,maxBarThickness:40}];
+    if(rs&&rs.labels&&rs.labels.length){
+      rl=rs.labels.slice(); rc=rl.map(function(l){return CHART_REGION_COLOR_MAP_[l]||'#2E90FA';});
+      rds=[{label:'Đang hoạt động',data:rs.open,backgroundColor:rc,borderRadius:6,maxBarThickness:30,categoryPercentage:0.66,barPercentage:0.9},
+           {label:'Đóng cửa',data:rs.closed,backgroundColor:CLOSED,borderRadius:6,maxBarThickness:30,categoryPercentage:0.66,barPercentage:0.9}];
+      $('#chartRegionLegend').innerHTML='<span class="rl-item"><span class="rl-dots">'+rc.map(function(c){return '<i style="background:'+c+'"></i>';}).join('')+'</span>Đang hoạt động</span>'+
+        '<span class="rl-item"><span class="rl-dots"><i style="background:'+CLOSED+'"></i></span>Đóng cửa</span>';
+    } else $('#chartRegionLegend').innerHTML='';
     if(chartRegion) chartRegion.destroy();
     chartRegion=new Chart($('#chartRegion').getContext('2d'),{
       type:'bar',
-      data:{labels:rl,datasets:[{data:rv,backgroundColor:rc,borderRadius:7,maxBarThickness:40}]},
+      data:{labels:rl,datasets:rds},
       options:{responsive:true,maintainAspectRatio:false,layout:{padding:{top:18}},
         plugins:{legend:{display:false}},
         scales:{y:{beginAtZero:true,grid:{color:'#E8EEF5'},ticks:{font:{size:10}}},x:{grid:{display:false,drawTicks:false},ticks:{font:{size:10}}}}},
@@ -2281,14 +2314,30 @@
       .map(function(inp){ return {code:inp.dataset.code, qty:Number(inp.value)||0}; })
       .filter(function(it){ return it.qty>0; });
     if(!items.length){ toast('Nhập ít nhất 1 số lượng lớn hơn 0.',true); return; }
-    var btn=$('#stockInSaveBtn'); btn.disabled=true;
-    runServer('addVatTuStock',[holder,items],function(res){
-      btn.disabled=false;
-      closeSheet('stockIn');
-      toast('Đã nhập kho '+res.itemsAdded+' vật tư cho '+holder+'.');
-      loadVtStock();
-    },function(){ btn.disabled=false; });
+    var cur={}, nm={};
+    (vtData.materials||[]).forEach(function(m){ cur[m.code]=(m.qty&&m.qty[holder])||0; nm[m.code]=m.name; });
+    $('#vtConfirmSummary').innerHTML='Người nhận: <strong>'+esc(holder)+'</strong> · <strong>'+items.length+'</strong> vật tư. Số nhập thêm sẽ cộng dồn vào số hiện có.';
+    $('#vtConfirmRows').innerHTML='<div class="card">'+items.map(function(it){
+      var c=cur[it.code]||0;
+      return '<div class="li"><div class="li-main"><div class="li-title">'+esc(nm[it.code]||'')+'</div>'+
+        '<div class="li-sub">'+esc(it.code)+'</div></div>'+
+        '<div style="text-align:right; font-size:12.5px; white-space:nowrap;">'+c+' <span style="color:var(--success,#12B76A); font-weight:700;">+'+it.qty+'</span>'+
+        '<div style="font-weight:700; color:var(--brand-900); font-size:14px;">= '+(c+it.qty)+'</div></div></div>';
+    }).join('')+'</div>';
+    vtConfirmFn_=function(){
+      var btn=$('#stockInSaveBtn'); btn.disabled=true;
+      runServer('addVatTuStock',[holder,items],function(res){
+        btn.disabled=false;
+        closeSheet('stockIn');
+        toast('Đã nhập kho '+res.itemsAdded+' vật tư cho '+holder+'.');
+        loadVtStock();
+      },function(){ btn.disabled=false; });
+    };
+    openSheet('vtConfirm');
   });
+  var vtConfirmFn_=null;
+  $('#vtConfirmBackBtn').addEventListener('click',function(){ closeSheet('vtConfirm'); });
+  $('#vtConfirmOkBtn').addEventListener('click',function(){ var f=vtConfirmFn_; vtConfirmFn_=null; closeSheet('vtConfirm'); if(f) f(); });
 
   // ============================== ĐƠN GIÁ ==============================
 
