@@ -373,16 +373,15 @@
   /* Cost-center pill */
   .cc-pill{
     display:inline-flex; align-items:center; gap:6px;
-    font-family:'SFMono-Regular', ui-monospace, Menlo, Consolas, monospace;
-    font-size:12px; font-weight:600; letter-spacing:.01em;
+    font-family:'Be Vietnam Pro', -apple-system, 'Segoe UI', sans-serif;
+    font-size:12px; font-weight:600; letter-spacing:.02em; font-variant-numeric:tabular-nums;
     background:var(--brand-900); color:var(--gold-100);
     padding:4px 10px; border-radius:999px;
   }
   .cc-pill.light{background:var(--sky-100); color:var(--brand-900);}
   /* Mã bấm để SAO CHÉP; nút kính lúp bên cạnh mới là tra cứu theo mã. */
   .code-pill-wrap{display:inline-flex; align-items:center; gap:4px; white-space:nowrap; vertical-align:middle;}
-  .cc-pill.copyable{cursor:copy; transition:background .12s, border-color .12s;
-    font-family:'Be Vietnam Pro', -apple-system, 'Segoe UI', sans-serif; letter-spacing:.02em; font-variant-numeric:tabular-nums;}
+  .cc-pill.copyable{cursor:copy; transition:background .12s, border-color .12s;}
   .cc-pill.outline.copyable:hover{background:var(--sky-100);}
   .cc-pill.light.copyable:hover{background:#D3E4F6;}
   .cc-pill.copyable:focus-visible, .code-lookup:focus-visible{outline:2px solid var(--brand-500); outline-offset:2px;}
@@ -731,12 +730,13 @@
   /* Nút bị khoá bằng mật khẩu (Chỉnh sửa tồn kho) */
   .btn-lock-icon{width:13px; height:13px; flex-shrink:0;}
   .btn-ico{width:14px; height:14px; flex-shrink:0;}
-  /* Bảng Chi phí THS / LSC: 11 cột như sheet CHI PHI -> thu gọn đệm + cỡ chữ để vừa màn hình */
-  #cpTable thead th{padding:10px 9px;}
-  #cpTable tbody td{padding:10px 9px; font-size:12.5px;}
-  .table-wrap.wrap-cells #cpTable td.col-wrap, .table-wrap.wrap-cells #cpTable th.col-wrap{min-width:120px;}
-  .table-wrap.wrap-cells #cpTable td:nth-child(2), .table-wrap.wrap-cells #cpTable th:nth-child(2){min-width:200px;}
-  .table-wrap.wrap-cells #cpTable td:nth-child(11){white-space:normal; min-width:100px;}
+  /* Bảng Chi phí THS / LSC: 11 cột như sheet CHI PHI, cùng cỡ chữ với các bảng khác của app.
+     Cột chữ dài được xuống dòng với bề rộng cố định; bảng rộng hơn màn hình thì kéo ngang. */
+  .table-wrap.wrap-cells #cpTable{min-width:1500px;}
+  .table-wrap.wrap-cells #cpTable td.col-wrap, .table-wrap.wrap-cells #cpTable th.col-wrap{min-width:0;}
+  #cpTable .w-store{width:260px;} #cpTable .w-issue{width:190px;} #cpTable .w-item{width:220px;}
+  #cpTable .w-supplier{width:170px;}
+  .table-wrap.wrap-cells #cpTable td.w-supplier{white-space:normal;}
 
   @media (max-width:820px){
     /* .sidebar.collapsed có độ ưu tiên cao hơn .sidebar nên phải nhắc lại cả 2 selector,
@@ -1029,7 +1029,7 @@
               <select class="filter-select" id="cpSupplierSelect"><option value="">Tất cả nhà cung cấp</option></select>
               <select class="filter-select" id="cpMonthSelect"><option value="">Tất cả tháng</option></select>
               <select class="filter-select" id="cpYearSelect"><option value="">Tất cả năm</option></select>
-              <button class="btn btn-gold btn-sm" id="cpExportBtn" type="button"><svg class="btn-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11M7.5 10.5 12 15l4.5-4.5"/><path d="M5 19h14"/></svg>Xuất Excel</button>
+              <button class="btn btn-ghost btn-sm" id="cpExportBtn" type="button"><svg class="btn-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11M7.5 10.5 12 15l4.5-4.5"/><path d="M5 19h14"/></svg>Xuất Excel</button>
             </div>
           </div>
 
@@ -1037,7 +1037,7 @@
             <div class="table-wrap wrap-cells">
               <table class="data-table" id="cpTable">
                 <thead>
-                  <tr><th>Cost center</th><th class="col-wrap">Tên cửa hàng</th><th>Khu vực</th><th class="col-wrap">Mô tả sự cố</th><th>NV phụ trách</th><th class="col-wrap">Hạng mục/Vật tư</th><th>Mã thiết bị</th><th>Ngày hoàn thành</th><th>Số lượng</th><th class="money">Tổng chi phí</th><th>Nhà cung cấp</th></tr>
+                  <tr><th>Cost center</th><th class="col-wrap w-store">Tên cửa hàng</th><th>Khu vực</th><th class="col-wrap w-issue">Mô tả sự cố</th><th>NV phụ trách</th><th class="col-wrap w-item">Hạng mục/Vật tư</th><th>Mã thiết bị</th><th>Ngày hoàn thành</th><th style="text-align:center;">Số lượng</th><th class="money">Tổng chi phí</th><th class="w-supplier">Nhà cung cấp</th></tr>
                 </thead>
                 <tbody></tbody>
               </table>
@@ -1058,7 +1058,7 @@
                 <button class="btn btn-primary btn-sm" id="vtStockInBtn"><svg class="btn-lock-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>Cập nhật tồn kho</button>
                 <!-- Trừ kho theo các dòng CHI PHÍ mới. Chỉ chạy khi bấm nút này. -->
                 <button class="btn btn-primary btn-sm" id="vtCalcBtn"><svg class="btn-lock-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>Khớp vật tư</button>
-                <button class="btn btn-gold btn-sm" id="vtExportBtn">Xuất Excel</button>
+                <button class="btn btn-ghost btn-sm" id="vtExportBtn"><svg class="btn-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11M7.5 10.5 12 15l4.5-4.5"/><path d="M5 19h14"/></svg>Xuất Excel</button>
               </div>
             </div>
             <div class="vt-stock-wrap" id="vtStockTableWrap">
@@ -2829,11 +2829,11 @@
       } else {
         tbody.innerHTML = data.rows.map(function (r) {
           return '<tr><td><span class="cc-pill light" style="cursor:pointer;" title="Xem chi tiết cửa hàng" onclick="THTM.viewStoreFromAsset(\'' + esc(r.costCenter).replace(/'/g, "\\'") + '\')">' + esc(r.costCenter) + '</span></td>' +
-            '<td class="col-wrap">' + esc(r.storeName) + '</td><td>' + esc(r.area) + '</td><td class="col-wrap">' + esc(r.issue) + '</td><td>' + esc(r.staff) + '</td>' +
-            '<td class="col-wrap">' + esc(r.item) + '</td>' +
+            '<td class="col-wrap w-store">' + esc(r.storeName) + '</td><td>' + esc(r.area) + '</td><td class="col-wrap w-issue">' + esc(r.issue) + '</td><td>' + esc(r.staff) + '</td>' +
+            '<td class="col-wrap w-item">' + esc(r.item) + '</td>' +
             '<td>' + (r.assetCode ? assetToTaisanPill(r.assetCode) : '<span class="cc-dash">—</span>') + '</td>' +
             '<td>' + esc(normalizeDateJS_(r.date)) + '</td><td style="text-align:center;">' + esc(r.qty) + '</td>' +
-            '<td class="money">' + fmtVND(r.cost) + '</td><td>' + esc(r.supplier) + '</td></tr>';
+            '<td class="money">' + fmtVND(r.cost) + '</td><td class="w-supplier">' + esc(r.supplier) + '</td></tr>';
         }).join('');
       }
       var totalPages = Math.max(1, Math.ceil(data.total / data.pageSize));
