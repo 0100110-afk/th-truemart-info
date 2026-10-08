@@ -626,7 +626,7 @@
         </div>
         <div id="storeResults"></div>
         <div id="storeListBox">
-          <div class="chip-row"><select class="chip-select" id="storeListRegion"><option value="">Toàn quốc</option><option value="MB">Miền Bắc</option><option value="MT">Miền Trung</option><option value="MN">Miền Nam</option></select></div>
+          <div class="chip-row"><select class="chip-select" id="storeListRegion"><option value="">Toàn quốc</option><option value="MB">Miền Bắc</option><option value="MT">Miền Trung</option><option value="MN">Miền Nam</option></select><select class="chip-select" id="storeListCity"><option value="">Tất cả tỉnh/TP</option></select><select class="chip-select" id="storeListType"><option value="">Tất cả loại CH</option></select></div>
           <div id="storeListItems"></div>
           <button class="btn-load-more" id="storeListMore" style="display:none;">Tải thêm</button>
         </div>
@@ -686,7 +686,7 @@
     <section class="page" id="page-chiphi">
       <div class="search-box">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
-        <input type="text" id="cpSearchInput" placeholder="Cost center, cửa hàng, mã thiết bị…" inputmode="search" enterkeyhint="search">
+        <input type="text" id="cpSearchInput" placeholder="Nhập nội dung tìm kiếm..." inputmode="search" enterkeyhint="search">
       </div>
       <div class="chip-row">
         <select class="chip-select" id="cpRegionSelect"><option value="">Toàn quốc</option><option value="MB">Miền Bắc</option><option value="MT">Miền Trung</option><option value="MN">Miền Nam</option></select>
@@ -814,12 +814,12 @@
       </div>
       <div class="more-item" data-goto="chiphi-ths">
         <div class="more-ic green ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M4 9.5 5.5 4h13L20 9.5"/><path d="M4 9.5c0 1.4 1.1 2.5 2.7 2.5S9.3 10.9 9.3 9.5c0 1.4 1.2 2.5 2.7 2.5s2.7-1.1 2.7-2.5c0 1.4 1.1 2.5 2.6 2.5S20 10.9 20 9.5"/><path d="M5.5 12v8h13v-8M10 20v-4.5h4V20"/></svg></div>
-        <div class="more-main"><div class="more-title">Chi phí sửa chữa THS</div><div class="more-sub">Chi phí sửa chữa tại cửa hàng Truemart</div></div>
+        <div class="more-main"><div class="more-title">Chi phí sửa chữa THS</div><div class="more-sub">Truemart</div></div>
         <div class="li-chevron"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 6 6 6-6 6"/></svg></div>
       </div>
       <div class="more-item" data-goto="chiphi-lsc">
         <div class="more-ic sky ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M3 20V9l9-5 9 5v11"/><path d="M7 20v-8h10v8"/><path d="M7 15h10M7 17.5h10"/></svg></div>
-        <div class="more-main"><div class="more-title">Chi phí sửa chữa LSC</div><div class="more-sub">Chi phí sửa chữa tại kho Logistic SC</div></div>
+        <div class="more-main"><div class="more-title">Chi phí sửa chữa LSC</div><div class="more-sub">Logistic SC</div></div>
         <div class="li-chevron"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 6 6 6-6 6"/></svg></div>
       </div>
       <div class="more-item" data-goto="vattu">
@@ -1448,11 +1448,15 @@
   function pickStore(i){ openStoreDetail(storeCache[i].costCenter); }
 
   // Danh sách cửa hàng (hiện khi ô tìm kiếm trống) — các trường như sheet DS CH.
-  var slRegion='', slPage=1, slRows=[], slTotal=0, slLoading=false;
+  var slRegion='', slCity='', slType='', slOptsLoaded=false, slPage=1, slRows=[], slTotal=0, slLoading=false;
   function fetchStoreListM(reset){
     if(slLoading) return; slLoading=true;
     if(reset){ slPage=1; slRows=[]; $('#storeListItems').innerHTML=skeleton(3); }
-    runServer('getStoreList',[{region:slRegion,page:slPage,pageSize:30}],function(d){
+    if(!slOptsLoaded){ slOptsLoaded=true; runServer('getStoreListFilterOptions',[],function(o){
+      var opt=function(all,list){ return '<option value="">'+all+'</option>'+(list||[]).map(function(v){return '<option value="'+esc(v)+'">'+esc(v)+'</option>';}).join(''); };
+      $('#storeListCity').innerHTML=opt('Tất cả tỉnh/TP',o&&o.cities); $('#storeListType').innerHTML=opt('Tất cả loại CH',o&&o.types);
+    }); }
+    runServer('getStoreList',[{region:slRegion,city:slCity,type:slType,page:slPage,pageSize:30}],function(d){
       slLoading=false; slTotal=d.total; slRows=slRows.concat(d.rows||[]); renderStoreListM();
     },function(){ slLoading=false; });
   }
@@ -1464,7 +1468,7 @@
       return '<div class="li tap" onclick="THM.pickStoreList('+i+')"><div class="li-main">'+
         '<div class="li-title">'+esc(c.address||'—')+'</div>'+
         '<div class="li-sub"><span class="cc-pill outline" style="margin-right:6px;">'+esc(c.costCenter)+'</span>'+esc([c.ward,c.city].filter(Boolean).join(', '))+'</div>'+
-        slField('Miền / Khu vực',[c.region,c.area].filter(Boolean).join(' · '))+
+        slField('Miền',c.region)+
         slField('Loại cửa hàng',c.type)+(c.status?'<div class="li-meta"><span class="badge '+(String(c.status).toLowerCase().indexOf('opn')===0?'open':'closed')+'">'+(String(c.status).toLowerCase().indexOf('opn')===0?'Đang hoạt động':'Đã đóng')+'</span></div>':'')+
       '</div>'+chevron()+'</div>';
     }).join('')+'</div>';
@@ -1472,6 +1476,8 @@
   }
   function pickStoreList(i){ openStoreDetail(slRows[i].costCenter); }
   $('#storeListRegion').addEventListener('change',function(){ slRegion=this.value; fetchStoreListM(true); });
+  $('#storeListCity').addEventListener('change',function(){ slCity=this.value; fetchStoreListM(true); });
+  $('#storeListType').addEventListener('change',function(){ slType=this.value; fetchStoreListM(true); });
   $('#storeListMore').addEventListener('click',function(){ slPage++; fetchStoreListM(false); });
 
   function showStoreList(){ $('#storeListView').style.display=''; $('#storeDetailView').style.display='none'; }

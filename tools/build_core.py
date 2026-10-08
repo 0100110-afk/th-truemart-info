@@ -75,6 +75,7 @@ function sheetToObjects_(name) {
       const v = r[j];
       obj[headers[j]] = (v === null || v === undefined) ? '' : v;
     }
+    addHeaderAliases_(obj, headers);
     obj.__row = (d.rowNums && d.rowNums[i]) || (i + 2);
     out.push(obj);
   });

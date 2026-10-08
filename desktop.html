@@ -925,12 +925,14 @@
                   <option value="MT">Miền Trung</option>
                   <option value="MN">Miền Nam</option>
                 </select>
+                <select class="filter-select" id="storeListCity"><option value="">Tất cả tỉnh/thành phố</option></select>
+                <select class="filter-select" id="storeListType"><option value="">Tất cả loại cửa hàng</option></select>
               </div>
             </div>
             <div class="card">
               <div class="table-wrap wrap-cells">
                 <table class="data-table" id="storeListTable">
-                  <thead><tr><th>Miền</th><th>Khu vực</th><th>Cost center</th><th class="col-wrap">Địa chỉ</th><th>Xã/Phường</th><th>Thành phố trực thuộc</th><th>Loại cửa hàng</th><th>Trạng thái</th></tr></thead>
+                  <thead><tr><th>Miền</th><th>Cost center</th><th class="col-wrap" style="width:38%;">Địa chỉ</th><th>Xã/Phường</th><th>Tỉnh/Thành phố</th><th>Loại cửa hàng</th><th>Trạng thái</th></tr></thead>
                   <tbody></tbody>
                 </table>
               </div>
@@ -1058,7 +1060,7 @@
           <div class="row-between">
             <div class="search-bar" style="flex:1; max-width:560px; margin-bottom:0;">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
-              <input type="text" id="cpSearchInput" placeholder="Nhập cost center, tên cửa hàng, mã thiết bị, nội dung...">
+              <input type="text" id="cpSearchInput" placeholder="Nhập nội dung tìm kiếm...">
               <button class="btn btn-primary" id="cpSearchBtn" type="button">Tìm kiếm</button>
             </div>
             <div class="filters-row">
@@ -1080,7 +1082,7 @@
             <div class="table-wrap wrap-cells">
               <table class="data-table" id="cpTable">
                 <thead>
-                  <tr><th>Cost center</th><th class="col-wrap w-store">Tên cửa hàng</th><th>Khu vực</th><th>NV phụ trách</th><th class="col-wrap w-issue">Mô tả sự cố</th><th class="col-wrap w-item">Hạng mục/Vật tư</th><th>Mã thiết bị</th><th>Ngày hoàn thành</th><th style="text-align:center;">Số lượng</th><th class="money">Tổng chi phí</th><th class="w-supplier">Nhà cung cấp</th></tr>
+                  <tr><th>Cost center</th><th class="col-wrap w-store">Địa chỉ</th><th>Khu vực</th><th>NV phụ trách</th><th class="col-wrap w-issue">Mô tả sự cố</th><th class="col-wrap w-item">Hạng mục/Vật tư</th><th>Mã thiết bị</th><th>Ngày hoàn thành</th><th style="text-align:center;">Số lượng</th><th class="money">Tổng chi phí</th><th class="w-supplier">Nhà cung cấp</th></tr>
                 </thead>
                 <tbody></tbody>
               </table>
@@ -1651,8 +1653,8 @@
     assets: ['Tài sản', 'Tra cứu tài sản theo mã tài sản hoặc theo cửa hàng'],
     sanaky: ['Sanaky', 'Lịch sử sửa chữa và chi phí bảo trì thiết bị Sanaky'],
     maintenance: ['Bảo dưỡng', 'Lịch sử và chi phí bảo dưỡng thiết bị'],
-    'chiphi-ths': ['Chi phí sửa chữa THS', 'Chi phí sửa chữa tại cửa hàng Truemart'],
-    'chiphi-lsc': ['Chi phí sửa chữa LSC', 'Chi phí sửa chữa tại kho Logistic SC'],
+    'chiphi-ths': ['Chi phí sửa chữa THS', 'Truemart'],
+    'chiphi-lsc': ['Chi phí sửa chữa LSC', 'Logistic SC'],
     vattu: ['Vật tư', 'Theo dõi vật tư tồn kho'],
     dongia: ['Đơn giá', 'Tra cứu đơn giá vật tư, nhân công theo mã IMC hoặc nội dung công việc']
   };
@@ -2389,22 +2391,29 @@
   }
 
   // ----- Danh sách cửa hàng (hiện khi chưa tìm kiếm / chưa mở chi tiết) -----
-  var storeListLoaded = false, storeListPage = 1, storeListRegion = '';
+  var storeListLoaded = false, storeListPage = 1, storeListRegion = '', storeListCity = '', storeListType = '';
   function showStoreList() {
     $('#storeCandidates').innerHTML = '';
     $('#storeDetailWrap').innerHTML = '';
     $('#storeListWrap').style.display = '';
-    if (!storeListLoaded) { storeListLoaded = true; fetchStoreList(); }
+    if (!storeListLoaded) {
+      storeListLoaded = true; fetchStoreList();
+      runServer('getStoreListFilterOptions', [], function (o) {
+        var opt = function (all, list) { return '<option value="">' + all + '</option>' + (list || []).map(function (v) { return '<option value="' + esc(v) + '">' + esc(v) + '</option>'; }).join(''); };
+        $('#storeListCity').innerHTML = opt('Tất cả tỉnh/thành phố', o && o.cities);
+        $('#storeListType').innerHTML = opt('Tất cả loại cửa hàng', o && o.types);
+      });
+    }
   }
   function hideStoreList() { $('#storeListWrap').style.display = 'none'; }
   function fetchStoreList() {
-    $('#storeListTable tbody').innerHTML = skelTableRows(8, 8);
-    runServer('getStoreList', [{ region: storeListRegion, page: storeListPage, pageSize: 50 }], function (d) {
+    $('#storeListTable tbody').innerHTML = skelTableRows(8, 7);
+    runServer('getStoreList', [{ region: storeListRegion, city: storeListCity, type: storeListType, page: storeListPage, pageSize: 50 }], function (d) {
       var tbody = $('#storeListTable tbody');
-      if (!d.rows.length) { tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; color:var(--ink-500); padding:24px;">Không có cửa hàng.</td></tr>'; }
+      if (!d.rows.length) { tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:var(--ink-500); padding:24px;">Không có cửa hàng.</td></tr>'; }
       else tbody.innerHTML = d.rows.map(function (r) {
         var isOpen = String(r.status || '').toLowerCase().indexOf('opn') === 0;
-        return '<tr><td>' + esc(r.region) + '</td><td>' + esc(r.area) + '</td>' +
+        return '<tr><td style="white-space:nowrap;">' + esc(r.region) + '</td>' +
           '<td><span class="cc-pill light" style="cursor:pointer;" title="Xem chi tiết cửa hàng" onclick="THTM.openStoreFromList(\'' + esc(r.costCenter).replace(/'/g, "\\'") + '\')">' + esc(r.costCenter) + '</span></td>' +
           '<td class="col-wrap">' + esc(r.address) + '</td><td>' + esc(r.ward) + '</td><td>' + esc(r.city) + '</td>' +
           '<td>' + (r.type ? '<span class="type-badge ' + typeBadgeClass(r.type) + '">' + esc(r.type) + '</span>' : '') + '</td>' +
@@ -2420,6 +2429,8 @@
   function storeListGoPage(p) { storeListPage = p; fetchStoreList(); }
   function openStoreFromList(cc) { hideStoreList(); showStoreDetail(cc); window.scrollTo({ top: 0 }); }
   $('#storeListRegion').addEventListener('change', function () { storeListRegion = this.value; storeListPage = 1; fetchStoreList(); });
+  $('#storeListCity').addEventListener('change', function () { storeListCity = this.value; storeListPage = 1; fetchStoreList(); });
+  $('#storeListType').addEventListener('change', function () { storeListType = this.value; storeListPage = 1; fetchStoreList(); });
 
   function pickStore(idx) {
     $('#storeCandidates').innerHTML = '';

@@ -340,7 +340,7 @@ function exportChiPhiKindExcel(opts) {
   const scope = ['Chi phí sửa chữa ' + kindLabel, regionLabel, 'Năm: ' + (opts.year || 'Tất cả'),
     'Tháng: ' + (opts.month ? pad2_(opts.month) : 'Tất cả'), 'NCC: ' + (opts.supplier || 'Tất cả'), 'NV: ' + (opts.staff || 'Tất cả')]
     .concat(opts.query ? ['Từ khoá: ' + opts.query] : []).join('  ·  ');
-  const headers = ['Cost center', 'Tên cửa hàng', 'Khu vực', 'NV phụ trách', 'Mô tả sự cố', 'Hạng mục/Vật tư', 'Mã thiết bị', 'Ngày hoàn thành', 'Số lượng', 'Tổng chi phí', 'Nhà cung cấp'];
+  const headers = ['Cost center', 'Địa chỉ', 'Khu vực', 'NV phụ trách', 'Mô tả sự cố', 'Hạng mục/Vật tư', 'Mã thiết bị', 'Ngày hoàn thành', 'Số lượng', 'Tổng chi phí', 'Nhà cung cấp'];
   const aoa = [['Phạm vi lọc — ' + scope], headers];
   data.rows.forEach(function (r) {
     aoa.push([r.costCenter, r.storeName, r.area, r.staff, r.issue, r.item, r.assetCode, r.date, r.qty, r.cost, r.supplier]);
@@ -542,6 +542,7 @@ function syncAutologWithIds_(cpRows, keys, autolog, matcher, holders) {
     getChiPhiKindMonthsAvailable: getChiPhiKindMonthsAvailable,
     getChiPhiKindFilterOptions: getChiPhiKindFilterOptions,
     getStoreList: getStoreList,
+    getStoreListFilterOptions: getStoreListFilterOptions,
     getChiPhiKindRows: getChiPhiKindRows,
     exportChiPhiKindExcel: exportChiPhiKindExcel,
     getSanakyByAsset: getSanakyByAsset,

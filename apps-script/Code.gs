@@ -138,10 +138,22 @@ function sheetToObjects_(name, dateCols) {
       if (!headers[j]) continue;
       obj[headers[j]] = (displayValues && dateColIdx[j]) ? displayValues[i + 1][j] : r[j];
     }
+    addHeaderAliases_(obj, headers);
     obj.__row = i + 2;
     out.push(obj);
   }
   return out;
+}
+
+/** Tiêu đề cột có xuống dòng / nhiều dấu cách (vd "Thành Phố↵trực thuộc") -> thêm khoá phụ đã gộp
+ *  khoảng trắng ("Thành Phố trực thuộc") để COLS nhận ra. Khoá gốc giữ nguyên, không ảnh hưởng cột khác. */
+function addHeaderAliases_(obj, headers) {
+  for (let j = 0; j < headers.length; j++) {
+    const h = headers[j];
+    if (!h) continue;
+    const k = h.replace(/\s+/g, ' ');
+    if (k !== h && !Object.prototype.hasOwnProperty.call(obj, k)) obj[k] = obj[h];
+  }
 }
 
 function stripAccents_(str) {
@@ -848,13 +860,23 @@ function getStoreList(opts) {
   const page = Math.max(1, Number(opts.page) || 1);
   const pageSize = Number(opts.pageSize) || 50;
   const region = String(opts.region || '').trim();
+  const city = String(opts.city || '').trim();
+  const type = String(opts.type || '').trim();
+  const ORDER = { MB: 0, MT: 1, MN: 2 };
   const rows = getStoresCached_()
-    .filter(function (s) { return String(s[COLS.STORE_COST_CENTER] || '').trim(); })
-    .filter(function (s) { return !region || regionGroup_(s[COLS.STORE_REGION]) === region; })
-    .map(function (s) {
+    .map(function (s, idx) { return { s: s, idx: idx }; })
+    .filter(function (o) { return String(o.s[COLS.STORE_COST_CENTER] || '').trim(); })
+    .filter(function (o) { return !region || regionGroup_(o.s[COLS.STORE_REGION]) === region; })
+    .filter(function (o) { return !city || String(o.s[COLS.STORE_CITY] || '').trim() === city; })
+    .filter(function (o) { return !type || String(o.s[COLS.STORE_TYPE] || '').trim() === type; })
+    .sort(function (a, b) {
+      const ga = ORDER[regionGroup_(a.s[COLS.STORE_REGION])], gb = ORDER[regionGroup_(b.s[COLS.STORE_REGION])];
+      return ((ga === undefined ? 9 : ga) - (gb === undefined ? 9 : gb)) || (a.idx - b.idx);
+    })
+    .map(function (o) {
+      const s = o.s;
       return {
-        region: String(s[COLS.STORE_REGION] || ''),
-        area: String(s[COLS.STORE_AREA] || ''),
+        region: regionGroupLabel_(s[COLS.STORE_REGION]),
         costCenter: cleanCode_(s[COLS.STORE_COST_CENTER]),
         address: String(s[COLS.STORE_ADDRESS] || ''),
         ward: String(s[COLS.STORE_WARD] || ''),
@@ -864,6 +886,18 @@ function getStoreList(opts) {
       };
     });
   return { rows: rows.slice((page - 1) * pageSize, page * pageSize), total: rows.length, page: page, pageSize: pageSize };
+}
+
+/** Giá trị cho bộ lọc Danh sách cửa hàng: Tỉnh/Thành phố và Loại cửa hàng có trong DS CH. */
+function getStoreListFilterOptions() {
+  const cities = {}, types = {};
+  getStoresCached_().forEach(function (s) {
+    if (!String(s[COLS.STORE_COST_CENTER] || '').trim()) return;
+    const c = String(s[COLS.STORE_CITY] || '').trim(); if (c) cities[c] = 1;
+    const t = String(s[COLS.STORE_TYPE] || '').trim(); if (t) types[t] = 1;
+  });
+  const cmp = function (a, b) { return a.localeCompare(b, 'vi'); };
+  return { cities: Object.keys(cities).sort(cmp), types: Object.keys(types).sort(cmp) };
 }
 
 function searchStores(query) {
