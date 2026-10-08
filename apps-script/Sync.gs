@@ -44,6 +44,7 @@ const FS_TAB_ASSETS = 'TAI SAN';
 const FS_TAB_MAINT = 'BAO DUONG';
 const FS_TAB_CHIPHI = 'CHI PHI';
 const FS_TAB_SANAKY = 'SANAKY';                       // tab trong file TM
+const FS_TAB_NCC_TABS = 'NCC THEO DÕI';               // cấu hình tab NCC ở trang Cửa hàng
 const FS_TAB_VATTU = 'VAT TU';
 const FS_TAB_VATTU_LOG = 'VAT TU NHAP KHO';
 const FS_DG_FILE_ID = '1RFVctqPlPvLodhscIMxIMLrRgIEjSLLUlFUsqI2anSQ';   // file "DG"
@@ -88,12 +89,32 @@ function fsSources_() {
     { key: 'maint',  name: FS_TAB_MAINT,  mode: 'raw', sheet: function () { return active.getSheetByName(FS_TAB_MAINT); } },
     { key: 'chiphi', name: FS_TAB_CHIPHI, mode: 'raw', sheet: function () { return active.getSheetByName(FS_TAB_CHIPHI); } },
     { key: 'sanaky', name: FS_TAB_SANAKY, mode: 'display', sheet: function () { return active.getSheetByName(FS_TAB_SANAKY); } },
+    { key: 'ncctabs', name: FS_TAB_NCC_TABS, mode: 'display', sheet: function () { return fsEnsureNccTabsSheet_(active); } },
     // Đơn giá ở file DG riêng. Mở thẳng bằng ID (không dùng getDongiaSpreadsheet_ vì hàm đó lặng lẽ
     // quay về file TM khi ID sai -> đồng bộ báo "không tìm thấy" mà không rõ vì sao).
     { key: 'dongia_bt',  name: FS_TAB_DG_BT,  mode: 'raw', external: true, sheet: function () { return fsDongiaSs_().getSheetByName(FS_TAB_DG_BT); } },
     { key: 'dongia_xd',  name: FS_TAB_DG_XD,  mode: 'raw', external: true, sheet: function () { return fsDongiaSs_().getSheetByName(FS_TAB_DG_XD); } },
     { key: 'dongia_snk', name: FS_TAB_DG_SNK, mode: 'raw', external: true, sheet: function () { return fsDongiaSs_().getSheetByName(FS_TAB_DG_SNK); } }
   ];
+}
+
+/** Sheet cấu hình tab NCC: chưa có thì tự tạo sẵn 4 tab đang dùng. */
+function fsEnsureNccTabsSheet_(ss) {
+  let sh = ss.getSheetByName(FS_TAB_NCC_TABS);
+  if (sh) return sh;
+  sh = ss.insertSheet(FS_TAB_NCC_TABS);
+  sh.getRange(1, 1, 5, 4).setValues([
+    ['Tên tab', 'Nhận diện', 'Trừ kho vật tư', 'Trừ kho từ ngày'],
+    ['DAIKIN', '', '', ''], ['PSMART', '', '', ''], ['Minh Hoàng', '', '', ''], ['TD LIGHTING', '', 'Có', '']
+  ]);
+  sh.getRange(1, 1, 1, 4).setFontWeight('bold');
+  sh.setFrozenRows(1);
+  sh.setColumnWidth(1, 200); sh.setColumnWidth(2, 260); sh.setColumnWidth(3, 130); sh.setColumnWidth(4, 140);
+  sh.getRange(2, 4, 200, 1).setNumberFormat('dd/MM/yyyy');
+  sh.getRange(1, 6).setValue('Mỗi dòng là một tab ở "Theo dõi chi phí sửa chữa". Nhận diện: chữ cần có trong cột "Nhà cung cấp" ' +
+    'của CHI PHI (bỏ trống = dùng Tên tab; nhiều từ cách nhau dấu phẩy). Trừ kho vật tư: ghi "Có" để dòng CHI PHI của NCC này ' +
+    'được trừ kho khi bấm Khớp vật tư. Trừ kho từ ngày: bỏ trống = mọi ngày; điền ngày thì chỉ trừ các dòng từ ngày đó.');
+  return sh;
 }
 
 // ============================== MENU + CÀI ĐẶT ==============================

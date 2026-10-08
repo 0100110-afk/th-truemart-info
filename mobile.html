@@ -270,6 +270,11 @@
   .chart-box canvas{max-width:100% !important; max-height:100% !important;}
 
   /* ============================ PILLS & BADGES ============================ */
+  /* Tài sản › Theo cửa hàng: chạm mã = sao chép, nút kính lúp = tra cứu theo mã */
+  .code-pill-wrap{display:inline-flex; align-items:center; gap:6px; vertical-align:middle;}
+  .cc-pill.copyable{font-family:'Be Vietnam Pro',-apple-system,sans-serif; letter-spacing:.02em; font-variant-numeric:tabular-nums; cursor:copy;}
+  .code-lookup{display:inline-grid; place-items:center; width:28px; height:28px; padding:0; border:1px solid var(--line); border-radius:999px; background:#fff; color:var(--brand-700);}
+  .code-lookup svg{width:14px; height:14px;}
   .cc-pill{
     display:inline-flex; align-items:center;
     font-family:ui-monospace,'SFMono-Regular',Menlo,monospace;
@@ -669,12 +674,28 @@
         <div class="page-section-title">Lịch sử sửa chữa</div>
         <div class="search-box">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
-          <input type="text" id="sanakySearchInput" placeholder="Mã tài sản, cửa hàng, địa chỉ…" inputmode="search">
+          <input type="text" id="sanakySearchInput" placeholder="Mã tài sản, mã cửa hàng, địa chỉ… rồi bấm Tìm" inputmode="search" enterkeyhint="search">
         </div>
         <div id="sanakyList"></div>
         <button class="btn-load-more" id="sanakyMoreBtn" style="display:none;">Tải thêm</button>
       </div>
       <div id="sanakyAssetView" style="display:none;"></div>
+    </section>
+
+    <!-- ===== CHI PHÍ SỬA CHỮA THS / LSC (một khung dùng chung) ===== -->
+    <section class="page" id="page-chiphi">
+      <div class="search-box">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+        <input type="text" id="cpSearchInput" placeholder="Cost center, cửa hàng, mã thiết bị…" inputmode="search" enterkeyhint="search">
+      </div>
+      <div class="chip-row">
+        <select class="chip-select" id="cpRegionSelect"><option value="">Toàn quốc</option><option value="MB">Miền Bắc</option><option value="MT">Miền Trung</option><option value="MN">Miền Nam</option></select>
+        <select class="chip-select" id="cpSupplierSelect"><option value="">Tất cả NCC</option></select>
+        <select class="chip-select" id="cpMonthSelect"><option value="">Tất cả tháng</option></select>
+        <select class="chip-select" id="cpYearSelect"><option value="">Tất cả năm</option></select>
+      </div>
+      <div id="cpList"></div>
+      <button class="btn-load-more" id="cpMoreBtn" style="display:none;">Tải thêm</button>
     </section>
 
     <!-- ===== BẢO DƯỠNG ===== -->
@@ -788,6 +809,16 @@
       <div class="more-item" data-goto="maint">
         <div class="more-ic sky ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M14.7 6.3a4 4 0 0 1-5.4 5.4L4 17l3 3 5.3-5.3a4 4 0 0 1 5.4-5.4l-3 3-2-2 3-3z"/></svg></div>
         <div class="more-main"><div class="more-title">Bảo dưỡng</div><div class="more-sub">Lịch sử và chi phí bảo dưỡng thiết bị</div></div>
+        <div class="li-chevron"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 6 6 6-6 6"/></svg></div>
+      </div>
+      <div class="more-item" data-goto="chiphi-ths">
+        <div class="more-ic green ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M4 9.5 5.5 4h13L20 9.5"/><path d="M4 9.5c0 1.4 1.1 2.5 2.7 2.5S9.3 10.9 9.3 9.5c0 1.4 1.2 2.5 2.7 2.5s2.7-1.1 2.7-2.5c0 1.4 1.1 2.5 2.6 2.5S20 10.9 20 9.5"/><path d="M5.5 12v8h13v-8M10 20v-4.5h4V20"/></svg></div>
+        <div class="more-main"><div class="more-title">Chi phí sửa chữa THS</div><div class="more-sub">Chi phí sửa chữa tại cửa hàng</div></div>
+        <div class="li-chevron"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 6 6 6-6 6"/></svg></div>
+      </div>
+      <div class="more-item" data-goto="chiphi-lsc">
+        <div class="more-ic sky ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M3 20V9l9-5 9 5v11"/><path d="M7 20v-8h10v8"/><path d="M7 15h10M7 17.5h10"/></svg></div>
+        <div class="more-main"><div class="more-title">Chi phí sửa chữa LSC</div><div class="more-sub">Chi phí sửa chữa tại kho</div></div>
         <div class="li-chevron"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 6 6 6-6 6"/></svg></div>
       </div>
       <div class="more-item" data-goto="vattu">
@@ -939,7 +970,7 @@
   // để không phụ thuộc thứ tự key / mảng màu server trả về.
   var REGION_ORDER_=['Miền Bắc','Miền Trung','Miền Nam'];
   var CHART_REGION_COLOR_MAP_={'Miền Bắc':'#2E90FA','Miền Trung':'#F79009','Miền Nam':'#12B76A'};   // = TH true care
-  var TYPE_COLOR_MAP_={normal:'#2E9BE0',flagship:'#7A2FA0',hero:'#E3A83B',cvshero:'#0F5FA8',cvs:'#2C7A4B',mini:'#5B8FA8',other:'#93A2AC'};
+  var TYPE_COLOR_MAP_={normal:'#2E90FA',flagship:'#7A2FA0',hero:'#F79009',cvshero:'#12B76A',cvs:'#2C7A4B',mini:'#5B8FA8',other:'#93A2AC'};
   function regionSortKey_(label){ var i=REGION_ORDER_.indexOf(label); return i===-1?REGION_ORDER_.length:i; }
   function costBadgeCls(type){
     if(type==='Sanaky') return 'sanaky';
@@ -986,13 +1017,14 @@
 
   // ============================== NAVIGATION ==============================
 
-  var PAGE_TITLES={dash:'Tổng quan',stores:'Cửa hàng',assets:'Tài sản',sanaky:'Sanaky',maint:'Bảo dưỡng',vattu:'Vật tư',dongia:'Đơn giá'};
-  var MORE_PAGES=['maint','vattu','sanaky'];
+  var PAGE_TITLES={dash:'Tổng quan',stores:'Cửa hàng',assets:'Tài sản',sanaky:'Sanaky',maint:'Bảo dưỡng',vattu:'Vật tư',dongia:'Đơn giá','chiphi-ths':'Chi phí sửa chữa THS','chiphi-lsc':'Chi phí sửa chữa LSC'};
+  var MORE_PAGES=['maint','vattu','sanaky','chiphi-ths','chiphi-lsc'];
   var currentTab='dash';
 
   function goTab(name){
     currentTab=name;
-    $all('.page').forEach(function(p){p.classList.toggle('active',p.id==='page-'+name);});
+    var pageId=(name==='chiphi-ths'||name==='chiphi-lsc')?'chiphi':name;
+    $all('.page').forEach(function(p){p.classList.toggle('active',p.id==='page-'+pageId);});
     $all('.nav-tab').forEach(function(t){
       var tab=t.dataset.tab;
       t.classList.toggle('active', tab===name || (tab==='more'&&MORE_PAGES.indexOf(name)>-1));
@@ -1002,6 +1034,8 @@
     if(name==='dash'&&!dashLoaded) loadDash();
     if(name==='sanaky'){ backToSanakyList(); if(!sanakyLoaded) loadSanaky(); }
     if(name==='maint'&&!maintLoaded) loadMaint();
+    if(name==='chiphi-ths') openChiPhiKind('ths');
+    if(name==='chiphi-lsc') openChiPhiKind('lsc');
     if(name==='vattu'&&!vattuLoaded) loadVatTu();
     if(name==='dongia'&&!dongiaLoaded) loadDongia(dgCat);
   }
@@ -1358,7 +1392,8 @@
     // Loại cửa hàng: sắp giảm dần theo số lượng, màu lấy theo LOẠI (đồng bộ badge), không theo vị trí
     var tl=Object.keys(d.byType).sort(function(a,b){return d.byType[b]-d.byType[a];});
     var tv=tl.map(function(k){return d.byType[k];});
-    var tc=tl.map(function(lbl){return TYPE_COLOR_MAP_[typeBadgeCls(lbl)]||'#93A2AC';});
+    var xi=0, XC=['#EE46BC','#15B79E','#F04438','#6172F3','#A15C07','#667085'];
+    var tc=tl.map(function(lbl){var c=typeBadgeCls(lbl); if(c==='other') return XC[xi++%XC.length]; return TYPE_COLOR_MAP_[c]||'#93A2AC';});
     // Lát quá nhỏ: vẽ tối thiểu 1,2% vòng cho nhìn thấy; số/chú thích/tooltip vẫn là số thật.
     var tTot=tv.reduce(function(a,b){return a+(b||0);},0);
     var tShown=tv.map(function(v){return v>0?Math.max(v,tTot*0.012):0;});
@@ -1473,11 +1508,7 @@
       var tabs=[{key:'tonghop',label:'Tổng hợp'}];
       if(s.sanaky.count>0) tabs.push({key:'sanaky',label:'Sanaky'});
       if(s.maint.count>0) tabs.push({key:'maint',label:'Bảo dưỡng'});
-      if(s.daikin.count>0) tabs.push({key:'daikin',label:'DAIKIN'});
-      if(s.psmart.count>0) tabs.push({key:'psmart',label:'PSMART'});
-      if(s.minhhoang.count>0) tabs.push({key:'minhhoang',label:'Minh Hoàng'});
-      if(s.tdlighting.count>0) tabs.push({key:'tdlighting',label:'TD LIGHTING'});
-      if(s.khac.count>0) tabs.push({key:'khac',label:'Khác'});
+      (s.suppliers||[]).forEach(function(t){ if(t.count>0) tabs.push({key:t.key,label:t.label}); });
       var el=$('#storeSubTabs');
       if(!el) return;
       el.innerHTML=tabs.map(function(t,i){return '<button class="'+(i===0?'active':'')+'" data-k="'+t.key+'">'+esc(t.label)+'</button>';}).join('');
@@ -1655,12 +1686,26 @@
       $('#assetStoreResults').innerHTML=
         '<div class="summary-line"><strong>'+esc(addr)+'</strong><span class="sep">·</span>'+rows.length+' tài sản</div>'+
         '<div class="card">'+rows.map(function(r){
-          return '<div class="li tap" onclick="THM.searchAssetCode(\''+esc(r.assetCode).replace(/'/g,"\\'")+'\')"><div class="li-main">'+
+          var q=esc(r.assetCode).replace(/'/g,"\\'");
+          return '<div class="li"><div class="li-main">'+
             '<div class="li-title">'+esc(r.assetName)+'</div>'+
-            '<div class="li-sub"><span class="cc-pill outline">'+esc(r.assetCode)+'</span> · '+esc(nDate(r.activeDate))+'</div>'+
-          '</div>'+chevron()+'</div>';
+            '<div class="li-sub"><span class="code-pill-wrap"><span class="cc-pill outline copyable" role="button" onclick="THM.copyCode(\''+q+'\')">'+esc(r.assetCode)+'</span>'+
+            '<button type="button" class="code-lookup" aria-label="Tra cứu tài sản '+esc(r.assetCode)+'" onclick="THM.searchAssetCode(\''+q+'\')">'+LOOKUP_ICON_+'</button></span> · '+esc(nDate(r.activeDate))+'</div>'+
+          '</div></div>';
         }).join('')+'</div>';
     });
+  }
+
+  var LOOKUP_ICON_='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="m20 20-4.2-4.2"/></svg>';
+  function copyCode(code){
+    var done=function(){ toast('Đã sao chép '+code); };
+    function fallback(){
+      var ta=document.createElement('textarea'); ta.value=code; ta.setAttribute('readonly',''); ta.style.position='fixed'; ta.style.opacity='0';
+      document.body.appendChild(ta); ta.select();
+      try{ document.execCommand('copy'); done(); }catch(e){ toast('Không sao chép được, giữ ngón tay lên mã để sao chép.',true); }
+      document.body.removeChild(ta);
+    }
+    try{ if(navigator.clipboard&&navigator.clipboard.writeText) navigator.clipboard.writeText(String(code)).then(done,fallback); else fallback(); }catch(e){ fallback(); }
   }
 
   function searchAssetCode(code){
@@ -1741,7 +1786,7 @@
       return '<div class="rec">'+
         '<div class="rec-top"><div class="rec-top-left">'+
           '<span class="cc-pill outline" onclick="THM.openSanakyAsset(\''+esc(r.assetCode).replace(/'/g,"\\'")+'\')">'+esc(r.assetCode)+'</span>'+
-          '<span class="cc-pill light" onclick="THM.openStoreDetail(\''+esc(r.costCenter).replace(/'/g,"\\'")+'\')">'+esc(r.costCenter)+'</span>'+
+          '<span class="cc-pill light" onclick="THM.openSanakyStore(\''+esc(r.costCenter).replace(/'/g,"\\'")+'\')">'+esc(r.costCenter)+'</span>'+
           warrantyBadge(r.status)+
         '</div><span class="rec-date">'+esc(nDate(r.date))+'</span></div>'+
         (r.address?'<div class="rec-sub" style="margin-top:0;">'+esc(r.address)+'</div>':'')+
@@ -1753,11 +1798,21 @@
   }
 
   $('#sanakyMoreBtn').addEventListener('click',function(){ snkPage++; fetchSanakyList(false); });
-  $('#sanakySearchInput').addEventListener('input',function(){
-    clearTimeout(snkDebounce);
-    var v=this.value;
-    snkDebounce=setTimeout(function(){ snkQuery=v.trim(); fetchSanakyList(true); },400);
-  });
+  /* Tìm kiếm Sanaky: gõ rồi bấm Tìm (Enter). Đúng mã tài sản -> chi tiết tài sản; đúng mã cửa hàng
+     -> chi tiết cửa hàng; còn lại (địa chỉ...) -> lọc danh sách. Xoá trắng ô -> danh sách đầy đủ. */
+  function runSanakySearch(){
+    var q=$('#sanakySearchInput').value.trim();
+    if(!q){ snkQuery=''; fetchSanakyList(true); return; }
+    runServer('getSanakyByAsset',[q],function(a){
+      if(a&&a.rows&&a.rows.length){ openSanakyAsset(q); return; }
+      runServer('getSanakyByStore',[q],function(st){
+        if(st&&st.rows&&st.rows.length){ openSanakyStore(q); return; }
+        snkQuery=q; fetchSanakyList(true);
+      });
+    });
+  }
+  $('#sanakySearchInput').addEventListener('keydown',function(e){ if(e.key==='Enter'){ e.preventDefault(); this.blur(); runSanakySearch(); } });
+  $('#sanakySearchInput').addEventListener('input',function(){ if(!this.value.trim()&&snkQuery){ snkQuery=''; fetchSanakyList(true); } });
 
   function openSanakyAsset(code){
     goTab('sanaky');
@@ -1781,11 +1836,77 @@
         d.rows.map(sanakyRecCard).join('');
     });
   }
+  /** Chi tiết Sanaky theo MÃ CỬA HÀNG — cùng bố cục trang theo mã tài sản. */
+  function openSanakyStore(cc){
+    goTab('sanaky');
+    $('#sanakyListView').style.display='none';
+    var wrap=$('#sanakyAssetView');
+    wrap.style.display='';
+    var back='<div class="back-row"><button class="back-btn" onclick="THM.backToSanakyList()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="m14 6-6 6 6 6"/></svg>Quay lại</button></div>';
+    wrap.innerHTML=back+skeleton(3);
+    window.scrollTo({top:0});
+    runServer('getSanakyByStore',[cc],function(d){
+      if(!d.rows.length){ wrap.innerHTML=back+emptyState('Chưa có lịch sử Sanaky cho cửa hàng này',''); return; }
+      wrap.innerHTML=back+
+        '<div class="card card-pad" style="margin-bottom:12px;">'+
+          '<div style="font-family:Sora,sans-serif; font-size:19px; font-weight:800; color:var(--brand-900);">'+esc(cc)+'</div>'+
+          (d.rows[0].address?'<div class="li-sub" style="margin-top:2px;">'+esc(d.rows[0].address)+'</div>':'')+
+          '<div style="margin-top:8px;">'+summaryLine(d.totalRepairs,d.totalCost)+'</div>'+
+        '</div>'+
+        d.rows.map(sanakyRecCard).join('');
+    });
+  }
   function backToSanakyList(){
     $('#sanakyAssetView').style.display='none';
     $('#sanakyAssetView').innerHTML='';
     $('#sanakyListView').style.display='';
   }
+
+  // ============================== CHI PHÍ SỬA CHỮA THS / LSC ==============================
+  // Danh sách dòng CHI PHI (mỗi dòng sheet một thẻ) + tìm kiếm + bộ lọc. THS = cửa hàng, LSC = kho.
+  var cpKind='', cpState={region:'',supplier:'',year:'',month:'',query:'',page:1,pageSize:20}, cpRows=[], cpTotal=0, cpTotalCost=0;
+  function cpOpts_(){ return {kind:cpKind,region:cpState.region,supplier:cpState.supplier,year:cpState.year,month:cpState.month,query:cpState.query,page:cpState.page,pageSize:cpState.pageSize}; }
+  function openChiPhiKind(kind){
+    if(cpKind===kind) return;
+    cpKind=kind;
+    cpState={region:'',supplier:'',year:'',month:'',query:'',page:1,pageSize:20};
+    $('#cpSearchInput').value=''; $('#cpRegionSelect').value='';
+    runServer('getChiPhiSupplierOptions',[],function(list){
+      $('#cpSupplierSelect').innerHTML='<option value="">Tất cả NCC</option>'+(list||[]).map(function(l){return '<option value="'+esc(l)+'">'+esc(l)+'</option>';}).join('');
+    });
+    runServer('getChiPhiKindMonthsAvailable',[kind],function(ms){
+      setupYearMonth(ms||[],$('#cpYearSelect'),$('#cpMonthSelect'),'','',function(y,m){ cpState.year=y; cpState.month=m; fetchChiPhiKind(true); });
+      fetchChiPhiKind(true);
+    });
+  }
+  function fetchChiPhiKind(reset){
+    if(reset){ cpRows=[]; cpState.page=1; $('#cpList').innerHTML=skeleton(3); }
+    runServer('getChiPhiKindRows',[cpOpts_()],function(d){
+      cpTotal=d.total; cpTotalCost=d.totalCost; cpRows=cpRows.concat(d.rows); renderChiPhiKind();
+    });
+  }
+  function cpField(k,v){ return v?'<div class="rec-sub" style="margin-top:3px;"><span style="color:var(--ink-300);">'+k+':</span> '+esc(v)+'</div>':''; }
+  function renderChiPhiKind(){
+    var el=$('#cpList');
+    if(!cpRows.length){ el.innerHTML=emptyState('Không có bản ghi phù hợp',''); $('#cpMoreBtn').style.display='none'; return; }
+    el.innerHTML='<div class="summary-line"><strong>'+cpTotal+'</strong> dòng<span class="sep">·</span><strong>'+fmtVND(cpTotalCost)+'</strong></div>'+cpRows.map(function(r){
+      return '<div class="rec"><div class="rec-top"><div class="rec-top-left">'+
+          '<span class="cc-pill light" onclick="THM.openStoreDetail(\''+esc(r.costCenter).replace(/'/g,"\\'")+'\')">'+esc(r.costCenter)+'</span>'+
+          (r.assetCode?'<span class="cc-pill outline" onclick="THM.searchAssetCode(\''+esc(r.assetCode).replace(/'/g,"\\'")+'\')">'+esc(r.assetCode)+'</span>':'')+
+          (r.area?'<span class="badge" style="background:var(--brand-100);color:var(--brand-800);">'+esc(r.area)+'</span>':'')+
+        '</div><span class="rec-date">'+esc(nDate(r.date))+'</span></div>'+
+        (r.storeName?'<div class="rec-body">'+esc(r.storeName)+'</div>':'')+
+        cpField('Sự cố',r.issue)+cpField('NV phụ trách',r.staff)+cpField('Nhà cung cấp',r.supplier)+
+        '<div class="rec-items"><div class="rec-item-row"><span class="n">'+esc(r.item)+'</span><span class="q">x'+esc(r.qty)+'</span><span class="m">'+fmtVND(r.cost)+'</span></div></div>'+
+      '</div>';
+    }).join('');
+    $('#cpMoreBtn').style.display=cpRows.length<cpTotal?'':'none';
+  }
+  $('#cpMoreBtn').addEventListener('click',function(){ cpState.page++; fetchChiPhiKind(false); });
+  $('#cpRegionSelect').addEventListener('change',function(){ cpState.region=this.value; fetchChiPhiKind(true); });
+  $('#cpSupplierSelect').addEventListener('change',function(){ cpState.supplier=this.value; fetchChiPhiKind(true); });
+  $('#cpSearchInput').addEventListener('keydown',function(e){ if(e.key==='Enter'){ e.preventDefault(); this.blur(); cpState.query=this.value.trim(); fetchChiPhiKind(true); } });
+  $('#cpSearchInput').addEventListener('input',function(){ if(!this.value.trim()&&cpState.query){ cpState.query=''; fetchChiPhiKind(true); } });
 
   // ============================== BẢO DƯỠNG ==============================
 
@@ -2247,6 +2368,8 @@
     pickAssetStore:pickAssetStore,
     searchAssetCode:searchAssetCode,
     openSanakyAsset:openSanakyAsset,
+    openSanakyStore:openSanakyStore,
+    copyCode:copyCode,
     backToSanakyList:backToSanakyList,
     vtToggle:vtToggle,
     vtStaffToggle:vtStaffToggle

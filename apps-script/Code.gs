@@ -465,10 +465,10 @@ const REGION_GROUP_LABELS = { MB: 'Miền Bắc', MT: 'Miền Trung', MN: 'Miề
 const REGION_GROUP_COLORS = { MB: '#2E9BE0', MT: '#E3A83B', MN: '#2C7A4B', KHAC: '#93A2AC' };
 
 const STORE_TYPE_COLORS = {
-  normal: '#2E9BE0',
+  normal: '#2E90FA',
   flagship: '#7A2FA0',
-  hero: '#E3A83B',
-  cvshero: '#0F5FA8',
+  hero: '#F79009',
+  cvshero: '#12B76A',
   cvs: '#2C7A4B',
   mini: '#5B8FA8',
   other: '#93A2AC'
@@ -1174,33 +1174,99 @@ function getChiPhiCached_(forceRefresh) {
 }
 
 /**
- * PHẠM VI VẬT TƯ: kho vật tư CHỈ thuộc nhà cung cấp TD LIGHTING. Mọi thống kê và thao tác trừ
- * kho phải lọc qua isVatTuSupplier_ trước.
+ * PHẠM VI VẬT TƯ: chỉ NCC được đánh dấu "Trừ kho vật tư" trong sheet NCC THEO DÕI (mặc định TD
+ * LIGHTING). Mọi thống kê và thao tác trừ kho phải lọc qua isVatTuRow_ trước.
  *
- * Bỏ lọc là trừ nhầm kho: một dòng PSMART ghi "Thay bóng đèn pha" sẽ khớp vật tư "Bóng đèn pha"
- * của TD LIGHTING.
- *
- * Khai báo dạng mảng để thêm NCC vật tư thứ hai chỉ cần thêm một phần tử.
+ * Bỏ lọc là trừ nhầm kho: một dòng PSMART ghi "Thay bóng đèn pha" sẽ khớp vật tư "Bóng đèn pha".
  */
-const VATTU_SUPPLIER_GROUPS_ = ['tdlighting'];
 
-function isVatTuSupplier_(supplier) {
-  return VATTU_SUPPLIER_GROUPS_.indexOf(chiPhiSupplierGroup_(supplier)) > -1;
+/** Dòng CHI PHÍ có thuộc diện trừ kho vật tư không: NCC của dòng khớp một tab được đánh dấu
+ *  "Trừ kho vật tư" trong sheet NCC THEO DÕI, và (nếu tab có "Trừ kho từ ngày") ngày hoàn thành
+ *  không sớm hơn ngày đó. Sheet chưa có cột này -> chỉ TD LIGHTING, như trước. */
+function isVatTuRow_(r) {
+  const t = nccTabOf_(r[COLS.CP_SUPPLIER]);
+  if (!t || !t.vattu) return false;
+  if (!t.vattuFrom) return true;
+  const d = parseVnDate_(normalizeDate_(r[COLS.CP_DATE]));
+  const time = d && d.getTime ? d.getTime() : 0;
+  return !!time && time >= t.vattuFrom;
+}
+
+/** Chuẩn hoá tên NCC để so khớp: bỏ dấu, viết hoa, bỏ mọi khoảng trắng. */
+function supplierKey_(s) {
+  return stripAccents_(String(s || '')).toUpperCase().replace(/\s+/g, '');
+}
+
+// ===== Tab NCC trong "Theo dõi chi phí sửa chữa" — cấu hình ở sheet NCC THEO DÕI =====
+// Mỗi dòng: Tên tab | Nhận diện (không bắt buộc, nhiều từ cách nhau dấu phẩy). Dòng CHI PHÍ có
+// cột "Nhà cung cấp" CHỨA một trong các từ nhận diện (không phân biệt hoa thường, dấu, khoảng
+// trắng) thì vào tab đó; xét theo thứ tự dòng, không khớp tab nào -> "Khác".
+// Sheet chưa có hoặc trống -> dùng 4 tab mặc định như trước.
+const SHEET_NCC_TABS = 'NCC THEO DÕI';
+const NCC_TABS_DEFAULT_ = ['DAIKIN', 'PSMART', 'Minh Hoàng', 'TD LIGHTING'];
+
+function nccYes_(v) {
+  return ['CO', 'X', 'TRUE', '1', 'YES', 'V'].indexOf(supplierKey_(v)) > -1;
+}
+
+function buildNccTabs_(names) {
+  const seen = {};
+  const tabs = [];
+  names.forEach(function (n) {
+    const label = String(n.label || '').trim();
+    if (!label) return;
+    const key = supplierKey_(label);
+    if (!key || key === 'KHAC' || seen[key]) return;
+    seen[key] = true;
+    const words = String(n.match || '').split(/[,;\n]/).map(supplierKey_).filter(function (w) { return w; });
+    let from = 0;
+    if (n.vattuFrom) {
+      const d = parseVnDate_(normalizeDate_(n.vattuFrom));
+      from = d && d.getTime ? (d.getTime() || 0) : 0;
+    }
+    tabs.push({ key: key, label: label, words: words.length ? words : [key],
+                vattu: n.vattu === undefined ? key === 'TDLIGHTING' : nccYes_(n.vattu), vattuFrom: from });
+  });
+  return tabs;
+}
+
+function readNccTabs_() {
+  let rows = [];
+  try { rows = sheetToObjects_(SHEET_NCC_TABS); } catch (e) { rows = []; }
+  // Sheet cũ chưa có cột "Trừ kho vật tư" -> vattu undefined -> mặc định chỉ TD LIGHTING.
+  const hasVattuCol = (rows || []).some(function (r) { return Object.prototype.hasOwnProperty.call(r, 'Trừ kho vật tư'); });
+  const names = (rows || []).map(function (r) {
+    return { label: r['Tên tab'], match: r['Nhận diện'],
+             vattu: hasVattuCol ? r['Trừ kho vật tư'] : undefined, vattuFrom: r['Trừ kho từ ngày'] };
+  });
+  const tabs = buildNccTabs_(names);
+  return tabs.length ? tabs : buildNccTabs_(NCC_TABS_DEFAULT_.map(function (l) { return { label: l }; }));
+}
+
+function getNccTabs_() {
+  return getCachedOrCompute_('ncctabs_v1', CACHE_TTL_FAST, readNccTabs_);
+}
+
+/** Tab NCC mà tên nhà cung cấp khớp (theo thứ tự cấu hình), null nếu không khớp tab nào. */
+function nccTabOf_(supplier) {
+  const s = supplierKey_(supplier);
+  if (!s) return null;
+  const tabs = getNccTabs_();
+  for (let i = 0; i < tabs.length; i++) {
+    const t = tabs[i];
+    for (let j = 0; j < t.words.length; j++) if (s.indexOf(t.words[j]) > -1) return t;
+  }
+  return null;
 }
 
 function chiPhiSupplierGroup_(supplier) {
-  const s = stripAccents_(supplier).toUpperCase().replace(/\s+/g, '');
-  if (s.indexOf('DAIKIN') > -1) return 'daikin';
-  if (s.indexOf('PSMART') > -1) return 'psmart';
-  if (s.indexOf('MINHHOANG') > -1) return 'minhhoang';
-  if (s.indexOf('TDLIGHTING') > -1) return 'tdlighting';
-  return 'khac';
+  const t = nccTabOf_(supplier);
+  return t ? t.key : 'khac';
 }
 
-const CHIPHI_SUPPLIER_LABELS_ = { daikin: 'DAIKIN', psmart: 'PSMART', minhhoang: 'Minh Hoàng', tdlighting: 'TD LIGHTING', khac: 'Khác' };
-
 function chiPhiSupplierLabel_(supplier) {
-  return CHIPHI_SUPPLIER_LABELS_[chiPhiSupplierGroup_(supplier)] || 'Khác';
+  const t = nccTabOf_(supplier);
+  return t ? t.label : 'Khác';
 }
 
 function mapChiPhiRow_(r) {
@@ -1254,8 +1320,118 @@ function getChiPhiByAsset(assetCode, group) {
   return { rows: merged, totalCost: totalCost, totalCount: merged.length };
 }
 
+// ============================== CHI PHÍ THS / LSC ==============================
+// Hai trang riêng cho "Chi phí sửa chữa THS" (cửa hàng) và "Chi phí sửa chữa LSC" (kho — Cost
+// center bắt đầu bằng "5"). Cùng cách chia, cùng cách lọc Miền và cùng cách đếm lượt với 2 thẻ
+// trên Tổng quan, nên số tổng ở hai nơi luôn khớp nhau.
+
+function chiPhiKindOf_(costCenter) {
+  return cleanCode_(costCenter).charAt(0) === '5' ? 'lsc' : 'ths';
+}
+
+/** Lọc CHI PHÍ theo Miền — đúng 3 điều kiện OR như computeDashboardData_. */
+function filterChiPhiByRegion_(rows, regionFilter) {
+  if (!regionFilter) return rows;
+  const allowedCC = new Set(getStoresCached_()
+    .filter(function (s) { return regionGroup_(s[COLS.STORE_REGION]) === regionFilter; })
+    .map(function (s) { return normalizeCC_(s[COLS.STORE_COST_CENTER]); }));
+  const allKnownCCAll = new Set(getStoresCached_().map(function (s) { return normalizeCC_(s[COLS.STORE_COST_CENTER]); }));
+  return rows.filter(function (r) {
+    const areaG = regionGroup_(r[COLS.CP_AREA]);
+    if (areaG === regionFilter) return true;
+    const cc = normalizeCC_(r[COLS.CP_COST_CENTER]);
+    if (allowedCC.has(cc)) return true;
+    if (areaG === 'KHAC' && !allKnownCCAll.has(cc) && isLscCC_(cc)) return regionFilter === LSC_DEFAULT_REGION_;
+    return false;
+  });
+}
+
+function chiPhiKindRows_(kind) {
+  return getChiPhiCached_().filter(function (r) { return chiPhiKindOf_(r[COLS.CP_COST_CENTER]) === kind; });
+}
+
+/** Các tháng có dữ liệu ("yyyy-mm", mới nhất trước) — dùng cho ô chọn Năm / Tháng. */
+function getChiPhiKindMonthsAvailable(kind) {
+  const set = {};
+  chiPhiKindRows_(kind).forEach(function (r) {
+    const key = sanakyMonthKey_(normalizeDate_(r[COLS.CP_DATE]));
+    if (key) set[key] = true;
+  });
+  return Object.keys(set).sort().reverse();
+}
+
+/** Tên tab NCC đúng thứ tự cấu hình + "Khác" — dùng cho ô chọn Nhà cung cấp. */
+function getChiPhiSupplierOptions() {
+  return getNccTabs_().map(function (t) { return t.label; }).concat(['Khác']);
+}
+
+function chiPhiKindFiltered_(opts) {
+  const kind = opts.kind === 'lsc' ? 'lsc' : 'ths';
+  const year = String(opts.year || '').trim();
+  const month = String(opts.month || '').trim();
+  const supplier = String(opts.supplier || '').trim();
+  let rows = filterChiPhiByRegion_(chiPhiKindRows_(kind), String(opts.region || '').trim());
+  if (year) rows = rows.filter(function (r) { return extractYear_(r[COLS.CP_DATE]) === Number(year); });
+  if (month) {
+    const mm = pad2_(month);
+    rows = rows.filter(function (r) {
+      const k = sanakyMonthKey_(normalizeDate_(r[COLS.CP_DATE]));
+      return k && k.split('-')[1] === mm;
+    });
+  }
+  if (supplier) rows = rows.filter(function (r) { return chiPhiSupplierLabel_(r[COLS.CP_SUPPLIER]) === supplier; });
+  return rows;
+}
+
+/** Danh sách dòng CHI PHÍ của trang THS / LSC — mỗi dòng sheet một hàng, đúng các cột của sheet,
+ *  mới nhất trước, có phân trang. pageSize = 0 -> trả hết (dùng cho Xuất Excel). */
+function getChiPhiKindRows(opts) {
+  opts = opts || {};
+  const q = String(opts.query || '').trim();
+  const page = Math.max(1, Number(opts.page) || 1);
+  const pageSize = opts.pageSize === 0 ? 0 : (Number(opts.pageSize) || 50);
+  let rows = chiPhiKindFiltered_(opts).map(function (r) {
+    return {
+      costCenter: cleanCode_(r[COLS.CP_COST_CENTER]),
+      storeName: String(r[COLS.CP_STORE_NAME] || ''),
+      area: String(r[COLS.CP_AREA] || ''),
+      issue: String(r[COLS.CP_ISSUE] || ''),
+      staff: String(r[COLS.CP_STAFF] || ''),
+      item: String(r[COLS.CP_ITEM] || ''),
+      assetCode: cleanCode_(r[COLS.CP_ASSET_CODE]),
+      date: normalizeDate_(r[COLS.CP_DATE]),
+      qty: Number(r[COLS.CP_QTY]) || 0,
+      cost: Number(r[COLS.CP_COST]) || 0,
+      supplier: String(r[COLS.CP_SUPPLIER] || '')
+    };
+  });
+  if (q) {
+    rows = rows.filter(function (m) {
+      return smartMatch_([m.costCenter, m.storeName, m.issue, m.staff, m.item, m.assetCode, m.supplier].join(' | '), q);
+    });
+  }
+  rows.sort(function (a, b) { return parseVnDate_(b.date) - parseVnDate_(a.date); });
+  const total = rows.length;
+  const totalCost = rows.reduce(function (s, r) { return s + r.cost; }, 0);
+  const pageRows = pageSize ? rows.slice((page - 1) * pageSize, page * pageSize) : rows;
+  return { rows: pageRows, total: total, totalCost: totalCost, page: page, pageSize: pageSize || total };
+}
+
 function emptySupplierBucket_() {
-  return { daikin: { cost: 0, count: 0 }, psmart: { cost: 0, count: 0 }, minhhoang: { cost: 0, count: 0 }, tdlighting: { cost: 0, count: 0 }, khac: { cost: 0, count: 0 } };
+  const b = { khac: { cost: 0, count: 0 } };
+  getNccTabs_().forEach(function (t) { b[t.key] = { cost: 0, count: 0 }; });
+  return b;
+}
+
+/** Danh sách tab NCC kèm số liệu, đúng thứ tự cấu hình; "Khác" luôn ở cuối. */
+function supplierList_(bySupplier) {
+  return getNccTabs_().map(function (t) {
+    return { key: t.key, label: t.label, cost: bySupplier[t.key].cost, count: bySupplier[t.key].count };
+  }).concat([{ key: 'khac', label: 'Khác', cost: bySupplier.khac.cost, count: bySupplier.khac.count }]);
+}
+
+function sumSuppliers_(bySupplier) {
+  return Object.keys(bySupplier).reduce(function (s, k) { return s + bySupplier[k].cost; }, 0);
 }
 
 function getStoreCostSummary(costCenter) {
@@ -1273,15 +1449,12 @@ function getStoreCostSummary(costCenter) {
     bySupplier[g].count += 1;
   });
 
-  const grandTotal = sanaky.totalCost + maintCost + bySupplier.daikin.cost + bySupplier.psmart.cost + bySupplier.minhhoang.cost + bySupplier.tdlighting.cost + bySupplier.khac.cost;
+  const grandTotal = sanaky.totalCost + maintCost + sumSuppliers_(bySupplier);
 
   return {
     sanaky: { cost: sanaky.totalCost, count: sanaky.totalRepairs },
     maint: { cost: maintCost, count: maintRows.length },
-    daikin: bySupplier.daikin,
-    psmart: bySupplier.psmart,
-    minhhoang: bySupplier.minhhoang,
-    tdlighting: bySupplier.tdlighting,
+    suppliers: supplierList_(bySupplier),
     khac: bySupplier.khac,
     grandTotal: grandTotal
   };
@@ -1301,15 +1474,12 @@ function getAssetCostSummary(assetCode) {
     bySupplier[g].count += 1;
   });
 
-  const grandTotal = sanaky.totalCost + maintCost + bySupplier.daikin.cost + bySupplier.psmart.cost + bySupplier.minhhoang.cost + bySupplier.tdlighting.cost + bySupplier.khac.cost;
+  const grandTotal = sanaky.totalCost + maintCost + sumSuppliers_(bySupplier);
 
   return {
     sanaky: { cost: sanaky.totalCost, count: sanaky.totalRepairs },
     maint: { cost: maintCost, count: maintRows.length },
-    daikin: bySupplier.daikin,
-    psmart: bySupplier.psmart,
-    minhhoang: bySupplier.minhhoang,
-    tdlighting: bySupplier.tdlighting,
+    suppliers: supplierList_(bySupplier),
     khac: bySupplier.khac,
     grandTotal: grandTotal
   };
@@ -2391,7 +2561,7 @@ function getVatTuYearsAvailable() {
   const matcher = buildVatTuMatcher_(data.materials);
   const set = {};
   rows.forEach(function (r) {
-    if (!isVatTuSupplier_(r[COLS.CP_SUPPLIER])) return;
+    if (!isVatTuRow_(r)) return;
     if (!vtMatchAccepted_(vtMatch_(matcher, r[COLS.CP_ITEM]))) return;
     const y = extractYear_(r[COLS.CP_DATE]);
     if (y) set[y] = true;
@@ -2408,7 +2578,7 @@ function getVatTuMonthsAvailable() {
   const curKey = now.getFullYear() + '-' + pad2_(now.getMonth() + 1);
   const set = {};
   rows.forEach(function (r) {
-    if (!isVatTuSupplier_(r[COLS.CP_SUPPLIER])) return;
+    if (!isVatTuRow_(r)) return;
     if (!vtMatchAccepted_(vtMatch_(matcher, r[COLS.CP_ITEM]))) return;
     const key = chiPhiMonthKey_(r[COLS.CP_DATE]);
     if (key && key <= curKey) set[key] = true;
@@ -2425,7 +2595,7 @@ function getVatTuByStaffMonth(yearFilter, monthFilter) {
   const staffSet = {};
 
   rows.forEach(function (r) {
-    if (!isVatTuSupplier_(r[COLS.CP_SUPPLIER])) return;   // chỉ tính NCC vật tư
+    if (!isVatTuRow_(r)) return;   // chỉ tính NCC vật tư
     if (yearFilter && extractYear_(r[COLS.CP_DATE]) !== Number(yearFilter)) return;
     if (monthFilter) {
       const key = chiPhiMonthKey_(r[COLS.CP_DATE]);
@@ -2460,7 +2630,7 @@ function getVatTuTrackingFilters() {
     /* Chỉ lọc theo NCC, KHÔNG lọc theo "khớp được vật tư" như hai hàm trên.
        Bảng theo dõi cố ý hiển thị cả dòng "Chưa khớp vật tư" (đó là tín hiệu cần xử lý), nên nếu
        dropdown loại bỏ những dòng đó thì chính các tháng đang có vấn đề lại không chọn được. */
-    if (!isVatTuSupplier_(r[COLS.CP_SUPPLIER])) return;
+    if (!isVatTuRow_(r)) return;
     const staff = String(r[COLS.CP_STAFF] || '').trim();
     if (staff) staffSet[staff] = true;
     const y = extractYear_(r[COLS.CP_DATE]);
@@ -2606,7 +2776,7 @@ function getVatTuTrackingList(opts) {
     .sort(vtAllocOrder_)
     .forEach(function (o) {
       const r = cpRows[o.i];
-      if (!isVatTuSupplier_(r[COLS.CP_SUPPLIER])) return;
+      if (!isVatTuRow_(r)) return;
 
       const res = vtMatch_(matcher, r[COLS.CP_ITEM]);
       const match = vtMatchAccepted_(res) ? res.material : null;
@@ -2628,7 +2798,7 @@ function getVatTuTrackingList(opts) {
   let rows = cpRows
     .map(function (r, i) {
       // Chỉ dòng của NCC vật tư mới thuộc phạm vi tab này
-      if (!isVatTuSupplier_(r[COLS.CP_SUPPLIER])) return null;
+      if (!isVatTuRow_(r)) return null;
 
       /* Trong phạm vi TD LIGHTING thì dòng chưa khớp vật tư là tín hiệu THẬT (thiếu danh mục hoặc
          hạng mục ghi lệch chữ), nên luôn hiện và gắn nhãn "Chưa khớp vật tư" — không lọc bỏ, cũng
@@ -3017,7 +3187,7 @@ function runVatTuAutoDeduction() {
 
       /* Ngoài phạm vi NCC vật tư -> bỏ qua HOÀN TOÀN, không ghi log và không tính vào skipped.
          Đây không phải dòng lỗi, chỉ là dòng chi phí không liên quan tới kho vật tư. */
-      if (!isVatTuSupplier_(r[COLS.CP_SUPPLIER])) return;
+      if (!isVatTuRow_(r)) return;
 
       const res = vtMatch_(matcher, r[COLS.CP_ITEM]);
       const mat = vtMatchAccepted_(res) ? res.material : null;
@@ -3089,7 +3259,7 @@ const PROP_CACHE_OK = 'cache_last_success';
 const PROP_CACHE_ERR = 'cache_last_error';
 
 const CACHE_KEYS_FAST_ = ['stores_raw_v2', 'assets_raw_v2', 'maint_raw_v2', 'chiphi_raw_v2',
-                          'chiphi_keys_v2', 'chiphi_legacykeys_v1', 'vattu_autolog_v1', 'sanaky_raw_v2'];
+                          'chiphi_keys_v2', 'chiphi_legacykeys_v1', 'ncctabs_v1', 'vattu_autolog_v1', 'sanaky_raw_v2'];
 const CACHE_KEYS_SLOW_ = ['dongia_bt_v1', 'dongia_xd_v1', 'dongia_snk_v1'];
 
 /** true nếu cache của key này còn sống */
