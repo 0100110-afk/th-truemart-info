@@ -2,10 +2,10 @@
    - HTML/JS/CSS của app: lấy mạng trước, lỗi mạng thì dùng bản đã lưu (để bản mới luôn được ưu tiên).
    - Firestore / Firebase Auth / Google APIs: KHÔNG chặn — dữ liệu đã có lớp lưu riêng trong IndexedDB.
    Tăng VERSION khi muốn xoá sạch bản lưu cũ trên máy người dùng. */
-const VERSION = 'tm-v15';
+const VERSION = 'tm-v16';
 const SHELL = ['./', './index.html', './desktop.html', './mobile.html', './manifest.webmanifest',
   './css/auth.css', './js/gas-shim.js', './js/core.js', './js/app.js', './js/firebase-config.js', './js/ui-scale.js',
-  './js/vendor/md5.min.js', './js/vendor/xlsx.mini.min.js', './icons/icon-192.png', './icons/favicon-96.png'];
+  './js/vendor/md5.min.js', './js/vendor/xlsx.mini.min.js', './icons/icon-192.png?v=2', './icons/favicon-96.png?v=2'];
 
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(VERSION).then((c) => c.addAll(SHELL)).then(() => self.skipWaiting()));
