@@ -23,6 +23,7 @@ function mkSheet(name, values, display) {
     },
     insertColumnAfter(col) { v.forEach((row) => { while (row.length < col) row.push(''); row.splice(col, 0, ''); }); },
     getMaxRows: () => Math.max(v.length, 1000), setFrozenRows() {}, setColumnWidth() {},
+    hideColumns() {}, getFilter: () => null,
     _v: () => v
   };
 }
@@ -112,6 +113,12 @@ let fails = 0; const ok = (c, m) => { console.log((c ? 'OK  ' : 'SAI ') + m); if
 ctx.__t.caiDatDongBoFirebase();
 const meta = JSON.parse(store['meta/sheets'].fields.json.stringValue);
 ok(meta.sheets.chiphi.n >= 2, 'CHI PHI 6000 dòng được cắt thành ' + meta.sheets.chiphi.n + ' mảnh');
+{ // Cột ID ẩn cuối bảng CHI PHI: dòng nào cũng có ID, không trùng
+  const cv = sheets['CHI PHI']._v(); const ci = cv[0].indexOf('ID');
+  const ids = cv.slice(1).filter((r) => r.some((x, j) => j !== ci && x !== '' && x != null)).map((r) => r[ci]);
+  ok(ci >= 0 && ids.length > 0 && ids.every(Boolean) && new Set(ids).size === ids.length, 'CHI PHI có cột ID, ' + ids.length + ' dòng đủ ID, không trùng');
+  ok((meta.sheets.chiphi.headers || []).indexOf('ID') >= 0, 'cột ID được đẩy lên Firestore');
+}
 ok(Object.keys(store).filter((k) => k.startsWith('sheetdata/chiphi')).every((k) => Buffer.byteLength(store[k].fields.json.stringValue) < 1000000), 'mỗi mảnh < 1MB');
 ok(meta.sheets.stores.rowCount === 1, 'bỏ dòng trống');
 ok(!!meta.sheets.sanaky && !!meta.sheets.dongia_bt && !!meta.sheets.dongia_xd && !!meta.sheets.dongia_snk, 'Sanaky (tab trong TM) + 3 tab Đơn giá (file DG) đều được đẩy lên');
