@@ -91,12 +91,15 @@ function showAuth(html) {
   authEl.classList.remove('hidden', 'is-loading');
 }
 
-// Màn chờ tải giống app Phiếu sửa chữa: icon app thở nhẹ, vòng cung chạy quanh.
-const LOADER_ICON = '<svg viewBox="0 0 100 100" class="tm-loader-icon" aria-hidden="true" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="ldbg" gradientUnits="userSpaceOnUse" x1="15.85" y1="-9.15" x2="84.15" y2="109.15"><stop offset="0" stop-color="#F4F9FF"></stop><stop offset="1" stop-color="#D3E6FA"></stop></linearGradient><linearGradient id="ldfl" gradientUnits="userSpaceOnUse" x1="-40.2" y1="64.53" x2="125.2" y2="180.47"><stop offset="0" stop-color="#FFFFFF"></stop><stop offset="1" stop-color="#EAF3FD"></stop></linearGradient><clipPath id="ldfr"><rect x="0" y="0" width="100" height="100" rx="22.5" ry="22.5"></rect></clipPath></defs><g clip-path="url(#ldfr)"><rect x="0" y="0" width="100" height="100" fill="url(#ldbg)"></rect><circle cx="42.5" cy="122.5" r="72.5" fill="url(#ldfl)"></circle><g class="pt"><ellipse cx="41.82" cy="50.61" rx="13" ry="28" transform="rotate(12 41.82 50.61)" fill="#0B4C8C" opacity="0.85"></ellipse></g><g class="pt"><ellipse cx="54.47" cy="54.36" rx="13.5" ry="30" transform="rotate(38 54.47 54.36)" fill="#1E6FE0" opacity="0.68"></ellipse></g><g class="pt"><ellipse cx="59.37" cy="66.6" rx="12" ry="26" transform="rotate(64 59.37 66.6)" fill="#4FA9F2" opacity="0.8"></ellipse></g></g></svg>';
+// Màn chờ tải giống app Phiếu sửa chữa: logo tự ghép lại một lần, rồi phồng xẹp + vòng cung tới khi tải xong.
+const LOADER_ICON = '<svg viewBox="0 0 100 100" class="tm-loader-icon" aria-hidden="true" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="ldbg" gradientUnits="userSpaceOnUse" x1="15.85" y1="-9.15" x2="84.15" y2="109.15"><stop offset="0" stop-color="#F4F9FF"></stop><stop offset="1" stop-color="#D3E6FA"></stop></linearGradient><linearGradient id="ldfl" gradientUnits="userSpaceOnUse" x1="-40.2" y1="64.53" x2="125.2" y2="180.47"><stop offset="0" stop-color="#FFFFFF"></stop><stop offset="1" stop-color="#EAF3FD"></stop></linearGradient><clipPath id="ldfr"><rect x="0" y="0" width="100" height="100" rx="22.5" ry="22.5"></rect></clipPath></defs><g clip-path="url(#ldfr)"><rect x="0" y="0" width="100" height="100" fill="url(#ldbg)"></rect><circle class="hill" cx="42.5" cy="122.5" r="72.5" fill="url(#ldfl)"></circle><g class="pt pt1"><ellipse cx="41.82" cy="50.61" rx="13" ry="28" transform="rotate(12 41.82 50.61)" fill="#0B4C8C" opacity="0.85"></ellipse></g><g class="pt pt2"><ellipse cx="54.47" cy="54.36" rx="13.5" ry="30" transform="rotate(38 54.47 54.36)" fill="#1E6FE0" opacity="0.68"></ellipse></g><g class="pt pt3"><ellipse cx="59.37" cy="66.6" rx="12" ry="26" transform="rotate(64 59.37 66.6)" fill="#4FA9F2" opacity="0.8"></ellipse></g></g></svg>';
 
 function hideAuth() { authEl.classList.add('hidden'); }
 
 function showLoading(msg) {
+  // Đang hiện màn chờ rồi thì chỉ đổi dòng chữ — không dựng lại để logo không ghép lại từ đầu.
+  const cur = $('#tmLoadMsg');
+  if (cur && authEl.classList.contains('is-loading') && !authEl.classList.contains('hidden')) { cur.textContent = msg; return; }
   authEl.innerHTML = '<div class="tm-loader" role="status"><div class="tm-loader-stage">' +
     '<svg class="tm-loader-ring" viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="46"/></svg>' +
     LOADER_ICON + '</div><div class="tm-loader-msg" id="tmLoadMsg">' + esc(msg) + '</div></div>';
