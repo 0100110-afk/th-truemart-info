@@ -59,5 +59,47 @@ console.log('deduct again', JSON.stringify(ded2.result));
 if (ded2.result.processed) fails++;
 const s3 = C.emptyVatTuState(); s3.holders=['A']; s3.materials=[{code:'1',name:'Bóng đèn pha',qty:{A:9}}];
 console.log('migrate', JSON.stringify(C.computeVatTuDeduction(s3, []).result));
+
+// --- ID cố định cho dòng CHI PHÍ: sửa/xoá dòng đã trừ thì KHÔNG trừ lại, KHÔNG hoàn kho ---
+(function () {
+  const H = FX.sheets.chiphi.headers.concat(['ID']);
+  const withId = (rows) => rows.map((r, i) => r.concat(['CP-T' + i]));
+  const sA = JSON.parse(JSON.stringify(FX.vattu));
+  const stock = () => JSON.stringify(sA.materials.map((m) => m.qty));
+  // 1) Trừ lần đầu khi CHƯA có ID -> log mang khoá vân tay
+  C.setSheetData('chiphi', { headers: FX.sheets.chiphi.headers, rows: cpRows });
+  const d1 = C.computeVatTuDeduction(sA, []);
+  let log = d1.newEntries; const after1 = stock();
+  // 2) Sync.gs điền ID -> chạy lại: đổi khoá sang ID, không trừ thêm
+  let rows = withId(cpRows);
+  C.setSheetData('chiphi', { headers: H, rows });
+  const d2 = C.computeVatTuDeduction(sA, log);
+  log = d2.replaceAll ? d2.newEntries : log.concat(d2.newEntries);
+  const okMig = d2.result.processed === 0 && stock() === after1 && log.filter((e) => e.code).every((e) => /^CP-T/.test(e.k));
+  console.log('id migrate', okMig ? 'OK' : 'SAI', JSON.stringify(log.map((e) => e.k + ':' + e.qty)));
+  if (!okMig) fails++;
+  // 3) Sửa dòng đã trừ (số lượng 2 -> 3, đổi mô tả) -> cập nhật log, không trừ
+  rows = rows.map((r) => r.slice()); rows[0][8] = 3; rows[0][3] = 'Hỏng đèn (sửa lại)';
+  C.setSheetData('chiphi', { headers: H, rows });
+  const d3 = C.computeVatTuDeduction(sA, log);
+  log = d3.replaceAll ? d3.newEntries : log.concat(d3.newEntries);
+  const e0 = log.find((e) => e.k === 'CP-T0');
+  const okEdit = d3.result.processed === 0 && stock() === after1 && e0 && e0.qty === 3;
+  console.log('id edit', okEdit ? 'OK' : 'SAI', JSON.stringify(e0)); if (!okEdit) fails++;
+  // 4) Xoá dòng đã trừ -> xoá bản ghi log, không hoàn kho
+  rows = rows.filter((r, i) => i !== 1);
+  C.setSheetData('chiphi', { headers: H, rows });
+  const d4 = C.computeVatTuDeduction(sA, log);
+  log = d4.replaceAll ? d4.newEntries : log.concat(d4.newEntries);
+  const okDel = d4.result.processed === 0 && stock() === after1 && !log.some((e) => e.k === 'CP-T1');
+  console.log('id delete', okDel ? 'OK' : 'SAI', JSON.stringify(log.map((e) => e.k))); if (!okDel) fails++;
+  // 5) Còn dòng chưa có ID -> không dọn log (tránh xoá nhầm khi Sync.gs chưa kịp điền)
+  const rows5 = rows.map((r) => r.slice()); rows5[0][rows5[0].length - 1] = '';
+  C.setSheetData('chiphi', { headers: H, rows: rows5 });
+  const d5 = C.computeVatTuDeduction(sA, log.concat([{ k: 'GONE', d: '', code: 'x', name: 'x', qty: 1, holder: 'A' }]));
+  const okPartial = !d5.replaceAll;
+  console.log('id partial', okPartial ? 'OK' : 'SAI'); if (!okPartial) fails++;
+  C.setSheetData('chiphi', { headers: FX.sheets.chiphi.headers, rows: cpRows });
+})();
 console.log(fails ? ('THẤT BẠI: ' + fails) : 'TẤT CẢ OK');
 process.exit(fails ? 1 : 0);

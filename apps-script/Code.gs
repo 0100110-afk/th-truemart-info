@@ -84,7 +84,8 @@ const COLS = {
   CP_DATE: 'Ngày hoàn thành',
   CP_QTY: 'Số lượng',
   CP_COST: 'Tổng chi phí',
-  CP_SUPPLIER: 'Nhà cung cấp'
+  CP_SUPPLIER: 'Nhà cung cấp',
+  CP_ID: 'ID'            // cột ẩn cuối bảng CHI PHI, Sync.gs tự điền — định danh cố định của dòng
 };
 
 // ============================== WEB APP ENTRY ==============================
@@ -2537,8 +2538,15 @@ function vatTuRowStatus_(mat, holder, qty, logEntry, matchRes, avail) {
 
 /** Mảng khoá vân tay, xếp ĐÚNG CHỈ SỐ với getChiPhiCached_(). Tính MD5 1 lần/TTL thay vì mỗi lần lật trang. */
 function getChiPhiKeysCached_(forceRefresh) {
-  return getCachedOrCompute_('chiphi_keys_v1', CACHE_TTL_FAST, function () {
+  return getCachedOrCompute_('chiphi_keys_v2', CACHE_TTL_FAST, function () {
     return buildChiPhiKeys_(getChiPhiCached_());
+  }, forceRefresh);
+}
+
+/** Khoá vân tay kiểu cũ, xếp đúng chỉ số với getChiPhiCached_() — để nhận ra sổ log chưa đổi sang ID. */
+function getChiPhiLegacyKeysCached_(forceRefresh) {
+  return getCachedOrCompute_('chiphi_legacykeys_v1', CACHE_TTL_FAST, function () {
+    return buildChiPhiLegacyKeys_(getChiPhiCached_());
   }, forceRefresh);
 }
 
@@ -2576,6 +2584,9 @@ function getVatTuTrackingList(opts) {
 
   const cpRows = getChiPhiCached_();
   const keys = getChiPhiKeysCached_();       // xếp đúng chỉ số với cpRows
+  /* Sổ log có thể còn khoá vân tay cũ (trước lần "Khớp vật tư" đầu tiên sau khi có cột ID) */
+  const legacyKeys = getChiPhiLegacyKeysCached_();
+  const logOf = function (i) { return logMap[keys[i]] || logMap[legacyKeys[i]]; };
   const logMap = getVatTuAutoLogMapCached_();
   const matcher = buildVatTuMatcher_(data.materials);   // dựng MỘT LẦN cho cả vòng lặp
 
@@ -2608,7 +2619,7 @@ function getVatTuTrackingList(opts) {
 
             /* Dòng ĐÃ trong sổ log thì kho đã trừ từ trước — tồn hiện tại vốn đã phản ánh nó, trừ thêm
          lần nữa trong mô phỏng là đếm đôi. */
-      if (logMap[keys[o.i]]) return;
+      if (logOf(o.i)) return;
 
       const qty = Number(r[COLS.CP_QTY]) || 0;
       if (qty > 0 && qty <= avail) simStock[match.code][holder] = avail - qty;
@@ -2626,7 +2637,7 @@ function getVatTuTrackingList(opts) {
       const match = vtMatchAccepted_(res) ? res.material : null;
       const holder = match ? matchVatTuHolder_(r[COLS.CP_STAFF], data.holders) : null;
       const qty = Number(r[COLS.CP_QTY]) || 0;
-      const st = vatTuRowStatus_(match, holder, qty, logMap[keys[i]], res, availByIdx[i]);
+      const st = vatTuRowStatus_(match, holder, qty, logOf(i), res, availByIdx[i]);
 
       return {
         source: r[COLS.CP_SUPPLIER] || 'Khác',
@@ -2835,13 +2846,28 @@ function chiPhiFingerprint_(r) {
  * trừ. Số thứ tự phụ thuộc số lượng bản trùng chứ không phụ thuộc thứ tự dòng, nên tập khoá vẫn
  * giữ nguyên sau khi sắp xếp lại sheet.
  */
-function buildChiPhiKeys_(cpRows) {
+function buildChiPhiLegacyKeys_(cpRows) {
   const seen = {};
   return cpRows.map(function (r) {
     const fp = chiPhiFingerprint_(r);
     seen[fp] = (seen[fp] || 0) + 1;
     return fp + '#' + seen[fp];
   });
+}
+
+/** ID cố định của dòng CHI PHÍ (cột ẩn "ID" do Sync.gs tự điền); '' nếu dòng chưa có. */
+function chiPhiRowId_(r) {
+  return String((r && r[COLS.CP_ID]) || '').trim();
+}
+
+/**
+ * Khoá của từng dòng CHI PHÍ để đánh dấu "đã trừ kho".
+ * Dòng có ID cố định -> dùng ID: sửa nội dung dòng KHÔNG đổi khoá nên không bao giờ bị trừ lại.
+ * Dòng chưa có ID (Sync.gs bản cũ chưa điền) -> dùng vân tay nội dung như trước.
+ */
+function buildChiPhiKeys_(cpRows) {
+  const legacy = buildChiPhiLegacyKeys_(cpRows);
+  return cpRows.map(function (r, i) { return chiPhiRowId_(r) || legacy[i]; });
 }
 
 function matchVatTuHolder_(staffFreeText, holders) {
@@ -2948,6 +2974,7 @@ function runVatTuAutoDeduction() {
     }
 
     const keys = getChiPhiKeysCached_();
+    const legacyKeys = buildChiPhiLegacyKeys_(cpRows);   // sổ log cũ có thể còn khoá vân tay
     const matcher = buildVatTuMatcher_(data.materials);
 
     // Lần chạy đầu sau khi nâng cấp: chỉ đánh dấu, không trừ gì
@@ -3001,7 +3028,7 @@ function runVatTuAutoDeduction() {
 
       /* Chốt "đã xử lý" phải xét SAU khi khớp, để unmatchedTotal đếm được cả dòng cũ. Vẫn đứng
          TRƯỚC mọi thao tác ghi nên không có nguy cơ trừ kho hai lần. */
-      if (processedKeys.has(key)) return;
+      if (processedKeys.has(key) || processedKeys.has(legacyKeys[i])) return;
 
       // Chưa khớp được -> BỎ QUA, KHÔNG ghi log, để lần sau bổ sung danh mục là trừ được
       if (unmatched) { skippedCount++; return; }
@@ -3062,7 +3089,7 @@ const PROP_CACHE_OK = 'cache_last_success';
 const PROP_CACHE_ERR = 'cache_last_error';
 
 const CACHE_KEYS_FAST_ = ['stores_raw_v2', 'assets_raw_v2', 'maint_raw_v2', 'chiphi_raw_v2',
-                          'chiphi_keys_v1', 'vattu_autolog_v1', 'sanaky_raw_v2'];
+                          'chiphi_keys_v2', 'chiphi_legacykeys_v1', 'vattu_autolog_v1', 'sanaky_raw_v2'];
 const CACHE_KEYS_SLOW_ = ['dongia_bt_v1', 'dongia_xd_v1', 'dongia_snk_v1'];
 
 /** true nếu cache của key này còn sống */
