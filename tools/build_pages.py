@@ -6,7 +6,7 @@ import os, sys
 root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 HEAD = '''<meta charset="utf-8">
-  {viewport}<title>TH true mart · Quản lý hệ thống</title>
+  {viewport}<title>TH true mart · Hệ thống quản lý</title>
   <meta name="theme-color" content="#0B4C8C">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">

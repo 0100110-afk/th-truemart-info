@@ -97,7 +97,7 @@ function doGet(e) {
   // trong iframe (Sites, Data Studio...) trình duyệt lấy favicon của trang cha.
   return HtmlService.createTemplateFromFile(file)
     .evaluate()
-    .setTitle('TH true mart · Quản lý hệ thống')
+    .setTitle('TH true mart · Hệ thống quản lý')
     .setFaviconUrl('https://th-truemart-repair-app.vercel.app/favicon-96.png')
     .addMetaTag('viewport', 'width=device-width, initial-scale=1, viewport-fit=cover')
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
