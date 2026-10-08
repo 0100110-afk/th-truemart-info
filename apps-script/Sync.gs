@@ -103,14 +103,17 @@ function fsEnsureNccTabsSheet_(ss) {
   let sh = ss.getSheetByName(FS_TAB_NCC_TABS);
   if (sh) return sh;
   sh = ss.insertSheet(FS_TAB_NCC_TABS);
-  sh.getRange(1, 1, 5, 2).setValues([
-    ['Tên tab', 'Nhận diện'],
-    ['DAIKIN', ''], ['PSMART', ''], ['Minh Hoàng', ''], ['TD LIGHTING', '']
+  sh.getRange(1, 1, 5, 4).setValues([
+    ['Tên tab', 'Nhận diện', 'Trừ kho vật tư', 'Trừ kho từ ngày'],
+    ['DAIKIN', '', '', ''], ['PSMART', '', '', ''], ['Minh Hoàng', '', '', ''], ['TD LIGHTING', '', 'Có', '']
   ]);
-  sh.getRange(1, 1, 1, 2).setFontWeight('bold');
+  sh.getRange(1, 1, 1, 4).setFontWeight('bold');
   sh.setFrozenRows(1);
-  sh.setColumnWidth(1, 200); sh.setColumnWidth(2, 320);
-  sh.getRange(1, 3).setValue('Mỗi dòng là một tab ở "Theo dõi chi phí sửa chữa". Nhận diện: chữ cần có trong cột "Nhà cung cấp" của CHI PHI (bỏ trống = dùng Tên tab; nhiều từ cách nhau dấu phẩy).');
+  sh.setColumnWidth(1, 200); sh.setColumnWidth(2, 260); sh.setColumnWidth(3, 130); sh.setColumnWidth(4, 140);
+  sh.getRange(2, 4, 200, 1).setNumberFormat('dd/MM/yyyy');
+  sh.getRange(1, 6).setValue('Mỗi dòng là một tab ở "Theo dõi chi phí sửa chữa". Nhận diện: chữ cần có trong cột "Nhà cung cấp" ' +
+    'của CHI PHI (bỏ trống = dùng Tên tab; nhiều từ cách nhau dấu phẩy). Trừ kho vật tư: ghi "Có" để dòng CHI PHI của NCC này ' +
+    'được trừ kho khi bấm Khớp vật tư. Trừ kho từ ngày: bỏ trống = mọi ngày; điền ngày thì chỉ trừ các dòng từ ngày đó.');
   return sh;
 }
 

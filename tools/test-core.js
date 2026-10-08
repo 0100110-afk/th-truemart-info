@@ -101,5 +101,26 @@ console.log('migrate', JSON.stringify(C.computeVatTuDeduction(s3, []).result));
   console.log('id partial', okPartial ? 'OK' : 'SAI'); if (!okPartial) fails++;
   C.setSheetData('chiphi', { headers: FX.sheets.chiphi.headers, rows: cpRows });
 })();
+
+// --- Sheet NCC THEO DÕI: tab tự thêm + cấu hình NCC trừ kho ---
+(function () {
+  const H = ['Tên tab', 'Nhận diện', 'Trừ kho vật tư', 'Trừ kho từ ngày'];
+  C.setSheetData('chiphi', { headers: FX.sheets.chiphi.headers, rows: cpRows });
+  C.setSheetData('ncctabs', { headers: H, rows: [['DAIKIN', '', '', ''], ['Đèn TD', 'TD LIGHTING', '', '']] });
+  const sum = C.READ_API.getStoreCostSummary('303060084');
+  const okTab = sum.suppliers.some((t) => t.label === 'Đèn TD' && t.count === 3);
+  console.log('ncc tab', okTab ? 'OK' : 'SAI', JSON.stringify(sum.suppliers.map((t) => t.label + ':' + t.count)));
+  if (!okTab) fails++;
+  const s1 = JSON.parse(JSON.stringify(FX.vattu));
+  const d1 = C.computeVatTuDeduction(s1, []);
+  const okOff = d1.result.processed === 0;
+  console.log('ncc không trừ kho', okOff ? 'OK' : 'SAI', JSON.stringify(d1.result)); if (!okOff) fails++;
+  C.setSheetData('ncctabs', { headers: H, rows: [['TD LIGHTING', '', 'Có', '02/09/2026']] });
+  const s2 = JSON.parse(JSON.stringify(FX.vattu));
+  const d2 = C.computeVatTuDeduction(s2, []);
+  const okFrom = d2.result.processed === 1 && d2.newEntries[0].name.indexOf('Dây') === 0;
+  console.log('ncc trừ kho từ ngày', okFrom ? 'OK' : 'SAI', JSON.stringify(d2.result)); if (!okFrom) fails++;
+  C.setSheetData('ncctabs', { headers: H, rows: [] });
+})();
 console.log(fails ? ('THẤT BẠI: ' + fails) : 'TẤT CẢ OK');
 process.exit(fails ? 1 : 0);

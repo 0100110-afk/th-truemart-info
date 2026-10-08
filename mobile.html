@@ -1358,7 +1358,8 @@
     // Loại cửa hàng: sắp giảm dần theo số lượng, màu lấy theo LOẠI (đồng bộ badge), không theo vị trí
     var tl=Object.keys(d.byType).sort(function(a,b){return d.byType[b]-d.byType[a];});
     var tv=tl.map(function(k){return d.byType[k];});
-    var tc=tl.map(function(lbl){return TYPE_COLOR_MAP_[typeBadgeCls(lbl)]||'#93A2AC';});
+    var xi=0, XC=['#EE46BC','#15B79E','#F04438','#6172F3','#A15C07','#667085'];
+    var tc=tl.map(function(lbl){var c=typeBadgeCls(lbl); if(c==='other') return XC[xi++%XC.length]; return TYPE_COLOR_MAP_[c]||'#93A2AC';});
     // Lát quá nhỏ: vẽ tối thiểu 1,2% vòng cho nhìn thấy; số/chú thích/tooltip vẫn là số thật.
     var tTot=tv.reduce(function(a,b){return a+(b||0);},0);
     var tShown=tv.map(function(v){return v>0?Math.max(v,tTot*0.012):0;});
