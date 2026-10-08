@@ -238,6 +238,7 @@ function fsSyncOne_(src, meta, force) {
   try { sh = src.sheet(); } catch (e) { sh = null; }
   if (!sh) return null;
 
+  if (src.key === 'chiphi') fsEnsureChiPhiIds_(sh);   // điền ID cố định trước khi đọc
   const data = fsReadSheet_(sh, src.mode);
   const hash = fsMd5_(JSON.stringify(data));
   const old = (meta.sheets || {})[src.key];
@@ -258,6 +259,60 @@ function fsSyncOne_(src, meta, force) {
   writes.push(fsMetaWrite_(meta));
   fsCommit_(writes);
   return true;
+}
+
+// ============================== ID CỐ ĐỊNH CHO DÒNG CHI PHÍ ==============================
+// Mỗi dòng CHI PHÍ có một ID không đổi (cột "ID" ẩn ở cuối bảng). App dùng ID này để nhớ dòng nào
+// đã trừ kho vật tư: sửa nội dung dòng thì vẫn là dòng cũ -> không trừ lại; xoá dòng thì app xoá
+// luôn bản ghi đã trừ. Script tự thêm cột, tự điền ID cho dòng mới, cấp ID mới cho dòng bị chép
+// trùng ID. KHÔNG sửa tay cột này.
+const FS_CP_ID_HEADER = 'ID';
+
+function fsEnsureChiPhiIds_(sh) {
+  const lastRow = sh.getLastRow();
+  let lastCol = sh.getLastColumn();
+  if (lastRow < 1 || lastCol < 1) return;
+  const headers = sh.getRange(1, 1, 1, lastCol).getValues()[0].map(function (h) { return String(h).trim(); });
+  let col = headers.indexOf(FS_CP_ID_HEADER) + 1;
+  if (!col) {
+    col = lastCol + 1;
+    sh.getRange(1, col).setValue(FS_CP_ID_HEADER);
+    try { sh.hideColumns(col); } catch (e) { /* bỏ qua */ }
+    lastCol = col;
+  }
+  fsExtendFilterTo_(sh, col);   // bộ lọc phải phủ cả cột ID, nếu không sắp xếp sẽ làm lệch ID
+  if (lastRow < 2) return;
+
+  const vals = sh.getRange(2, 1, lastRow - 1, lastCol).getValues();
+  const base = 'CP' + Date.now().toString(36).toUpperCase();
+  const seen = {};
+  let n = 0, changed = false;
+  const ids = vals.map(function (r) {
+    let id = String(r[col - 1] === null ? '' : r[col - 1]).trim();
+    const hasData = r.some(function (c, j) { return j !== col - 1 && c !== '' && c !== null; });
+    if (!hasData) { if (id) changed = true; return ['']; }        // dòng đã xoá nội dung -> bỏ ID thừa
+    if (!id || seen[id]) { id = base + '-' + (++n); changed = true; }
+    seen[id] = true;
+    return [id];
+  });
+  if (changed) sh.getRange(2, col, ids.length, 1).setNumberFormat('@').setValues(ids);
+}
+
+/** Nới bộ lọc (Data > Bộ lọc) sang tới cột `col`, giữ nguyên điều kiện lọc đang có. */
+function fsExtendFilterTo_(sh, col) {
+  const f = sh.getFilter();
+  if (!f) return;
+  const r = f.getRange();
+  if (r.getLastColumn() >= col) return;
+  const crit = {};
+  for (let c = r.getColumn(); c <= r.getLastColumn(); c++) {
+    const k = f.getColumnFilterCriteria(c);
+    if (k) crit[c] = k.copy().build();
+  }
+  f.remove();
+  const rows = Math.max(r.getNumRows(), sh.getLastRow() - r.getRow() + 1);
+  const nf = sh.getRange(r.getRow(), r.getColumn(), rows, col - r.getColumn() + 1).createFilter();
+  Object.keys(crit).forEach(function (c) { nf.setColumnFilterCriteria(Number(c), crit[c]); });
 }
 
 function fsReadSheet_(sh, mode) {

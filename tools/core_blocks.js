@@ -335,8 +335,11 @@ function exportVatTuExcel(yearFilter, monthFilter, trackOpts) {
  * Tự động trừ tồn kho theo các dòng CHI PHÍ mới — BẢN THUẦN. app.js chạy hàm này trong Firestore
  * transaction với `st` (vattu/state) và `autolog` (toàn bộ sổ đã xử lý) vừa đọc từ server, rồi ghi
  * lại `st` + các dòng log mới. Năm nguyên tắc của bản Apps Script giữ nguyên:
- *  1) Khoá chống trùng là VÂN TAY NỘI DUNG (chiPhiFingerprint_) — MD5 giống hệt bản cũ, nên sổ log
- *     cũ nhập từ sheet vẫn dùng tiếp được.
+ *  1) Khoá chống trùng là ID CỐ ĐỊNH của dòng (cột ẩn "ID" do Sync.gs điền). Dòng chưa có ID thì
+ *     dùng vân tay nội dung như bản cũ. Khi MỌI dòng đã có ID (xem syncAutologWithIds_):
+ *       - log cũ còn khoá vân tay được đổi sang ID của đúng dòng đó (không trừ lại);
+ *       - dòng đã trừ bị SỬA -> cập nhật thông tin trong log, KHÔNG trừ thêm, KHÔNG hoàn kho;
+ *       - dòng đã trừ bị XOÁ khỏi sheet -> xoá luôn bản ghi log, KHÔNG hoàn kho.
  *  2) Chống trừ đôi: transaction thay LockService.
  *  3) KHÔNG ghi log dòng chưa khớp vật tư/người giữ.
  *  4) KHÔNG đủ tồn thì KHÔNG trừ gì cả.
@@ -369,7 +372,11 @@ function computeVatTuDeduction_(st, autolog) {
     };
   }
 
-  const processedKeys = new Set((autolog || []).map(function (e) { return String(e.k); }));
+  /* Đồng bộ sổ log với ID cố định — chỉ khi MỌI dòng đã có ID, tránh xoá nhầm log lúc Sync.gs
+     chưa kịp điền ID cho dòng mới. */
+  const sync = syncAutologWithIds_(cpRows, keys, autolog || [], matcher, data.holders);
+  const entries = sync.entries;
+  const processedKeys = new Set(entries.map(function (e) { return String(e.k); }));
 
   // Tham chiếu thẳng vào object vật tư trong `st` để sửa tồn
   const stByCode = {};
@@ -411,17 +418,62 @@ function computeVatTuDeduction_(st, autolog) {
     processedCount++;
   });
 
-  return {
-    result: {
-      success: true,
-      processed: processedCount,
-      skipped: skippedCount,
-      shorted: shortedCount,
-      unmatchedTotal: unmatchedTotal,
-      scanned: cpRows.length
-    },
-    newEntries: newEntries
+  const result = {
+    success: true,
+    processed: processedCount,
+    skipped: skippedCount,
+    shorted: shortedCount,
+    unmatchedTotal: unmatchedTotal,
+    scanned: cpRows.length
   };
+  // Sổ log có dòng đổi khoá / cập nhật / bị xoá -> ghi lại TOÀN BỘ sổ
+  if (sync.changed) return { result: result, newEntries: entries.concat(newEntries), replaceAll: true };
+  return { result: result, newEntries: newEntries };
+}
+
+/**
+ * Đối chiếu sổ log "đã trừ" với các dòng CHI PHÍ hiện tại theo ID cố định. KHÔNG đụng tới tồn kho.
+ *  - Bản ghi còn khoá vân tay cũ mà khớp đúng dòng -> đổi khoá sang ID của dòng đó.
+ *  - Bản ghi của dòng còn tồn tại -> cập nhật vật tư / số lượng / người giữ theo nội dung mới của dòng.
+ *  - Bản ghi không còn dòng nào ứng với nó (dòng đã bị xoá) -> bỏ khỏi sổ.
+ * Chưa phải mọi dòng đều có ID -> trả nguyên sổ, không làm gì.
+ */
+function syncAutologWithIds_(cpRows, keys, autolog, matcher, holders) {
+  const entries = autolog.map(function (e) { return Object.assign({}, e); });
+  const allHaveId = cpRows.length > 0 && cpRows.every(function (r) { return !!chiPhiRowId_(r); });
+  if (!allHaveId) return { entries: entries, changed: false };
+
+  let changed = false;
+  const legacy = buildChiPhiLegacyKeys_(cpRows);
+  const byKey = {};
+  entries.forEach(function (e, j) { byKey[String(e.k)] = j; });
+
+  const keep = {};
+  cpRows.forEach(function (r, i) {
+    const id = keys[i];
+    let j = byKey[id];
+    if (j === undefined && byKey[legacy[i]] !== undefined && !keep[byKey[legacy[i]]]) {
+      j = byKey[legacy[i]];
+      entries[j].k = id;          // đổi khoá vân tay -> ID
+      changed = true;
+    }
+    if (j === undefined) return;
+    keep[j] = true;
+
+    const e = entries[j];
+    if (!e.code) return;          // bản ghi "khởi tạo — không trừ": không có thông tin vật tư để cập nhật
+    const res = vtMatch_(matcher, r[COLS.CP_ITEM]);
+    const mat = vtMatchAccepted_(res) ? res.material : null;
+    const holder = matchVatTuHolder_(r[COLS.CP_STAFF], holders);
+    const qty = Number(r[COLS.CP_QTY]) || 0;
+    if (mat && (e.code !== mat.code || e.name !== mat.name)) { e.code = mat.code; e.name = mat.name; changed = true; }
+    if (holder && e.holder !== holder) { e.holder = holder; changed = true; }
+    if (qty > 0 && Number(e.qty) !== qty) { e.qty = qty; changed = true; }
+  });
+
+  const kept = entries.filter(function (e, j) { return keep[j]; });
+  if (kept.length !== entries.length) changed = true;
+  return { entries: kept, changed: changed };
 }
 //@@END
 
