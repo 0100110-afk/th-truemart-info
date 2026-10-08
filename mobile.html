@@ -938,6 +938,7 @@
   // SỬA: chốt cứng thứ tự Miền và màu Loại cửa hàng ngay tại client, giống bản Index.html,
   // để không phụ thuộc thứ tự key / mảng màu server trả về.
   var REGION_ORDER_=['Miền Bắc','Miền Trung','Miền Nam'];
+  var CHART_REGION_COLOR_MAP_={'Miền Bắc':'#2E90FA','Miền Trung':'#F79009','Miền Nam':'#12B76A'};   // = TH true care
   var TYPE_COLOR_MAP_={normal:'#2E9BE0',flagship:'#7A2FA0',hero:'#E3A83B',cvshero:'#0F5FA8',cvs:'#2C7A4B',mini:'#5B8FA8',other:'#93A2AC'};
   function regionSortKey_(label){ var i=REGION_ORDER_.indexOf(label); return i===-1?REGION_ORDER_.length:i; }
   function costBadgeCls(type){
@@ -1342,7 +1343,8 @@
     var rv=rl.map(function(k){return d.byRegion[k];});
     var origRl=Object.keys(d.byRegion);
     var rcSrc=d.byRegionColors&&d.byRegionColors.length?d.byRegionColors:null;
-    var rc=rcSrc?rl.map(function(lbl){return rcSrc[origRl.indexOf(lbl)]||'#2E9BE0';}):'#2E9BE0';
+    // Màu cột theo Miền: cùng bảng màu với app TH true care
+    var rc=rl.map(function(lbl){return CHART_REGION_COLOR_MAP_[lbl]||(rcSrc&&rcSrc[origRl.indexOf(lbl)])||'#2E90FA';});
     if(chartRegion) chartRegion.destroy();
     chartRegion=new Chart($('#chartRegion').getContext('2d'),{
       type:'bar',

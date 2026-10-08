@@ -1409,6 +1409,7 @@
   // key / mảng màu mà server trả về (nếu bản deploy Apps Script chưa cập nhật kịp thì biểu đồ
   // vẫn luôn đúng thứ tự Bắc->Trung->Nam và đúng màu đồng bộ với badge trong tab Cửa hàng).
   var REGION_ORDER_ = ['Miền Bắc', 'Miền Trung', 'Miền Nam'];
+  var CHART_REGION_COLOR_MAP_ = { 'Miền Bắc': '#2E90FA', 'Miền Trung': '#F79009', 'Miền Nam': '#12B76A' };   // = TH true care
   // Phải khớp 100% với STORE_TYPE_COLORS trong Code.gs và với .type-badge.* trong CSS ở trên.
   var TYPE_COLOR_MAP_ = {
     normal: '#2E9BE0', flagship: '#7A2FA0', hero: '#E3A83B',
@@ -1812,6 +1813,14 @@
       Chỉ đụng biểu đồ tròn: biểu đồ cột giữ nguyên kích thước, không còn bị ép căn theo.
       Hai .chart-container cùng chiều cao và cùng vị trí trong thẻ, nên toạ độ y trong canvas cột
       dùng thẳng được làm offset top cho chú thích bên tròn. */
+  /** Gọi khi biểu đồ đổi cỡ: Chart.js cập nhật trục SAU sự kiện onResize, nên đợi một nhịp ngắn rồi
+      mới đo lại (gộp nhiều lần đổi cỡ liên tiếp thành một lần căn). */
+  var realignTimer_ = null;
+  function realignChartsSoon_() {
+    clearTimeout(realignTimer_);
+    realignTimer_ = setTimeout(alignChartBaselines_, 80);
+  }
+
   function alignChartBaselines_() {
     if (!chartRegion || !chartType) return;
     var xs = chartRegion.scales && chartRegion.scales.x;
@@ -2079,9 +2088,10 @@
     var regionValues = regionLabels.map(function (k) { return data.byRegion[k]; });
     var regionColorSrc = data.byRegionColors && data.byRegionColors.length ? data.byRegionColors : null;
     var origRegionLabels = Object.keys(data.byRegion);
-    var regionColors = regionColorSrc
-      ? regionLabels.map(function (lbl) { return regionColorSrc[origRegionLabels.indexOf(lbl)] || '#2E9BE0'; })
-      : '#2E9BE0';
+    // Màu cột theo Miền: cùng bảng màu với app TH true care (Bắc xanh dương · Trung cam · Nam xanh lá).
+    var regionColors = regionLabels.map(function (lbl) {
+      return CHART_REGION_COLOR_MAP_[lbl] || (regionColorSrc && regionColorSrc[origRegionLabels.indexOf(lbl)]) || '#2E90FA';
+    });
 
     // --- Loại cửa hàng: sắp giảm dần theo số lượng, màu lấy theo LOẠI (không theo vị trí) ---
     var typeLabels = Object.keys(data.byType).sort(function (a, b) { return data.byType[b] - data.byType[a]; });
@@ -2104,6 +2114,9 @@
         responsive: true,
         maintainAspectRatio: false,
         layout: { padding: { top: 20 } },
+        // Kích thước biểu đồ có thể đổi SAU lần vẽ đầu (tự co giãn theo màn hình, font tải xong...)
+        // -> căn lại dòng chú thích của biểu đồ tròn mỗi khi biểu đồ đổi cỡ.
+        onResize: realignChartsSoon_,
         plugins: { legend: { display: false } },
         scales: { y: { beginAtZero: true, grid: { color: '#E8EEF5' } }, x: { grid: { display: false, drawTicks: false } } }
       },
@@ -2120,6 +2133,7 @@
         // Chú thích tắt ở đây, dựng bằng HTML qua renderTypeLegend_ để căn được thẳng hàng.
         // padding.bottom là chỗ chừa cho dòng chú thích HTML, alignChartBaselines_ sẽ tính lại đúng.
         layout: { padding: { top: Math.max(26, typePadTop), right: 30, bottom: 24, left: 30 } },
+        onResize: realignChartsSoon_,
         plugins: { legend: { display: false },
           tooltip: { callbacks: { label: function (c) { return c.label + ': ' + typeValues[c.dataIndex]; } } } },
         cutout: '62%'
