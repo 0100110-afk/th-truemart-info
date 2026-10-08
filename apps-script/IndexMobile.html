@@ -921,7 +921,7 @@
   // để không phụ thuộc thứ tự key / mảng màu server trả về.
   var REGION_ORDER_=['Miền Bắc','Miền Trung','Miền Nam'];
   var CHART_REGION_COLOR_MAP_={'Miền Bắc':'#2E90FA','Miền Trung':'#F79009','Miền Nam':'#12B76A'};   // = TH true care
-  var TYPE_COLOR_MAP_={normal:'#2E9BE0',flagship:'#7A2FA0',hero:'#E3A83B',cvshero:'#0F5FA8',cvs:'#2C7A4B',mini:'#5B8FA8',other:'#93A2AC'};
+  var TYPE_COLOR_MAP_={normal:'#2E90FA',flagship:'#7A2FA0',hero:'#F79009',cvshero:'#12B76A',cvs:'#2C7A4B',mini:'#5B8FA8',other:'#93A2AC'};
   function regionSortKey_(label){ var i=REGION_ORDER_.indexOf(label); return i===-1?REGION_ORDER_.length:i; }
   function costBadgeCls(type){
     if(type==='Sanaky') return 'sanaky';
@@ -1455,11 +1455,7 @@
       var tabs=[{key:'tonghop',label:'Tổng hợp'}];
       if(s.sanaky.count>0) tabs.push({key:'sanaky',label:'Sanaky'});
       if(s.maint.count>0) tabs.push({key:'maint',label:'Bảo dưỡng'});
-      if(s.daikin.count>0) tabs.push({key:'daikin',label:'DAIKIN'});
-      if(s.psmart.count>0) tabs.push({key:'psmart',label:'PSMART'});
-      if(s.minhhoang.count>0) tabs.push({key:'minhhoang',label:'Minh Hoàng'});
-      if(s.tdlighting.count>0) tabs.push({key:'tdlighting',label:'TD LIGHTING'});
-      if(s.khac.count>0) tabs.push({key:'khac',label:'Khác'});
+      (s.suppliers||[]).forEach(function(t){ if(t.count>0) tabs.push({key:t.key,label:t.label}); });
       var el=$('#storeSubTabs');
       if(!el) return;
       el.innerHTML=tabs.map(function(t,i){return '<button class="'+(i===0?'active':'')+'" data-k="'+t.key+'">'+esc(t.label)+'</button>';}).join('');

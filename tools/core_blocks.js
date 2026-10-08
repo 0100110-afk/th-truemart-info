@@ -20,7 +20,7 @@ var TMCore = (function () {
 
   function sheetKeyOf_(name) {
     var m = {};
-    m[SHEET_STORES] = 'stores'; m[SHEET_ASSETS] = 'assets'; m[SHEET_MAINT] = 'maint'; m[SHEET_CHIPHI] = 'chiphi';
+    m[SHEET_STORES] = 'stores'; m[SHEET_ASSETS] = 'assets'; m[SHEET_MAINT] = 'maint'; m[SHEET_CHIPHI] = 'chiphi'; m[SHEET_NCC_TABS] = 'ncctabs';
     return m[name] || null;
   }
 
@@ -328,6 +328,33 @@ function exportVatTuExcel(yearFilter, monthFilter, trackOpts) {
   const label = (yearFilter || monthFilter) ? ('_' + (yearFilter || 'tatca') + (monthFilter ? '-' + pad2_(monthFilter) : '')) : '';
   return { success: true, base64: XL.write(wb, { bookType: 'xlsx', type: 'base64' }), filename: 'VatTu' + label + '.xlsx' };
 }
+
+/** Xuất Excel trang Chi phí THS / LSC theo đúng bộ lọc đang chọn (mỗi dòng con một hàng). */
+function exportChiPhiKindExcel(opts) {
+  opts = Object.assign({}, opts || {}, { page: 1, pageSize: 0 });
+  const XL = (typeof XLSX !== 'undefined') ? XLSX : null;
+  if (!XL) throw new Error('Chưa tải được thư viện xuất Excel, thử tải lại trang.');
+  const data = getChiPhiKindList(opts);
+  const kindLabel = opts.kind === 'lsc' ? 'LSC' : 'THS';
+  const regionLabel = { MB: 'Miền Bắc', MT: 'Miền Trung', MN: 'Miền Nam' }[opts.region] || 'Toàn quốc';
+  const scope = ['Chi phí sửa chữa ' + kindLabel, regionLabel, 'Năm: ' + (opts.year || 'Tất cả'),
+    'Tháng: ' + (opts.month ? pad2_(opts.month) : 'Tất cả'), 'NCC: ' + (opts.supplier || 'Tất cả')]
+    .concat(opts.query ? ['Từ khoá: ' + opts.query] : []).join('  ·  ');
+  const headers = ['Mã cửa hàng', 'Địa chỉ', 'Ngày', 'Mô tả sự cố', 'Hạng mục/Vật tư', 'Mã tài sản', 'Số lượng', 'Nhà cung cấp', 'NV phụ trách', 'Chi phí'];
+  const aoa = [['Phạm vi lọc — ' + scope], headers];
+  data.rows.forEach(function (g) {
+    g.items.forEach(function (it) {
+      aoa.push([g.costCenter, g.address, g.date, g.issue || '', it.item || '', it.assetCode || '', it.qty, g.supplier || g.supplierLabel, g.staff || '', it.cost]);
+    });
+  });
+  const ws = XL.utils.aoa_to_sheet(aoa);
+  ws['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: headers.length - 1 } }];
+  ws['!cols'] = [12, 40, 12, 28, 32, 12, 9, 18, 20, 14].map(function (w) { return { wch: w }; });
+  const wb = XL.utils.book_new();
+  XL.utils.book_append_sheet(wb, ws, 'ChiPhi' + kindLabel);
+  const tag = (opts.year || '') + (opts.month ? '-' + pad2_(opts.month) : '');
+  return { success: true, base64: XL.write(wb, { bookType: 'xlsx', type: 'base64' }), filename: 'ChiPhi_' + kindLabel + (tag ? '_' + tag : '') + '.xlsx' };
+}
 //@@END
 
 //@@DEDUCT_BLOCK
@@ -514,6 +541,11 @@ function syncAutologWithIds_(cpRows, keys, autolog, matcher, holders) {
     getSanakyDashboardData: getSanakyDashboardData,
     getSanakyList: getSanakyList,
     getSanakyByStore: getSanakyByStore,
+    getChiPhiKindMonthsAvailable: getChiPhiKindMonthsAvailable,
+    getChiPhiSupplierOptions: getChiPhiSupplierOptions,
+    getChiPhiKindDashboard: getChiPhiKindDashboard,
+    getChiPhiKindList: getChiPhiKindList,
+    exportChiPhiKindExcel: exportChiPhiKindExcel,
     getSanakyByAsset: getSanakyByAsset,
     getDonGiaData: getDonGiaData,
     getVatTuData: getVatTuData,

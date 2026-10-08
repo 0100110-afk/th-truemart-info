@@ -19,7 +19,7 @@ var TMCore = (function () {
 
   function sheetKeyOf_(name) {
     var m = {};
-    m[SHEET_STORES] = 'stores'; m[SHEET_ASSETS] = 'assets'; m[SHEET_MAINT] = 'maint'; m[SHEET_CHIPHI] = 'chiphi';
+    m[SHEET_STORES] = 'stores'; m[SHEET_ASSETS] = 'assets'; m[SHEET_MAINT] = 'maint'; m[SHEET_CHIPHI] = 'chiphi'; m[SHEET_NCC_TABS] = 'ncctabs';
     return m[name] || null;
   }
 
@@ -459,10 +459,10 @@ var TMCore = (function () {
   const REGION_GROUP_COLORS = { MB: '#2E9BE0', MT: '#E3A83B', MN: '#2C7A4B', KHAC: '#93A2AC' };
 
   const STORE_TYPE_COLORS = {
-    normal: '#2E9BE0',
+    normal: '#2E90FA',
     flagship: '#7A2FA0',
-    hero: '#E3A83B',
-    cvshero: '#0F5FA8',
+    hero: '#F79009',
+    cvshero: '#12B76A',
     cvs: '#2C7A4B',
     mini: '#5B8FA8',
     other: '#93A2AC'
@@ -1176,25 +1176,69 @@ var TMCore = (function () {
    *
    * Khai báo dạng mảng để thêm NCC vật tư thứ hai chỉ cần thêm một phần tử.
    */
-  const VATTU_SUPPLIER_GROUPS_ = ['tdlighting'];
 
   function isVatTuSupplier_(supplier) {
-    return VATTU_SUPPLIER_GROUPS_.indexOf(chiPhiSupplierGroup_(supplier)) > -1;
+    // Kho vật tư chỉ áp cho TD LIGHTING — so thẳng tên, KHÔNG phụ thuộc cấu hình tab NCC
+    // (đổi tên hay xoá tab trong sheet NCC THEO DÕI không được làm lệch việc trừ kho).
+    return supplierKey_(supplier).indexOf('TDLIGHTING') > -1;
+  }
+
+  /** Chuẩn hoá tên NCC để so khớp: bỏ dấu, viết hoa, bỏ mọi khoảng trắng. */
+  function supplierKey_(s) {
+    return stripAccents_(String(s || '')).toUpperCase().replace(/\s+/g, '');
+  }
+
+  // ===== Tab NCC trong "Theo dõi chi phí sửa chữa" — cấu hình ở sheet NCC THEO DÕI =====
+  // Mỗi dòng: Tên tab | Nhận diện (không bắt buộc, nhiều từ cách nhau dấu phẩy). Dòng CHI PHÍ có
+  // cột "Nhà cung cấp" CHỨA một trong các từ nhận diện (không phân biệt hoa thường, dấu, khoảng
+  // trắng) thì vào tab đó; xét theo thứ tự dòng, không khớp tab nào -> "Khác".
+  // Sheet chưa có hoặc trống -> dùng 4 tab mặc định như trước.
+  const SHEET_NCC_TABS = 'NCC THEO DÕI';
+  const NCC_TABS_DEFAULT_ = ['DAIKIN', 'PSMART', 'Minh Hoàng', 'TD LIGHTING'];
+
+  function buildNccTabs_(names) {
+    const seen = {};
+    const tabs = [];
+    names.forEach(function (n) {
+      const label = String(n.label || '').trim();
+      if (!label) return;
+      const key = supplierKey_(label);
+      if (!key || key === 'KHAC' || seen[key]) return;
+      seen[key] = true;
+      const words = String(n.match || '').split(/[,;\n]/).map(supplierKey_).filter(function (w) { return w; });
+      tabs.push({ key: key, label: label, words: words.length ? words : [key] });
+    });
+    return tabs;
+  }
+
+  function readNccTabs_() {
+    let rows = [];
+    try { rows = sheetToObjects_(SHEET_NCC_TABS); } catch (e) { rows = []; }
+    const names = (rows || []).map(function (r) { return { label: r['Tên tab'], match: r['Nhận diện'] }; });
+    const tabs = buildNccTabs_(names);
+    return tabs.length ? tabs : buildNccTabs_(NCC_TABS_DEFAULT_.map(function (l) { return { label: l }; }));
+  }
+
+  function getNccTabs_() {
+    return getCachedOrCompute_('ncctabs_v1', CACHE_TTL_FAST, readNccTabs_);
   }
 
   function chiPhiSupplierGroup_(supplier) {
-    const s = stripAccents_(supplier).toUpperCase().replace(/\s+/g, '');
-    if (s.indexOf('DAIKIN') > -1) return 'daikin';
-    if (s.indexOf('PSMART') > -1) return 'psmart';
-    if (s.indexOf('MINHHOANG') > -1) return 'minhhoang';
-    if (s.indexOf('TDLIGHTING') > -1) return 'tdlighting';
+    const s = supplierKey_(supplier);
+    if (!s) return 'khac';
+    const tabs = getNccTabs_();
+    for (let i = 0; i < tabs.length; i++) {
+      const t = tabs[i];
+      for (let j = 0; j < t.words.length; j++) if (s.indexOf(t.words[j]) > -1) return t.key;
+    }
     return 'khac';
   }
 
-  const CHIPHI_SUPPLIER_LABELS_ = { daikin: 'DAIKIN', psmart: 'PSMART', minhhoang: 'Minh Hoàng', tdlighting: 'TD LIGHTING', khac: 'Khác' };
-
   function chiPhiSupplierLabel_(supplier) {
-    return CHIPHI_SUPPLIER_LABELS_[chiPhiSupplierGroup_(supplier)] || 'Khác';
+    const g = chiPhiSupplierGroup_(supplier);
+    if (g === 'khac') return 'Khác';
+    const t = getNccTabs_().filter(function (x) { return x.key === g; })[0];
+    return t ? t.label : 'Khác';
   }
 
   function mapChiPhiRow_(r) {
@@ -1248,8 +1292,158 @@ var TMCore = (function () {
     return { rows: merged, totalCost: totalCost, totalCount: merged.length };
   }
 
+  // ============================== CHI PHÍ THS / LSC ==============================
+  // Hai trang riêng cho "Chi phí sửa chữa THS" (cửa hàng) và "Chi phí sửa chữa LSC" (kho — Cost
+  // center bắt đầu bằng "5"). Cùng cách chia, cùng cách lọc Miền và cùng cách đếm lượt với 2 thẻ
+  // trên Tổng quan, nên số tổng ở hai nơi luôn khớp nhau.
+
+  function chiPhiKindOf_(costCenter) {
+    return cleanCode_(costCenter).charAt(0) === '5' ? 'lsc' : 'ths';
+  }
+
+  /** Lọc CHI PHÍ theo Miền — đúng 3 điều kiện OR như computeDashboardData_. */
+  function filterChiPhiByRegion_(rows, regionFilter) {
+    if (!regionFilter) return rows;
+    const allowedCC = new Set(getStoresCached_()
+      .filter(function (s) { return regionGroup_(s[COLS.STORE_REGION]) === regionFilter; })
+      .map(function (s) { return normalizeCC_(s[COLS.STORE_COST_CENTER]); }));
+    const allKnownCCAll = new Set(getStoresCached_().map(function (s) { return normalizeCC_(s[COLS.STORE_COST_CENTER]); }));
+    return rows.filter(function (r) {
+      const areaG = regionGroup_(r[COLS.CP_AREA]);
+      if (areaG === regionFilter) return true;
+      const cc = normalizeCC_(r[COLS.CP_COST_CENTER]);
+      if (allowedCC.has(cc)) return true;
+      if (areaG === 'KHAC' && !allKnownCCAll.has(cc) && isLscCC_(cc)) return regionFilter === LSC_DEFAULT_REGION_;
+      return false;
+    });
+  }
+
+  function chiPhiKindRows_(kind) {
+    return getChiPhiCached_().filter(function (r) { return chiPhiKindOf_(r[COLS.CP_COST_CENTER]) === kind; });
+  }
+
+  /** Các tháng có dữ liệu ("yyyy-mm", mới nhất trước) — dùng cho ô chọn Năm / Tháng. */
+  function getChiPhiKindMonthsAvailable(kind) {
+    const set = {};
+    chiPhiKindRows_(kind).forEach(function (r) {
+      const key = sanakyMonthKey_(normalizeDate_(r[COLS.CP_DATE]));
+      if (key) set[key] = true;
+    });
+    return Object.keys(set).sort().reverse();
+  }
+
+  /** Tên tab NCC đúng thứ tự cấu hình + "Khác" — dùng cho ô chọn Nhà cung cấp. */
+  function getChiPhiSupplierOptions() {
+    return getNccTabs_().map(function (t) { return t.label; }).concat(['Khác']);
+  }
+
+  function chiPhiKindFiltered_(opts) {
+    const kind = opts.kind === 'lsc' ? 'lsc' : 'ths';
+    const year = String(opts.year || '').trim();
+    const month = String(opts.month || '').trim();
+    const supplier = String(opts.supplier || '').trim();
+    let rows = filterChiPhiByRegion_(chiPhiKindRows_(kind), String(opts.region || '').trim());
+    if (year) rows = rows.filter(function (r) { return extractYear_(r[COLS.CP_DATE]) === Number(year); });
+    if (month) {
+      const mm = pad2_(month);
+      rows = rows.filter(function (r) {
+        const k = sanakyMonthKey_(normalizeDate_(r[COLS.CP_DATE]));
+        return k && k.split('-')[1] === mm;
+      });
+    }
+    if (supplier) rows = rows.filter(function (r) { return chiPhiSupplierLabel_(r[COLS.CP_SUPPLIER]) === supplier; });
+    return rows;
+  }
+
+  /** Thẻ số liệu + 2 bảng xếp hạng (theo bộ lọc Miền / Năm / Tháng / NCC). */
+  function getChiPhiKindDashboard(opts) {
+    opts = opts || {};
+    const rows = chiPhiKindFiltered_(opts);
+    const addrByCC = chiPhiStoreAddrMap_();
+    const repairSet = new Set(), ccSet = new Set();
+    const byStore = {}, bySupplier = {};
+    let totalCost = 0;
+    rows.forEach(function (r) {
+      const cost = Number(r[COLS.CP_COST]) || 0;
+      const ccRaw = r[COLS.CP_COST_CENTER];
+      const cc = normalizeCC_(ccRaw);
+      const key = chiPhiRepairKey_(ccRaw, normalizeDate_(r[COLS.CP_DATE]), r[COLS.CP_ISSUE], r[COLS.CP_STAFF]);
+      totalCost += cost;
+      repairSet.add(key);
+      ccSet.add(cc);
+      if (!byStore[cc]) byStore[cc] = { key: cleanCode_(ccRaw), address: addrByCC[cc] || r[COLS.CP_STORE_NAME] || '', cost: 0, set: new Set() };
+      byStore[cc].cost += cost; byStore[cc].set.add(key);
+      const lb = chiPhiSupplierLabel_(r[COLS.CP_SUPPLIER]);
+      if (!bySupplier[lb]) bySupplier[lb] = { key: lb, address: '', cost: 0, set: new Set() };
+      bySupplier[lb].cost += cost; bySupplier[lb].set.add(key);
+    });
+    function top(obj, n) {
+      return Object.keys(obj).map(function (k) { return obj[k]; })
+        .sort(function (a, b) { return b.cost - a.cost; }).slice(0, n)
+        .map(function (x) { return { key: x.key, address: x.address, cost: x.cost, count: x.set.size }; });
+    }
+    return { totalCost: totalCost, totalRepairs: repairSet.size, totalStores: ccSet.size, topStores: top(byStore, 3), topSuppliers: top(bySupplier, 3) };
+  }
+
+  function chiPhiStoreAddrMap_() {
+    const m = {};
+    getStoresCached_().forEach(function (s) { m[normalizeCC_(s[COLS.STORE_COST_CENTER])] = s[COLS.STORE_ADDRESS]; });
+    return m;
+  }
+
+  /** Bảng chi tiết: gộp theo LƯỢT sửa (cùng khoá với số lượt), mới nhất trước, có phân trang.
+   *  pageSize = 0 -> trả hết (dùng cho Xuất Excel). */
+  function getChiPhiKindList(opts) {
+    opts = opts || {};
+    const q = String(opts.query || '').trim();
+    const page = Math.max(1, Number(opts.page) || 1);
+    const pageSize = opts.pageSize === 0 ? 0 : (Number(opts.pageSize) || 20);
+    const addrByCC = chiPhiStoreAddrMap_();
+    let rows = chiPhiKindFiltered_(opts).map(function (r) {
+      const m = mapChiPhiRow_(r);
+      m.costCenter = cleanCode_(r[COLS.CP_COST_CENTER]);
+      m.address = addrByCC[normalizeCC_(r[COLS.CP_COST_CENTER])] || r[COLS.CP_STORE_NAME] || '';
+      m.supplierLabel = chiPhiSupplierLabel_(r[COLS.CP_SUPPLIER]);
+      return m;
+    });
+    if (q) {
+      rows = rows.filter(function (m) {
+        return smartMatch_([m.costCenter, m.address, m.item, m.assetCode, m.issue, m.supplier, m.staff].join(' | '), q);
+      });
+    }
+    rows.sort(function (a, b) { return parseVnDate_(b.date) - parseVnDate_(a.date); });
+    const map = {}, order = [];
+    rows.forEach(function (r) {
+      const key = chiPhiRepairKey_(r.costCenter, r.date, r.issue, r.staff);
+      if (!map[key]) {
+        map[key] = { costCenter: r.costCenter, address: r.address, date: r.date, issue: r.issue, staff: r.staff,
+                     supplier: r.supplier, supplierLabel: r.supplierLabel, items: [], totalCost: 0 };
+        order.push(key);
+      }
+      map[key].items.push({ item: r.item, assetCode: r.assetCode, qty: r.qty, cost: r.cost });
+      map[key].totalCost += r.cost;
+    });
+    const merged = order.map(function (k) { return map[k]; });
+    const total = merged.length;
+    const pageRows = pageSize ? merged.slice((page - 1) * pageSize, page * pageSize) : merged;
+    return { rows: pageRows, total: total, page: page, pageSize: pageSize || total };
+  }
+
   function emptySupplierBucket_() {
-    return { daikin: { cost: 0, count: 0 }, psmart: { cost: 0, count: 0 }, minhhoang: { cost: 0, count: 0 }, tdlighting: { cost: 0, count: 0 }, khac: { cost: 0, count: 0 } };
+    const b = { khac: { cost: 0, count: 0 } };
+    getNccTabs_().forEach(function (t) { b[t.key] = { cost: 0, count: 0 }; });
+    return b;
+  }
+
+  /** Danh sách tab NCC kèm số liệu, đúng thứ tự cấu hình; "Khác" luôn ở cuối. */
+  function supplierList_(bySupplier) {
+    return getNccTabs_().map(function (t) {
+      return { key: t.key, label: t.label, cost: bySupplier[t.key].cost, count: bySupplier[t.key].count };
+    }).concat([{ key: 'khac', label: 'Khác', cost: bySupplier.khac.cost, count: bySupplier.khac.count }]);
+  }
+
+  function sumSuppliers_(bySupplier) {
+    return Object.keys(bySupplier).reduce(function (s, k) { return s + bySupplier[k].cost; }, 0);
   }
 
   function getStoreCostSummary(costCenter) {
@@ -1267,15 +1461,12 @@ var TMCore = (function () {
       bySupplier[g].count += 1;
     });
 
-    const grandTotal = sanaky.totalCost + maintCost + bySupplier.daikin.cost + bySupplier.psmart.cost + bySupplier.minhhoang.cost + bySupplier.tdlighting.cost + bySupplier.khac.cost;
+    const grandTotal = sanaky.totalCost + maintCost + sumSuppliers_(bySupplier);
 
     return {
       sanaky: { cost: sanaky.totalCost, count: sanaky.totalRepairs },
       maint: { cost: maintCost, count: maintRows.length },
-      daikin: bySupplier.daikin,
-      psmart: bySupplier.psmart,
-      minhhoang: bySupplier.minhhoang,
-      tdlighting: bySupplier.tdlighting,
+      suppliers: supplierList_(bySupplier),
       khac: bySupplier.khac,
       grandTotal: grandTotal
     };
@@ -1295,15 +1486,12 @@ var TMCore = (function () {
       bySupplier[g].count += 1;
     });
 
-    const grandTotal = sanaky.totalCost + maintCost + bySupplier.daikin.cost + bySupplier.psmart.cost + bySupplier.minhhoang.cost + bySupplier.tdlighting.cost + bySupplier.khac.cost;
+    const grandTotal = sanaky.totalCost + maintCost + sumSuppliers_(bySupplier);
 
     return {
       sanaky: { cost: sanaky.totalCost, count: sanaky.totalRepairs },
       maint: { cost: maintCost, count: maintRows.length },
-      daikin: bySupplier.daikin,
-      psmart: bySupplier.psmart,
-      minhhoang: bySupplier.minhhoang,
-      tdlighting: bySupplier.tdlighting,
+      suppliers: supplierList_(bySupplier),
       khac: bySupplier.khac,
       grandTotal: grandTotal
     };
@@ -2620,6 +2808,33 @@ var TMCore = (function () {
     return { success: true, base64: XL.write(wb, { bookType: 'xlsx', type: 'base64' }), filename: 'VatTu' + label + '.xlsx' };
   }
 
+  /** Xuất Excel trang Chi phí THS / LSC theo đúng bộ lọc đang chọn (mỗi dòng con một hàng). */
+  function exportChiPhiKindExcel(opts) {
+    opts = Object.assign({}, opts || {}, { page: 1, pageSize: 0 });
+    const XL = (typeof XLSX !== 'undefined') ? XLSX : null;
+    if (!XL) throw new Error('Chưa tải được thư viện xuất Excel, thử tải lại trang.');
+    const data = getChiPhiKindList(opts);
+    const kindLabel = opts.kind === 'lsc' ? 'LSC' : 'THS';
+    const regionLabel = { MB: 'Miền Bắc', MT: 'Miền Trung', MN: 'Miền Nam' }[opts.region] || 'Toàn quốc';
+    const scope = ['Chi phí sửa chữa ' + kindLabel, regionLabel, 'Năm: ' + (opts.year || 'Tất cả'),
+      'Tháng: ' + (opts.month ? pad2_(opts.month) : 'Tất cả'), 'NCC: ' + (opts.supplier || 'Tất cả')]
+      .concat(opts.query ? ['Từ khoá: ' + opts.query] : []).join('  ·  ');
+    const headers = ['Mã cửa hàng', 'Địa chỉ', 'Ngày', 'Mô tả sự cố', 'Hạng mục/Vật tư', 'Mã tài sản', 'Số lượng', 'Nhà cung cấp', 'NV phụ trách', 'Chi phí'];
+    const aoa = [['Phạm vi lọc — ' + scope], headers];
+    data.rows.forEach(function (g) {
+      g.items.forEach(function (it) {
+        aoa.push([g.costCenter, g.address, g.date, g.issue || '', it.item || '', it.assetCode || '', it.qty, g.supplier || g.supplierLabel, g.staff || '', it.cost]);
+      });
+    });
+    const ws = XL.utils.aoa_to_sheet(aoa);
+    ws['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: headers.length - 1 } }];
+    ws['!cols'] = [12, 40, 12, 28, 32, 12, 9, 18, 20, 14].map(function (w) { return { wch: w }; });
+    const wb = XL.utils.book_new();
+    XL.utils.book_append_sheet(wb, ws, 'ChiPhi' + kindLabel);
+    const tag = (opts.year || '') + (opts.month ? '-' + pad2_(opts.month) : '');
+    return { success: true, base64: XL.write(wb, { bookType: 'xlsx', type: 'base64' }), filename: 'ChiPhi_' + kindLabel + (tag ? '_' + tag : '') + '.xlsx' };
+  }
+
 
   // ============================== VẬT TƯ — TỰ ĐỘNG TRỪ TỒN KHO THEO CHI PHÍ MỚI ==============================
 
@@ -2921,6 +3136,11 @@ var TMCore = (function () {
     getSanakyDashboardData: getSanakyDashboardData,
     getSanakyList: getSanakyList,
     getSanakyByStore: getSanakyByStore,
+    getChiPhiKindMonthsAvailable: getChiPhiKindMonthsAvailable,
+    getChiPhiSupplierOptions: getChiPhiSupplierOptions,
+    getChiPhiKindDashboard: getChiPhiKindDashboard,
+    getChiPhiKindList: getChiPhiKindList,
+    exportChiPhiKindExcel: exportChiPhiKindExcel,
     getSanakyByAsset: getSanakyByAsset,
     getDonGiaData: getDonGiaData,
     getVatTuData: getVatTuData,
