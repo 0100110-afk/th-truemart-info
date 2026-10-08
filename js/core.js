@@ -836,6 +836,30 @@ var TMCore = (function () {
 
   // ============================== CỬA HÀNG ==============================
 
+  /** Danh sách toàn bộ cửa hàng (DS CH) cho tab Cửa hàng — đúng các cột của sheet, có phân trang. */
+  function getStoreList(opts) {
+    opts = opts || {};
+    const page = Math.max(1, Number(opts.page) || 1);
+    const pageSize = Number(opts.pageSize) || 50;
+    const region = String(opts.region || '').trim();
+    const rows = getStoresCached_()
+      .filter(function (s) { return String(s[COLS.STORE_COST_CENTER] || '').trim(); })
+      .filter(function (s) { return !region || regionGroup_(s[COLS.STORE_REGION]) === region; })
+      .map(function (s) {
+        return {
+          region: String(s[COLS.STORE_REGION] || ''),
+          area: String(s[COLS.STORE_AREA] || ''),
+          costCenter: cleanCode_(s[COLS.STORE_COST_CENTER]),
+          address: String(s[COLS.STORE_ADDRESS] || ''),
+          ward: String(s[COLS.STORE_WARD] || ''),
+          city: String(s[COLS.STORE_CITY] || ''),
+          type: String(s[COLS.STORE_TYPE] || ''),
+          status: String(s[COLS.STORE_STATUS] || '')
+        };
+      });
+    return { rows: rows.slice((page - 1) * pageSize, page * pageSize), total: rows.length, page: page, pageSize: pageSize };
+  }
+
   function searchStores(query) {
     const raw = String(query || '').trim();
     if (!raw) return [];
@@ -1354,9 +1378,15 @@ var TMCore = (function () {
     return Object.keys(set).sort().reverse();
   }
 
-  /** Tên tab NCC đúng thứ tự cấu hình + "Khác" — dùng cho ô chọn Nhà cung cấp. */
-  function getChiPhiSupplierOptions() {
-    return getNccTabs_().map(function (t) { return t.label; }).concat(['Khác']);
+  /** Danh sách Nhà cung cấp và NV phụ trách CÓ TRONG DỮ LIỆU của trang THS / LSC (sắp A→Z). */
+  function getChiPhiKindFilterOptions(kind) {
+    const sup = {}, staff = {};
+    chiPhiKindRows_(kind === 'lsc' ? 'lsc' : 'ths').forEach(function (r) {
+      const a = String(r[COLS.CP_SUPPLIER] || '').trim(); if (a) sup[a] = true;
+      const b = String(r[COLS.CP_STAFF] || '').trim(); if (b) staff[b] = true;
+    });
+    const sortVi = function (a, b) { return a.localeCompare(b, 'vi'); };
+    return { suppliers: Object.keys(sup).sort(sortVi), staff: Object.keys(staff).sort(sortVi) };
   }
 
   function chiPhiKindFiltered_(opts) {
@@ -1373,7 +1403,9 @@ var TMCore = (function () {
         return k && k.split('-')[1] === mm;
       });
     }
-    if (supplier) rows = rows.filter(function (r) { return chiPhiSupplierLabel_(r[COLS.CP_SUPPLIER]) === supplier; });
+    const staff = String(opts.staff || '').trim();
+    if (supplier) rows = rows.filter(function (r) { return String(r[COLS.CP_SUPPLIER] || '').trim() === supplier; });
+    if (staff) rows = rows.filter(function (r) { return String(r[COLS.CP_STAFF] || '').trim() === staff; });
     return rows;
   }
 
@@ -2799,16 +2831,16 @@ var TMCore = (function () {
     const kindLabel = opts.kind === 'lsc' ? 'LSC' : 'THS';
     const regionLabel = { MB: 'Miền Bắc', MT: 'Miền Trung', MN: 'Miền Nam' }[opts.region] || 'Toàn quốc';
     const scope = ['Chi phí sửa chữa ' + kindLabel, regionLabel, 'Năm: ' + (opts.year || 'Tất cả'),
-      'Tháng: ' + (opts.month ? pad2_(opts.month) : 'Tất cả'), 'NCC: ' + (opts.supplier || 'Tất cả')]
+      'Tháng: ' + (opts.month ? pad2_(opts.month) : 'Tất cả'), 'NCC: ' + (opts.supplier || 'Tất cả'), 'NV: ' + (opts.staff || 'Tất cả')]
       .concat(opts.query ? ['Từ khoá: ' + opts.query] : []).join('  ·  ');
-    const headers = ['Cost center', 'Tên cửa hàng', 'Khu vực', 'Mô tả sự cố', 'NV phụ trách', 'Hạng mục/Vật tư', 'Mã thiết bị', 'Ngày hoàn thành', 'Số lượng', 'Tổng chi phí', 'Nhà cung cấp'];
+    const headers = ['Cost center', 'Tên cửa hàng', 'Khu vực', 'NV phụ trách', 'Mô tả sự cố', 'Hạng mục/Vật tư', 'Mã thiết bị', 'Ngày hoàn thành', 'Số lượng', 'Tổng chi phí', 'Nhà cung cấp'];
     const aoa = [['Phạm vi lọc — ' + scope], headers];
     data.rows.forEach(function (r) {
-      aoa.push([r.costCenter, r.storeName, r.area, r.issue, r.staff, r.item, r.assetCode, r.date, r.qty, r.cost, r.supplier]);
+      aoa.push([r.costCenter, r.storeName, r.area, r.staff, r.issue, r.item, r.assetCode, r.date, r.qty, r.cost, r.supplier]);
     });
     const ws = XL.utils.aoa_to_sheet(aoa);
     ws['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: headers.length - 1 } }];
-    ws['!cols'] = [12, 40, 10, 26, 20, 32, 12, 14, 9, 14, 18].map(function (w) { return { wch: w }; });
+    ws['!cols'] = [12, 40, 10, 20, 26, 32, 12, 14, 9, 14, 18].map(function (w) { return { wch: w }; });
     const wb = XL.utils.book_new();
     XL.utils.book_append_sheet(wb, ws, 'ChiPhi' + kindLabel);
     const tag = (opts.year || '') + (opts.month ? '-' + pad2_(opts.month) : '');
@@ -3117,7 +3149,8 @@ var TMCore = (function () {
     getSanakyList: getSanakyList,
     getSanakyByStore: getSanakyByStore,
     getChiPhiKindMonthsAvailable: getChiPhiKindMonthsAvailable,
-    getChiPhiSupplierOptions: getChiPhiSupplierOptions,
+    getChiPhiKindFilterOptions: getChiPhiKindFilterOptions,
+    getStoreList: getStoreList,
     getChiPhiKindRows: getChiPhiKindRows,
     exportChiPhiKindExcel: exportChiPhiKindExcel,
     getSanakyByAsset: getSanakyByAsset,

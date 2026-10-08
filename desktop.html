@@ -751,9 +751,9 @@
   .btn-ico{width:14px; height:14px; flex-shrink:0;}
   /* Bảng Chi phí THS / LSC: 11 cột như sheet CHI PHI, cùng cỡ chữ với các bảng khác của app.
      Cột chữ dài được xuống dòng với bề rộng cố định; bảng rộng hơn màn hình thì kéo ngang. */
-  .table-wrap.wrap-cells #cpTable{min-width:1500px;}
+  .table-wrap.wrap-cells #cpTable{min-width:1750px;}
   .table-wrap.wrap-cells #cpTable td.col-wrap, .table-wrap.wrap-cells #cpTable th.col-wrap{min-width:0;}
-  #cpTable .w-store{width:260px;} #cpTable .w-issue{width:190px;} #cpTable .w-item{width:220px;}
+  #cpTable .w-store{width:340px;} #cpTable .w-issue{width:280px;} #cpTable .w-item{width:300px;}
   #cpTable .w-supplier{width:170px;}
   .table-wrap.wrap-cells #cpTable td.w-supplier{white-space:normal;}
 
@@ -824,11 +824,11 @@
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M14.7 6.3a4 4 0 0 1-5.4 5.4L4 17l3 3 5.3-5.3a4 4 0 0 1 5.4-5.4l-3 3-2-2 3-3z"/></svg>
           <span class="label">Bảo dưỡng</span>
         </button>
-        <button class="nav-item" type="button" data-view="chiphi-ths" data-tooltip="Chi phí sửa chữa THS (cửa hàng)">
+        <button class="nav-item" type="button" data-view="chiphi-ths" data-tooltip="Chi phí sửa chữa THS (Truemart)">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M4 9.5 5.5 4h13L20 9.5"/><path d="M4 9.5c0 1.4 1.1 2.5 2.7 2.5S9.3 10.9 9.3 9.5c0 1.4 1.2 2.5 2.7 2.5s2.7-1.1 2.7-2.5c0 1.4 1.1 2.5 2.6 2.5S20 10.9 20 9.5"/><path d="M5.5 12v8h13v-8M10 20v-4.5h4V20"/></svg>
           <span class="label">Chi phí THS</span>
         </button>
-        <button class="nav-item" type="button" data-view="chiphi-lsc" data-tooltip="Chi phí sửa chữa LSC (kho)">
+        <button class="nav-item" type="button" data-view="chiphi-lsc" data-tooltip="Chi phí sửa chữa LSC (Logistic SC)">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M3 20V9l9-5 9 5v11"/><path d="M7 20v-8h10v8"/><path d="M7 15h10M7 17.5h10"/></svg>
           <span class="label">Chi phí LSC</span>
         </button>
@@ -915,6 +915,28 @@
           </div>
 
           <div id="storeCandidates"></div>
+          <div id="storeListWrap" style="margin-top:18px;">
+            <div class="row-between" style="margin-bottom:12px;">
+              <h3 style="margin:0; font-size:15px; color:var(--brand-900);">Danh sách cửa hàng</h3>
+              <div class="filters-row">
+                <select class="filter-select" id="storeListRegion">
+                  <option value="">Toàn quốc</option>
+                  <option value="MB">Miền Bắc</option>
+                  <option value="MT">Miền Trung</option>
+                  <option value="MN">Miền Nam</option>
+                </select>
+              </div>
+            </div>
+            <div class="card">
+              <div class="table-wrap wrap-cells">
+                <table class="data-table" id="storeListTable">
+                  <thead><tr><th>Miền</th><th>Khu vực</th><th>Cost center</th><th class="col-wrap">Địa chỉ</th><th>Xã/Phường</th><th>Thành phố trực thuộc</th><th>Loại cửa hàng</th><th>Trạng thái</th></tr></thead>
+                  <tbody></tbody>
+                </table>
+              </div>
+            </div>
+            <div class="pagination" id="storeListPagination"></div>
+          </div>
           <div id="storeDetailWrap" style="margin-top:18px;"></div>
         </section>
 
@@ -977,7 +999,7 @@
             <div class="row-between">
               <div class="search-bar" style="flex:1; max-width:520px;">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
-                <input type="text" id="sanakySearchInput" placeholder="Nhập mã tài sản, mã cửa hàng hoặc địa chỉ để tìm kiếm...">
+                <input type="text" id="sanakySearchInput" placeholder="Nhập mã tài sản, địa chỉ hoặc mã cửa hàng">
                 <button class="btn btn-primary" id="sanakySearchBtn" type="button" onclick="THTM.runSanakySearch()">Tìm kiếm</button>
               </div>
             </div>
@@ -1046,6 +1068,7 @@
                 <option value="MT">Miền Trung</option>
                 <option value="MN">Miền Nam</option>
               </select>
+              <select class="filter-select" id="cpStaffSelect"><option value="">Tất cả NV phụ trách</option></select>
               <select class="filter-select" id="cpSupplierSelect"><option value="">Tất cả nhà cung cấp</option></select>
               <select class="filter-select" id="cpMonthSelect"><option value="">Tất cả tháng</option></select>
               <select class="filter-select" id="cpYearSelect"><option value="">Tất cả năm</option></select>
@@ -1057,7 +1080,7 @@
             <div class="table-wrap wrap-cells">
               <table class="data-table" id="cpTable">
                 <thead>
-                  <tr><th>Cost center</th><th class="col-wrap w-store">Tên cửa hàng</th><th>Khu vực</th><th class="col-wrap w-issue">Mô tả sự cố</th><th>NV phụ trách</th><th class="col-wrap w-item">Hạng mục/Vật tư</th><th>Mã thiết bị</th><th>Ngày hoàn thành</th><th style="text-align:center;">Số lượng</th><th class="money">Tổng chi phí</th><th class="w-supplier">Nhà cung cấp</th></tr>
+                  <tr><th>Cost center</th><th class="col-wrap w-store">Tên cửa hàng</th><th>Khu vực</th><th>NV phụ trách</th><th class="col-wrap w-issue">Mô tả sự cố</th><th class="col-wrap w-item">Hạng mục/Vật tư</th><th>Mã thiết bị</th><th>Ngày hoàn thành</th><th style="text-align:center;">Số lượng</th><th class="money">Tổng chi phí</th><th class="w-supplier">Nhà cung cấp</th></tr>
                 </thead>
                 <tbody></tbody>
               </table>
@@ -1628,8 +1651,8 @@
     assets: ['Tài sản', 'Tra cứu tài sản theo mã tài sản hoặc theo cửa hàng'],
     sanaky: ['Sanaky', 'Lịch sử sửa chữa và chi phí bảo trì thiết bị Sanaky'],
     maintenance: ['Bảo dưỡng', 'Lịch sử và chi phí bảo dưỡng thiết bị'],
-    'chiphi-ths': ['Chi phí sửa chữa THS', 'Chi phí sửa chữa tại cửa hàng (THS)'],
-    'chiphi-lsc': ['Chi phí sửa chữa LSC', 'Chi phí sửa chữa tại kho (LSC — Cost center bắt đầu bằng 5)'],
+    'chiphi-ths': ['Chi phí sửa chữa THS', 'Chi phí sửa chữa tại cửa hàng Truemart'],
+    'chiphi-lsc': ['Chi phí sửa chữa LSC', 'Chi phí sửa chữa tại kho Logistic SC'],
     vattu: ['Vật tư', 'Theo dõi vật tư tồn kho'],
     dongia: ['Đơn giá', 'Tra cứu đơn giá vật tư, nhân công theo mã IMC hoặc nội dung công việc']
   };
@@ -1659,6 +1682,7 @@
       $('#sanakyAssetDetailWrap').style.display = 'none';
       if (!sanakyLoaded) loadSanakyView();
     }
+    if (view === 'stores' && !$('#storeDetailWrap').innerHTML && !$('#storeCandidates').innerHTML) showStoreList();
     if (view === 'maintenance' && !maintLoaded) loadMaintenance();
     if (view === 'chiphi-ths') openChiPhiKind('ths');
     if (view === 'chiphi-lsc') openChiPhiKind('lsc');
@@ -2344,7 +2368,8 @@
   function doStoreSearch() {
     var q = $('#storeSearchInput').value.trim();
     $('#storeDetailWrap').innerHTML = '';
-    if (!q) { $('#storeCandidates').innerHTML = ''; return; }
+    if (!q) { showStoreList(); return; }
+    hideStoreList();
     $('#storeCandidates').innerHTML = '<div class="loading-wrap"><div class="spinner"></div>Đang tìm kiếm…</div>';
     runServer('searchStores', [q], function (results) {
       storeCandidatesCache = results;
@@ -2363,6 +2388,39 @@
     });
   }
 
+  // ----- Danh sách cửa hàng (hiện khi chưa tìm kiếm / chưa mở chi tiết) -----
+  var storeListLoaded = false, storeListPage = 1, storeListRegion = '';
+  function showStoreList() {
+    $('#storeCandidates').innerHTML = '';
+    $('#storeDetailWrap').innerHTML = '';
+    $('#storeListWrap').style.display = '';
+    if (!storeListLoaded) { storeListLoaded = true; fetchStoreList(); }
+  }
+  function hideStoreList() { $('#storeListWrap').style.display = 'none'; }
+  function fetchStoreList() {
+    $('#storeListTable tbody').innerHTML = skelTableRows(8, 8);
+    runServer('getStoreList', [{ region: storeListRegion, page: storeListPage, pageSize: 50 }], function (d) {
+      var tbody = $('#storeListTable tbody');
+      if (!d.rows.length) { tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; color:var(--ink-500); padding:24px;">Không có cửa hàng.</td></tr>'; }
+      else tbody.innerHTML = d.rows.map(function (r) {
+        var isOpen = String(r.status || '').toLowerCase().indexOf('opn') === 0;
+        return '<tr><td>' + esc(r.region) + '</td><td>' + esc(r.area) + '</td>' +
+          '<td><span class="cc-pill light" style="cursor:pointer;" title="Xem chi tiết cửa hàng" onclick="THTM.openStoreFromList(\'' + esc(r.costCenter).replace(/'/g, "\\'") + '\')">' + esc(r.costCenter) + '</span></td>' +
+          '<td class="col-wrap">' + esc(r.address) + '</td><td>' + esc(r.ward) + '</td><td>' + esc(r.city) + '</td>' +
+          '<td>' + (r.type ? '<span class="type-badge ' + typeBadgeClass(r.type) + '">' + esc(r.type) + '</span>' : '') + '</td>' +
+          '<td>' + (r.status ? '<span class="status-badge ' + (isOpen ? 'open' : 'closed') + '">' + (isOpen ? 'Đang hoạt động' : 'Đã đóng') + '</span>' : '') + '</td></tr>';
+      }).join('');
+      var totalPages = Math.max(1, Math.ceil(d.total / d.pageSize));
+      $('#storeListPagination').innerHTML =
+        '<span>Trang ' + d.page + ' / ' + totalPages + ' · ' + d.total + ' cửa hàng</span>' +
+        '<button ' + (d.page <= 1 ? 'disabled' : '') + ' onclick="THTM.storeListGoPage(' + (d.page - 1) + ')">← Trước</button>' +
+        '<button ' + (d.page >= totalPages ? 'disabled' : '') + ' onclick="THTM.storeListGoPage(' + (d.page + 1) + ')">Sau →</button>';
+    });
+  }
+  function storeListGoPage(p) { storeListPage = p; fetchStoreList(); }
+  function openStoreFromList(cc) { hideStoreList(); showStoreDetail(cc); window.scrollTo({ top: 0 }); }
+  $('#storeListRegion').addEventListener('change', function () { storeListRegion = this.value; storeListPage = 1; fetchStoreList(); });
+
   function pickStore(idx) {
     $('#storeCandidates').innerHTML = '';
     showStoreDetail(storeCandidatesCache[idx].costCenter);
@@ -2372,7 +2430,8 @@
     $('#storeDetailWrap').innerHTML = '<div class="loading-wrap"><div class="spinner"></div>Đang tải chi tiết…</div>';
     runServer('getStoreDetail', [costCenter], function (s) {
       if (!s) { $('#storeDetailWrap').innerHTML = '<div class="empty-state">Không có dữ liệu.</div>'; return; }
-      $('#storeDetailWrap').innerHTML = storeDetailHTML(s);
+      hideStoreList();
+      $('#storeDetailWrap').innerHTML = '<button class="btn btn-ghost btn-sm" type="button" onclick="THTM.backToStoreList()" style="margin-bottom:14px;">← Danh sách cửa hàng</button>' + storeDetailHTML(s);
       buildStoreSubTabs(s.costCenter);
     });
   }
@@ -2816,22 +2875,24 @@
 
   // ===== Chi phí sửa chữa THS (cửa hàng) / LSC (kho): tìm kiếm + bộ lọc + bảng như sheet CHI PHI =====
   var cpKind = '';
-  var cpState = { region: '', supplier: '', year: '', month: '', query: '', page: 1, pageSize: 50 };
+  var cpState = { region: '', supplier: '', staff: '', year: '', month: '', query: '', page: 1, pageSize: 50 };
 
   function cpOpts_() {
-    return { kind: cpKind, region: cpState.region, supplier: cpState.supplier, year: cpState.year, month: cpState.month,
+    return { kind: cpKind, region: cpState.region, supplier: cpState.supplier, staff: cpState.staff, year: cpState.year, month: cpState.month,
              query: cpState.query, page: cpState.page, pageSize: cpState.pageSize };
   }
 
   function openChiPhiKind(kind) {
     if (cpKind === kind) return;          // quay lại đúng trang đang xem -> giữ nguyên bộ lọc
     cpKind = kind;
-    cpState = { region: '', supplier: '', year: '', month: '', query: '', page: 1, pageSize: 50 };
+    cpState = { region: '', supplier: '', staff: '', year: '', month: '', query: '', page: 1, pageSize: 50 };
     $('#cpSearchInput').value = '';
     $('#cpRegionSelect').value = '';
-    runServer('getChiPhiSupplierOptions', [], function (list) {
-      $('#cpSupplierSelect').innerHTML = '<option value="">Tất cả nhà cung cấp</option>' +
-        (list || []).map(function (l) { return '<option value="' + esc(l) + '">' + esc(l) + '</option>'; }).join('');
+    // Nhà cung cấp và NV phụ trách lấy đúng các giá trị CÓ TRONG dữ liệu của trang này
+    runServer('getChiPhiKindFilterOptions', [kind], function (o) {
+      var opt = function (l) { return '<option value="' + esc(l) + '">' + esc(l) + '</option>'; };
+      $('#cpSupplierSelect').innerHTML = '<option value="">Tất cả nhà cung cấp</option>' + (o.suppliers || []).map(opt).join('');
+      $('#cpStaffSelect').innerHTML = '<option value="">Tất cả NV phụ trách</option>' + (o.staff || []).map(opt).join('');
     });
     runServer('getChiPhiKindMonthsAvailable', [kind], function (months) {
       setupYearMonthFilter_(months || [], $('#cpYearSelect'), $('#cpMonthSelect'), '', '', function (y, m) {
@@ -2850,7 +2911,7 @@
       } else {
         tbody.innerHTML = data.rows.map(function (r) {
           return '<tr><td><span class="cc-pill light" style="cursor:pointer;" title="Xem chi tiết cửa hàng" onclick="THTM.viewStoreFromAsset(\'' + esc(r.costCenter).replace(/'/g, "\\'") + '\')">' + esc(r.costCenter) + '</span></td>' +
-            '<td class="col-wrap w-store">' + esc(r.storeName) + '</td><td>' + esc(r.area) + '</td><td class="col-wrap w-issue">' + esc(r.issue) + '</td><td>' + esc(r.staff) + '</td>' +
+            '<td class="col-wrap w-store">' + esc(r.storeName) + '</td><td>' + esc(r.area) + '</td><td>' + esc(r.staff) + '</td><td class="col-wrap w-issue">' + esc(r.issue) + '</td>' +
             '<td class="col-wrap w-item">' + esc(r.item) + '</td>' +
             '<td>' + (r.assetCode ? assetToTaisanPill(r.assetCode) : '<span class="cc-dash">—</span>') + '</td>' +
             '<td>' + esc(normalizeDateJS_(r.date)) + '</td><td style="text-align:center;">' + esc(r.qty) + '</td>' +
@@ -2869,6 +2930,7 @@
 
   $('#cpRegionSelect').addEventListener('change', function () { cpState.region = this.value; cpState.page = 1; fetchChiPhiKindRows_(); });
   $('#cpSupplierSelect').addEventListener('change', function () { cpState.supplier = this.value; cpState.page = 1; fetchChiPhiKindRows_(); });
+  $('#cpStaffSelect').addEventListener('change', function () { cpState.staff = this.value; cpState.page = 1; fetchChiPhiKindRows_(); });
   function cpSearch_() { cpState.query = $('#cpSearchInput').value.trim(); cpState.page = 1; fetchChiPhiKindRows_(); }
   $('#cpSearchBtn').addEventListener('click', cpSearch_);
   $('#cpSearchInput').addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); cpSearch_(); } });
@@ -3648,6 +3710,9 @@
   // Expose
   window.THTM = {
     pickStore: pickStore,
+    openStoreFromList: openStoreFromList,
+    storeListGoPage: storeListGoPage,
+    backToStoreList: function () { $('#storeSearchInput').value = ''; showStoreList(); window.scrollTo({ top: 0 }); },
     pickAssetStore: pickAssetStore,
     viewStoreFromAsset: viewStoreFromAsset,
     viewAssetsFromStore: viewAssetsFromStore,

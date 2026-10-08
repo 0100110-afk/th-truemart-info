@@ -842,6 +842,30 @@ function computeDashboardData_(regionFilter, yearFilter) {
 
 // ============================== CỬA HÀNG ==============================
 
+/** Danh sách toàn bộ cửa hàng (DS CH) cho tab Cửa hàng — đúng các cột của sheet, có phân trang. */
+function getStoreList(opts) {
+  opts = opts || {};
+  const page = Math.max(1, Number(opts.page) || 1);
+  const pageSize = Number(opts.pageSize) || 50;
+  const region = String(opts.region || '').trim();
+  const rows = getStoresCached_()
+    .filter(function (s) { return String(s[COLS.STORE_COST_CENTER] || '').trim(); })
+    .filter(function (s) { return !region || regionGroup_(s[COLS.STORE_REGION]) === region; })
+    .map(function (s) {
+      return {
+        region: String(s[COLS.STORE_REGION] || ''),
+        area: String(s[COLS.STORE_AREA] || ''),
+        costCenter: cleanCode_(s[COLS.STORE_COST_CENTER]),
+        address: String(s[COLS.STORE_ADDRESS] || ''),
+        ward: String(s[COLS.STORE_WARD] || ''),
+        city: String(s[COLS.STORE_CITY] || ''),
+        type: String(s[COLS.STORE_TYPE] || ''),
+        status: String(s[COLS.STORE_STATUS] || '')
+      };
+    });
+  return { rows: rows.slice((page - 1) * pageSize, page * pageSize), total: rows.length, page: page, pageSize: pageSize };
+}
+
 function searchStores(query) {
   const raw = String(query || '').trim();
   if (!raw) return [];
@@ -1360,9 +1384,15 @@ function getChiPhiKindMonthsAvailable(kind) {
   return Object.keys(set).sort().reverse();
 }
 
-/** Tên tab NCC đúng thứ tự cấu hình + "Khác" — dùng cho ô chọn Nhà cung cấp. */
-function getChiPhiSupplierOptions() {
-  return getNccTabs_().map(function (t) { return t.label; }).concat(['Khác']);
+/** Danh sách Nhà cung cấp và NV phụ trách CÓ TRONG DỮ LIỆU của trang THS / LSC (sắp A→Z). */
+function getChiPhiKindFilterOptions(kind) {
+  const sup = {}, staff = {};
+  chiPhiKindRows_(kind === 'lsc' ? 'lsc' : 'ths').forEach(function (r) {
+    const a = String(r[COLS.CP_SUPPLIER] || '').trim(); if (a) sup[a] = true;
+    const b = String(r[COLS.CP_STAFF] || '').trim(); if (b) staff[b] = true;
+  });
+  const sortVi = function (a, b) { return a.localeCompare(b, 'vi'); };
+  return { suppliers: Object.keys(sup).sort(sortVi), staff: Object.keys(staff).sort(sortVi) };
 }
 
 function chiPhiKindFiltered_(opts) {
@@ -1379,7 +1409,9 @@ function chiPhiKindFiltered_(opts) {
       return k && k.split('-')[1] === mm;
     });
   }
-  if (supplier) rows = rows.filter(function (r) { return chiPhiSupplierLabel_(r[COLS.CP_SUPPLIER]) === supplier; });
+  const staff = String(opts.staff || '').trim();
+  if (supplier) rows = rows.filter(function (r) { return String(r[COLS.CP_SUPPLIER] || '').trim() === supplier; });
+  if (staff) rows = rows.filter(function (r) { return String(r[COLS.CP_STAFF] || '').trim() === staff; });
   return rows;
 }
 
