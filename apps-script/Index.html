@@ -348,7 +348,9 @@
   .vt-fix .btn-xs.ok{background:var(--brand-900); border-color:var(--brand-900); color:#fff;}
   .vt-fix .btn-xs:hover{border-color:var(--brand-500);}
   /* Ô trên cao đúng bằng thẻ trạng thái (24px), ô dưới cách 4px như dòng tên vật tư .vt-sub */
-  table.vt-track-table td.vt-act{padding-left:0; padding-right:8px; text-align:center;}
+  table.vt-track-table td.vt-act, table.vt-track-table th.vt-act{padding-left:0 !important; padding-right:6px !important;}
+  table.vt-track-table td.vt-act .vt-act-top, table.vt-track-table td.vt-act .vt-act-bot{justify-content:flex-start;}
+  table.vt-track-table td.vt-status-cell{padding-right:4px !important;}
   .vt-act-top{height:24px; display:flex; align-items:center; justify-content:center;}
   .vt-act-bot{margin-top:3px; height:18px; display:flex; align-items:center; justify-content:center;}
   .vt-act-bot .vt-ico{width:20px; height:20px;}
@@ -1175,7 +1177,7 @@
                      mép phải trong khi cột Hạng mục bị bóp đến mức dòng nào cũng gãy đôi. -->
                 <colgroup>
                   <col style="width:11%"><col style="width:11%"><col style="width:15%"><col style="width:5%">
-                  <col style="width:13%"><col style="width:26%"><col style="width:16%"><col style="width:3%">
+                  <col style="width:13%"><col style="width:29%"><col style="width:13%"><col style="width:2%">
                 </colgroup>
                 <thead><tr><th>Nguồn</th><th title="Ngày hoàn thành">Ngày</th><th class="col-wrap">Hạng mục vật tư</th><th title="Số lượng">SL</th><th>NV Phụ trách</th><th class="col-wrap">Địa chỉ</th><th>Trạng thái</th><th class="vt-act"></th></tr></thead>
                 <tbody></tbody>
@@ -3348,7 +3350,7 @@
              bảng ra ngoài khung. */
           '<td class="col-wrap">' + esc(r.item) + '</td><td>' + esc(r.qty) + '</td>' +
           '<td>' + esc(r.staff || '—') + '</td><td class="col-wrap">' + esc(r.address || '—') + '</td>' +
-          '<td>' + vtStatusBadge(r.status, r.statusLabel) +
+          '<td class="vt-status-cell">' + vtStatusBadge(r.status, r.statusLabel) +
           (r.statusSub ? '<span class="vt-sub">' + esc(r.statusSub) + '</span>' : '') + '</td>' +
           '<td class="vt-act">' + vtActIcons_(r, i) + '</td></tr>';
       }).join('');

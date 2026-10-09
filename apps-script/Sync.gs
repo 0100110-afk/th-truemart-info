@@ -16,7 +16,8 @@
  *   App -> Sheet  (sửa trên APP, sheet chỉ là bản sao để xem/báo cáo):
  *       VAT TU, VAT TU NHAP KHO, VAT TU TU DONG TRU.
  *       Kéo về 10 phút/lần, hoặc menu "App TM" -> "Kéo vật tư từ app về sheet".
- *       ĐỪNG sửa tay 3 sheet này nữa — lần kéo sau sẽ ghi đè.
+ *       HAI CHIỀU: sửa tay VAT TU (danh mục, tồn kho theo người giữ) hoặc VAT TU NHAP KHO (lịch sử
+ *       nhập) -> đẩy ngược lên app ngay. VAT TU TU DONG TRU vẫn chỉ đọc. Bản sửa sau cùng thắng.
  *
  * CÀI ĐẶT (1 lần) — chi tiết trong README:
  *   1. Firebase Console -> Project settings -> Service accounts -> Generate new private key (tải file JSON).
@@ -218,6 +219,7 @@ function fsOnEdit(e) {
   try {
     const name = e && e.range ? e.range.getSheet().getName() : '';
     if (name === FS_SHEET_USERS) { fsWithLock_(function () { fsSyncAllUsers_(false); }); return; }
+    if (name === FS_TAB_VATTU || name === FS_TAB_VATTU_LOG) { fsWithLock_(function () { fsPushVatTuSheet_(name); }); return; }
     const fromDg = e && e.source && e.source.getId && e.source.getId() === FS_DG_FILE_ID;
     const src = fsSources_().filter(function (s) { return s.name === name && !!s.external === !!fromDg; })[0];
     if (!src) return;
@@ -238,6 +240,7 @@ function fsOnChange(e) {
     if (t === 'FORMAT') return;
     const sh = e && e.source ? e.source.getActiveSheet() : null;
     const name = sh ? sh.getName() : '';
+    if (name === FS_TAB_VATTU || name === FS_TAB_VATTU_LOG) { fsWithLock_(function () { fsPushVatTuSheet_(name); }); return; }
     const src = fsSources_().filter(function (s) { return s.name === name && !s.external; })[0];
     if (!src) return;
     fsWithLock_(function () {
@@ -841,28 +844,9 @@ function fsImportVatTu_(force) {
   const ss = SpreadsheetApp.getActive();
 
   const st = { holders: [], materials: [], autologMigrated: false, autologChunks: 0 };
-  const sh = ss.getSheetByName(FS_TAB_VATTU);
-  if (sh && sh.getLastRow() >= 1) {
-    const v = sh.getRange(1, 1, sh.getLastRow(), Math.max(sh.getLastColumn(), 3)).getValues();
-    const headers = v[0].map(function (h) { return String(h || '').trim(); });
-    st.holders = headers.slice(3).filter(function (h) { return h; });
-    for (let i = 1; i < v.length; i++) {
-      const code = String(v[i][0] || '').trim(), name = String(v[i][1] || '').trim();
-      if (!code && !name) continue;
-      const qty = {};
-      for (let c = 3; c < headers.length; c++) if (headers[c]) qty[headers[c]] = Number(v[i][c]) || 0;
-      st.materials.push({ code: code, name: name, spec: String(v[i][2] || ''), qty: qty });
-    }
-  }
-
-  const stockin = [];
-  const lg = ss.getSheetByName(FS_TAB_VATTU_LOG);
-  if (lg && lg.getLastRow() >= 2) {
-    lg.getRange(2, 1, lg.getLastRow() - 1, 5).getDisplayValues().forEach(function (r) {
-      if (!r[1] && !r[2]) return;
-      stockin.push({ date: r[0], code: String(r[1]).trim(), name: r[2], qty: Number(String(r[3]).replace(/[^\d.-]/g, '')) || 0, holder: r[4] });
-    });
-  }
+  const parsed = fsReadVatTuSheet_(ss);
+  if (parsed) { st.holders = parsed.holders; st.materials = parsed.materials; }
+  const stockin = fsReadStockinSheet_(ss) || [];
 
   const autolog = [];
   const al = ss.getSheetByName('VAT TU TU DONG TRU');
@@ -900,6 +884,86 @@ function fsImportVatTu_(force) {
   fsCommit_(writes);
   PropertiesService.getScriptProperties().setProperty(FS_PROP_MIRROR_REV, '1');
   return true;
+}
+
+/** Đọc sheet VAT TU -> { holders, materials }. Tiêu đề người giữ gộp khoảng trắng / xuống dòng. */
+function fsReadVatTuSheet_(ss) {
+  const sh = ss.getSheetByName(FS_TAB_VATTU);
+  if (!sh || sh.getLastRow() < 1) return null;
+  const v = sh.getRange(1, 1, sh.getLastRow(), Math.max(sh.getLastColumn(), 3)).getValues();
+  const headers = v[0].map(function (h) { return String(h || '').replace(/\s+/g, ' ').trim(); });
+  const holders = headers.slice(3).filter(function (h) { return h; });
+  const materials = [];
+  for (let i = 1; i < v.length; i++) {
+    const code = String(v[i][0] || '').trim(), name = String(v[i][1] || '').trim();
+    if (!code && !name) continue;
+    const qty = {};
+    for (let c = 3; c < headers.length; c++) if (headers[c]) qty[headers[c]] = Number(v[i][c]) || 0;
+    materials.push({ code: code, name: name, spec: String(v[i][2] || ''), qty: qty });
+  }
+  return { holders: holders, materials: materials };
+}
+
+/** Đọc sheet VAT TU NHAP KHO -> mảng lịch sử nhập. */
+function fsReadStockinSheet_(ss) {
+  const lg = ss.getSheetByName(FS_TAB_VATTU_LOG);
+  if (!lg) return null;
+  const out = [];
+  if (lg.getLastRow() >= 2) {
+    lg.getRange(2, 1, lg.getLastRow() - 1, 5).getDisplayValues().forEach(function (r) {
+      if (!r[1] && !r[2]) return;
+      out.push({ date: r[0], code: String(r[1]).trim(), name: r[2], qty: Number(String(r[3]).replace(/[^\d.-]/g, '')) || 0, holder: r[4] });
+    });
+  }
+  return out;
+}
+
+/**
+ * Sửa tay trên sheet VAT TU / VAT TU NHAP KHO -> đẩy lên app ngay (đồng bộ 2 chiều).
+ *  - VAT TU: thay danh mục + tồn kho theo người giữ; GIỮ NGUYÊN sổ trừ kho, cpFixes... của app.
+ *  - VAT TU NHAP KHO: thay "Lịch sử nhập" — chỉ là lịch sử, KHÔNG tự cộng/trừ tồn kho.
+ * Ghi xong đánh dấu rev đã kéo = rev mới, để lượt kéo app -> sheet kế tiếp không ghi đè lại.
+ * Bản sửa sau cùng (app hay sheet) thắng.
+ */
+function fsPushVatTuSheet_(name) {
+  const ss = SpreadsheetApp.getActive();
+  const props = PropertiesService.getScriptProperties();
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const d = fsGetDoc_('vattu/state');
+    if (!d) return false;                        // app chưa có kho vật tư -> dùng Cài đặt đồng bộ
+    const rev = Number(fsField_(d, 'rev') || 0) + 1;
+    const now = new Date().toISOString();
+    const pre = d.updateTime ? { updateTime: d.updateTime } : undefined;
+    let writes;
+    if (name === FS_TAB_VATTU) {
+      const parsed = fsReadVatTuSheet_(ss);
+      if (!parsed) return false;
+      const st = JSON.parse(fsField_(d, 'json') || '{}');
+      st.holders = parsed.holders;
+      st.materials = parsed.materials;
+      writes = [{ update: { name: fsDocName_('vattu/state'), fields: {
+        json: { stringValue: JSON.stringify(st) }, rev: { integerValue: String(rev) },
+        updatedAt: { timestampValue: now }, updatedBy: { stringValue: 'Sheet VAT TU' } } } }];
+    } else {
+      const stockin = fsReadStockinSheet_(ss);
+      if (!stockin) return false;
+      // Đổi rev của state để app biết dữ liệu vật tư đã đổi (app đọc lại cả stockin khi tải).
+      writes = [
+        { update: { name: fsDocName_('vattu/stockin'), fields: { json: { stringValue: JSON.stringify(stockin) }, updatedAt: { timestampValue: now } } } },
+        { update: { name: fsDocName_('vattu/state'), fields: { rev: { integerValue: String(rev) }, updatedAt: { timestampValue: now }, updatedBy: { stringValue: 'Sheet VAT TU NHAP KHO' } } },
+          updateMask: { fieldPaths: ['rev', 'updatedAt', 'updatedBy'] } }
+      ];
+    }
+    if (pre) writes[writes.length - 1].currentDocument = pre;
+    try {
+      fsCommit_(writes);
+      props.setProperty(FS_PROP_MIRROR_REV, String(rev));
+      return true;
+    } catch (err) {
+      if (attempt) throw err;                    // app vừa ghi chen giữa -> đọc lại và thử 1 lần nữa
+    }
+  }
+  return false;
 }
 
 /** Firestore -> 3 sheet VAT TU. Chỉ ghi khi rev trên app khác lần kéo trước (force: luôn ghi). */

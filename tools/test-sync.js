@@ -77,7 +77,7 @@ const UrlFetchApp = { fetch(url, opt) {
     const body = JSON.parse(opt.payload);
     body.writes.forEach((w) => {
       if (w.delete) delete st[w.delete.replace(pfx, '')];
-      else { const id = w.update.name.replace(pfx, ''); if (w.currentDocument && w.currentDocument.exists === false && st[id]) throw new Error('exists'); st[id] = { name: w.update.name, fields: w.update.fields }; }
+      else { const id = w.update.name.replace(pfx, ''); if (w.currentDocument && w.currentDocument.exists === false && st[id]) throw new Error('exists'); st[id] = { name: w.update.name, fields: w.updateMask && st[id] ? Object.assign({}, st[id].fields, w.update.fields) : w.update.fields }; }
     });
     return resp(200, {});
   }
@@ -180,6 +180,18 @@ const vt = sheets['VAT TU']._v();
 ok(vt[1][4] === 7, 'kéo tồn kho mới về sheet VAT TU');
 ok(sheets['VAT TU TU DONG TRU']._v().length === 6001, 'sổ trừ kho về sheet đủ 6000 dòng');
 ok(sheets['VAT TU NHAP KHO']._v()[1][4] === 'Nguyễn Duy Đức', 'lịch sử nhập kho giữ nguyên');
+// ---- Sửa tay trên sheet vật tư -> đẩy ngược lên app ----
+const revBefore = Number(store['vattu/state'].fields.rev.integerValue);
+sheets['VAT TU']._v()[1][4] = 42;
+ctx.__t.fsOnEdit({ range: { getSheet: () => sheets['VAT TU'] } });
+const st2 = JSON.parse(store['vattu/state'].fields.json.stringValue);
+ok(st2.materials[0].qty['Vũ Quang Hưng'] === 42 && st2.autologChunks === 2, 'sửa sheet VAT TU -> tồn kho trên app đổi, giữ sổ trừ kho');
+ok(Number(store['vattu/state'].fields.rev.integerValue) === revBefore + 1, 'rev tăng');
+ok(ctx.__t.fsMirrorVatTu_(false) === 0, 'lượt kéo về sau đó KHÔNG ghi đè sheet vừa sửa');
+sheets['VAT TU NHAP KHO']._v()[1][3] = 99;
+ctx.__t.fsOnEdit({ range: { getSheet: () => sheets['VAT TU NHAP KHO'] } });
+const si = JSON.parse(store['vattu/stockin'].fields.json.stringValue);
+ok(si[0].qty === 99 && !!store['vattu/state'].fields.json, 'sửa sheet NHAP KHO -> lịch sử nhập trên app đổi, state giữ nguyên');
 // ---- Cấp quyền Phiếu sửa chữa từ cùng sheet APP USERS ----
 stores.p2['admins/quantri@th.com'] = { name: 'projects/p2/databases/(default)/documents/admins/quantri@th.com', fields: { role: { stringValue: 'admin' } } };
 props.FIREBASE_SA_PSC = JSON.stringify({ client_email: 'y', private_key: 'k', project_id: 'p2' });

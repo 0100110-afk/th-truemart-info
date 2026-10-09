@@ -346,6 +346,17 @@
   button.vt-status.dim{opacity:.45;}
   /* Dòng phụ: cho biết trừ vào vật tư nào trong danh mục */
   .vt-sub{display:block; margin-top:3px; font-size:11px; color:var(--ink-500); line-height:1.35;}
+  .vt-st-row{display:flex; align-items:flex-start; justify-content:space-between; gap:6px; margin-top:7px;}
+  .vt-act{display:flex; flex-direction:column; gap:2px;}
+  .vt-act-top{height:24px; display:flex; align-items:center;}
+  .vt-act-bot{height:20px; display:flex; align-items:center;}
+  .vt-ico{width:26px; height:24px; display:inline-flex; align-items:center; justify-content:center; border-radius:7px; border:1px solid var(--line); background:var(--white); color:var(--brand-800); padding:0;}
+  .vt-act-bot .vt-ico{height:20px;}
+  .vt-ico svg{width:13px; height:13px;}
+  .vt-ico.ok{color:#12B76A; border-color:#ABEFC6; background:#ECFDF3;}
+  .vt-fix-r{display:flex; gap:10px; font-size:12.5px; padding:4px 0;}
+  .vt-fix-r .k{flex:0 0 110px; color:var(--ink-500);}
+  .vt-fix-hl{background:#FEF0C7; border:1px solid #FEC84B; border-radius:6px; padding:1px 7px; font-weight:600; color:#7A2E0E;}
 
   .summary-line{
     font-size:12px; color:var(--ink-500); margin:2px 2px 10px; display:flex; gap:6px; flex-wrap:wrap; align-items:center;
@@ -849,6 +860,22 @@
     </div>
   </div>
 
+  <!-- SHEET: Chọn vật tư khớp / Chọn người giữ vật tư -->
+  <div class="sheet-overlay" id="vtFixOverlay"></div>
+  <div class="sheet" id="vtFixSheet">
+    <div class="sheet-grip"></div>
+    <div class="sheet-head"><h3 id="vtFixTitleM">Chọn vật tư khớp</h3><button class="sheet-close" data-close="vtFix">✕</button></div>
+    <div class="sheet-body">
+      <div id="vtFixInfoM" style="margin-bottom:12px;"></div>
+      <div class="field"><label id="vtFixLabelM">Vật tư</label><select id="vtFixSelectM"></select></div>
+      <div style="font-size:11.5px; color:var(--ink-500); line-height:1.45;">Sau khi xác nhận, ô tương ứng trên sheet CHI PHI được cập nhật (trong vòng 10 phút). Bấm Khớp vật tư để trừ kho.</div>
+    </div>
+    <div class="sheet-foot" style="display:flex; gap:10px;">
+      <button class="btn btn-ghost" style="flex:1;" id="vtFixBackBtnM">Quay lại</button>
+      <button class="btn btn-primary" style="flex:1;" id="vtFixOkBtnM">Xác nhận</button>
+    </div>
+  </div>
+
   <div class="sheet-overlay" id="pwOverlay"></div>
   <div class="sheet" id="pwSheet">
     <div class="sheet-grip"></div>
@@ -1006,6 +1033,7 @@
       var which=b.dataset.close;
       if(which==='pw'){ closePw_(false); return; }   // đóng/huỷ -> coi như không nhập mật khẩu
       if(which==='vtConfirm'){ closeSheet('vtConfirm'); return; }
+      if(which==='vtFix'){ closeSheet('vtFix'); return; }
       closeSheet(which==='more'?'more':'stockIn');
     });
   });
@@ -2230,18 +2258,69 @@
   function renderVtTrack(){
     var el=$('#vtTrackList');
     if(!vtTRows.length){ el.innerHTML=emptyState('Không có bản ghi phù hợp',''); $('#vtTrackMoreBtn').style.display='none'; return; }
-    el.innerHTML=vtSummaryHTML(vtTCounts)+'<div class="summary-line"><strong>'+vtTTotal+'</strong> bản ghi</div>'+vtTRows.map(function(r){
+    el.innerHTML=vtSummaryHTML(vtTCounts)+'<div class="summary-line"><strong>'+vtTTotal+'</strong> bản ghi</div>'+vtTRows.map(function(r,i){
       return '<div class="rec"><div class="rec-top"><div class="rec-top-left">'+
         '<span class="badge chiphi">'+esc(r.source||'Khác')+'</span></div>'+
         '<span class="rec-date">'+esc(nDate(r.date))+'</span></div>'+
         '<div class="rec-body">'+esc(r.item)+' <span style="color:var(--ink-300); font-size:11px;">×'+esc(r.qty)+'</span></div>'+
         '<div class="rec-sub">'+esc(r.staff||'—')+(r.address?' · '+esc(r.address):'')+'</div>'+
-        '<div style="margin-top:7px;">'+vtStatusBadge(r.status,r.statusLabel)+
-          (r.statusSub?'<span class="vt-sub">'+esc(r.statusSub)+'</span>':'')+'</div>'+
+        '<div class="vt-st-row"><div>'+vtStatusBadge(r.status,r.statusLabel)+
+          (r.statusSub?'<span class="vt-sub">'+esc(r.statusSub)+'</span>':'')+'</div>'+vtActIconsM_(r,i)+'</div>'+
       '</div>';
     }).join('');
     $('#vtTrackMoreBtn').style.display=vtTRows.length<vtTTotal?'':'none';
   }
+  /* Xác nhận / chọn vật tư, chọn người giữ cho dòng chưa trừ kho (giống bản máy tính):
+     ✓ / 👤 ngang thẻ trạng thái, ✎ ngang tên vật tư. Lưu ở app, Sync.gs ghi ngược sheet CHI PHI. */
+  var VT_I_OK_='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
+  var VT_I_EDIT_='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4L19 9l-4-4L4 16v4z"/><path d="M13.5 6.5l4 4"/></svg>';
+  var VT_I_USER_='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg>';
+  function vtActIconsM_(r,i){
+    if(!r.id) return '';
+    var b=function(cls,svg,js){ return '<button type="button" class="vt-ico '+cls+'" onclick="'+js+'">'+svg+'</button>'; };
+    var top='',bot='';
+    if(r.status==='no_item'||r.status==='wait'){
+      if(r.statusSub) top=b('ok',VT_I_OK_,'THM.vtQuickConfirm('+i+')');
+      bot=b('',VT_I_EDIT_,"THM.vtOpenFix("+i+",'item')");
+    } else if(r.status==='no_holder'){ top=b('',VT_I_USER_,"THM.vtOpenFix("+i+",'staff')"); }
+    else return '';
+    return '<div class="vt-act"><div class="vt-act-top">'+top+'</div>'+(bot?'<div class="vt-act-bot">'+bot+'</div>':'')+'</div>';
+  }
+  var vtFixCtxM_=null;
+  function vtFixSendM_(r,fix){
+    runServer('confirmChiPhiFix',[r.id,fix],function(){ toast('Đã xác nhận — bấm Khớp vật tư để trừ kho.'); fetchVtTrack(true); });
+  }
+  function vtQuickConfirm(i){
+    var r=vtTRows[i]; if(!r||!r.statusSub) return;
+    requirePassword_('Xác nhận vật tư','Hạng mục "'+r.item+'" là vật tư "'+r.statusSub+'". Ô Hạng mục/Vật tư trên sheet CHI PHI sẽ đổi thành "'+r.statusSub+'".')
+      .then(function(ok){ if(ok) vtFixSendM_(r,{item:r.statusSub,fromItem:r.item}); });
+  }
+  function vtOpenFix(i,kind){
+    var r=vtTRows[i]; if(!r) return;
+    var go=function(){
+      vtFixCtxM_={row:r,kind:kind};
+      $('#vtFixTitleM').textContent=kind==='item'?'Chọn vật tư khớp':'Chọn người giữ vật tư';
+      var hl=function(on,v){ return on?'<span class="vt-fix-hl">'+v+'</span>':v; };
+      var row=function(k,v){ return '<div class="vt-fix-r"><span class="k">'+k+'</span><span>'+v+'</span></div>'; };
+      $('#vtFixInfoM').innerHTML=row('Hạng mục/Vật tư',hl(kind==='item',esc(r.item)||'<i>(trống)</i>'))+
+        row('NV phụ trách',hl(kind==='staff',esc(r.staff||'')||'<i>(trống)</i>'))+
+        row('Ngày',esc(nDate(r.date)))+row('Số lượng',esc(r.qty))+row('Địa chỉ',esc(r.address||'—'));
+      $('#vtFixLabelM').textContent=kind==='item'?'Vật tư khớp trong danh mục':'Người giữ vật tư';
+      $('#vtFixSelectM').innerHTML=kind==='item'
+        ? '<option value="">— Chọn vật tư —</option>'+vtData.materials.map(function(m){ return '<option value="'+esc(m.name)+'"'+(m.name===r.statusSub?' selected':'')+'>'+esc(m.name)+'</option>'; }).join('')
+        : '<option value="">— Chọn người giữ —</option>'+vtData.holders.map(function(h){ return '<option value="'+esc(h)+'">'+esc(h)+'</option>'; }).join('');
+      openSheet('vtFix');
+    };
+    if(vtData) go(); else runServer('getVatTuData',[],function(d){ vtData=d; go(); });
+  }
+  $('#vtFixOverlay').addEventListener('click',function(){ closeSheet('vtFix'); });
+  $('#vtFixBackBtnM').addEventListener('click',function(){ closeSheet('vtFix'); });
+  $('#vtFixOkBtnM').addEventListener('click',function(){
+    var c=vtFixCtxM_, v=$('#vtFixSelectM').value; if(!c) return;
+    if(!v){ toast('Chọn '+(c.kind==='item'?'vật tư':'người giữ')+' trước.',true); return; }
+    closeSheet('vtFix');
+    vtFixSendM_(c.row, c.kind==='item'?{item:v,fromItem:c.row.item}:{staff:v,fromStaff:c.row.staff||''});
+  });
   $('#vtTrackStatusSelect').addEventListener('change',function(){ vtTStatus=this.value; fetchVtTrack(true); });
   $('#vtTrackMoreBtn').addEventListener('click',function(){ vtTPage++; fetchVtTrack(false); });
   $('#vtTrackSearchInput').addEventListener('input',function(){
@@ -2427,7 +2506,7 @@
   // ============================== EXPOSE ==============================
 
   window.THM={
-    pickStore:pickStore, pickStoreList:pickStoreList,
+    pickStore:pickStore, pickStoreList:pickStoreList, vtQuickConfirm:vtQuickConfirm, vtOpenFix:vtOpenFix,
     backToStores:backToStores,
     openStoreDetail:openStoreDetail,
     viewAssetsOfStore:viewAssetsOfStore,
