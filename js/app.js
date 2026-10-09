@@ -19,7 +19,7 @@ import {
 import {
   getFirestore, doc, getDoc, getDocs, collection, query, where, runTransaction, serverTimestamp
 } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js';
-import { FIREBASE_CONFIG, APP_TITLE } from './firebase-config.js';
+import { FIREBASE_CONFIG, APP_TITLE, SYNC_URL } from './firebase-config.js';
 
 const SHEET_KEYS = ['stores', 'assets', 'maint', 'chiphi', 'sanaky', 'ncctabs', 'storesoff', 'dongia_bt', 'dongia_xd', 'dongia_snk'];
 const AUTOLOG_CHUNK_MAX = 2500;   // ~110 byte/dòng -> ~275KB/tài liệu, xa trần 1MB của Firestore
@@ -31,6 +31,9 @@ const db = getFirestore(fbApp);
 let currentUser = null;
 let currentRole = null;
 let lastUpdatedIso = null;
+let loadedHashes = {};             // key -> hash của bản đang hiển thị (để biết sheet nào có dữ liệu mới)
+const SHEET_LABELS = { stores: 'DS CH', assets: 'TAI SAN', maint: 'BAO DUONG', chiphi: 'CHI PHI', sanaky: 'SANAKY',
+  ncctabs: 'NCC THEO DÕI', storesoff: 'CH OFF', dongia_bt: 'Đơn giá BT', dongia_xd: 'Đơn giá XD', dongia_snk: 'Đơn giá SNK' };
 let autologCache = [];
 let stockinCache = [];
 let apiOpened = false;
@@ -232,7 +235,7 @@ async function loadAll() {
     const m = meta.sheets[key];
     if (!m) return;
     const payload = offline ? await idb.get('sheet:' + key) : await loadSheetKey(key, m);
-    if (payload) TMCore.setSheetData(key, payload);
+    if (payload) { TMCore.setSheetData(key, payload); loadedHashes[key] = m.hash; }
   }));
 
   await loadVatTu(offline);
@@ -370,6 +373,27 @@ function buildApi() {
   api.addVatTuStock = (holder, items) => mutateVatTu((st, stockin) => TMCore.VT_OPS.addVatTuStock(st, stockin, holder, items));
   api.runVatTuAutoDeduction = runVatTuAutoDeduction;
   api.getDataLastUpdated = () => lastUpdatedIso;
+  /* Admin: bảo Sync.gs (Web app) đọc Google Sheet NGAY và đẩy phần thay đổi lên, rồi tải về. */
+  api.syncFromSheet = async () => {
+    if (!SYNC_URL) throw new Error('Chưa cấu hình link đồng bộ (SYNC_URL).');
+    const idToken = await currentUser.getIdToken();
+    let res;
+    try {
+      const r = await fetch(SYNC_URL, { method: 'POST', body: JSON.stringify({ action: 'sync', idToken }) });
+      res = await r.json();
+    } catch (e) { throw new Error('Không gọi được Google Sheet để đồng bộ. Kiểm tra mạng rồi thử lại.'); }
+    if (!res || !res.ok) throw new Error((res && res.error) || 'Đồng bộ thất bại.');
+    await loadAll();
+    return Object.assign(res, { refreshedAt: lastUpdatedIso,
+      changedLabels: (res.changed || []).map((k) => SHEET_LABELS[k] || k) });
+  };
+  /* Firestore có bản mới hơn bản đang hiển thị? Chỉ đọc 1 tài liệu meta. */
+  api.checkNewData = async () => {
+    const meta = parseJsonField(await getDoc(doc(db, 'meta', 'sheets')), null);
+    if (!meta || !meta.sheets) return [];
+    return SHEET_KEYS.filter((k) => meta.sheets[k] && loadedHashes[k] && meta.sheets[k].hash !== loadedHashes[k])
+      .map((k) => SHEET_LABELS[k] || k);
+  };
   api.refreshData = async () => {
     const offline = await loadAll();
     if (offline) throw new Error('Đang mất mạng — vẫn hiển thị dữ liệu đã lưu lần trước.');
@@ -604,6 +628,7 @@ async function start(user) {
   // ẩn hết nút ghi (css/auth.css: body.tm-viewer). Rules vẫn chặn ghi nếu cố gọi.
   const canEdit = currentRole === 'admin' || currentRole === 'editor';
   window.__TM_ROLE = canEdit ? 'admin' : 'viewer';
+  window.__TM_SYNC = !!(canEdit && SYNC_URL);      // giao diện: admin + có link -> nút Đồng bộ từ Google Sheet
   document.body.classList.toggle('tm-viewer', !canEdit);
 
   showLoading('Đang tải dữ liệu…');

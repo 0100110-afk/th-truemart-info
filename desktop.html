@@ -687,6 +687,22 @@
   }
   .toast.show{transform:translateY(0); opacity:1;}
   .toast.error{background:var(--danger);}
+  /* Thông báo đồng bộ (góc trên phải) */
+  .sync-card{position:fixed; top:20px; right:20px; z-index:90; min-width:300px; max-width:380px; border-radius:12px; padding:14px 16px;
+    font-size:13.5px; font-weight:600; color:#fff; display:flex; gap:12px; align-items:flex-start;
+    box-shadow:0 12px 34px -8px rgba(11,60,110,.45); opacity:0; transform:translateY(-14px); pointer-events:none; transition:opacity .25s, transform .25s;}
+  .sync-card.show{opacity:1; transform:translateY(0); pointer-events:auto;}
+  .sync-card svg{width:18px; height:18px; flex-shrink:0; margin-top:1px;}
+  .sync-card .sc-s{font-weight:500; font-size:12px; opacity:.92; margin-top:3px; line-height:1.45;}
+  .sync-card.sc-run{background:var(--brand-900);} .sync-card.sc-ok{background:#2C7A55;} .sync-card.sc-none{background:#475467;} .sync-card.sc-err{background:var(--danger);}
+  .sync-card.sc-new{background:#fff; color:var(--ink-900); border:1px solid var(--line);}
+  .sync-card.sc-new .sc-s{color:var(--ink-500); opacity:1;}
+  .sync-card .sc-acts{display:flex; gap:8px; margin-top:10px;}
+  .sync-card .sc-acts button{height:30px; padding:0 14px; border-radius:8px; font-weight:700; font-size:12.5px; cursor:pointer; font-family:inherit;}
+  .sync-card .sc-go{background:var(--brand-900); color:#fff; border:0;} .sync-card .sc-later{background:#fff; color:var(--brand-900); border:1px solid var(--line);}
+  .sync-card .sc-dot{width:9px; height:9px; border-radius:50%; background:#F79009; margin-top:5px; flex-shrink:0; box-shadow:0 0 0 4px #FEF0C7;}
+  .sync-card .sc-spin{width:16px; height:16px; border-radius:50%; border:2.5px solid rgba(255,255,255,.35); border-top-color:#fff; animation:spin .7s linear infinite; flex-shrink:0; margin-top:1px;}
+  .sidebar-refresh-btn.is-busy{opacity:.7;} .sidebar-refresh-btn.is-busy svg{animation:spin 1s linear infinite;}
 
   .pagination{display:flex; align-items:center; gap:8px; justify-content:flex-end; margin-top:16px; font-size:13px; color:var(--ink-500);}
   .pagination button{
@@ -1388,6 +1404,7 @@
 
   <div class="sidebar-scrim" id="sidebarScrim"></div>
   <div class="toast" id="toast"></div>
+  <div class="sync-card" id="syncCard" role="status" aria-live="polite"></div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js" onerror="var s=document.createElement('script'); s.src='https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js'; document.head.appendChild(s);"></script>
   <script>
@@ -4038,54 +4055,128 @@
     } catch (e) { /* giữ nguyên mốc đang hiện */ }
   }
 
-  // Làm mới dữ liệu: không reload trang (tránh trắng trang do iframe Apps Script), chỉ
-  // yêu cầu server đọc lại dữ liệu, reset các cờ "đã tải" + huỷ chart cũ, rồi tải lại view hiện tại.
+  /* Dữ liệu vừa được nạp lại (từ nút hoặc tự động) -> reset các cờ "đã tải" + huỷ chart cũ,
+     rồi tải lại view hiện tại. */
+  function reloadViewsAfterData_() {
+    dashboardLoaded = false; sanakyLoaded = false; maintLoaded = false; vattuLoaded = false; dongiaLoaded = false;
+    dongiaCache = { bt: null, xd: null, snk: null };
+    vtDefaultApplied = false;
+    if (chartRegion) { chartRegion.destroy(); chartRegion = null; }
+    if (chartType) { chartType.destroy(); chartType = null; }
+    if (chartMaintQuarterlyQty) { chartMaintQuarterlyQty.destroy(); chartMaintQuarterlyQty = null; }
+    if (chartMaintQuarterlyCost) { chartMaintQuarterlyCost.destroy(); chartMaintQuarterlyCost = null; }
+    var activeView = $('.view.active');
+    var viewName = activeView ? activeView.id.replace('view-', '') : 'dashboard';
+    if (viewName === 'dashboard') loadDashboard();
+    else if (viewName === 'sanaky') { $('#sanakyListWrap').style.display = ''; $('#sanakyAssetDetailWrap').style.display = 'none'; loadSanakyView(); }
+    else if (viewName === 'maintenance') loadMaintenance();
+    else if (viewName === 'vattu') loadVatTu();
+    else if (viewName === 'dongia') loadDongia(currentDongiaCategory);
+    else loadDashboard();
+  }
+
+  /* ===== Thông báo đồng bộ ở góc trên phải ===== */
+  var SC_ICO_OK_ = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
+  var SC_ICO_INFO_ = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16h.01"/></svg>';
+  var syncCardTimer_ = null;
+  function syncCard_(kind, title, sub, actions) {
+    clearTimeout(syncCardTimer_);
+    var el = $('#syncCard');
+    if (!kind) { el.className = 'sync-card'; return; }
+    var ico = kind === 'run' ? '<span class="sc-spin"></span>' : kind === 'new' ? '<span class="sc-dot"></span>' : (kind === 'ok' ? SC_ICO_OK_ : SC_ICO_INFO_);
+    el.innerHTML = ico + '<div><div class="sc-t">' + esc(title) + '</div>' + (sub ? '<div class="sc-s">' + esc(sub) + '</div>' : '') +
+      (actions ? '<div class="sc-acts">' + actions + '</div>' : '') + '</div>';
+    el.className = 'sync-card show sc-' + kind;
+    if (kind === 'ok' || kind === 'none' || kind === 'err') syncCardTimer_ = setTimeout(function () { el.className = 'sync-card'; }, kind === 'err' ? 7000 : 5000);
+  }
+  function nowVn_() { return fmtLastUpdated_(new Date().toISOString()); }
+
   var refreshBtn = $('#refreshDataBtn');
+  /* window.__TM_SYNC chỉ có sau khi đăng nhập xong -> đổi nhãn nút khi API đã sẵn sàng. */
+  try {
+    google.script.run.withSuccessHandler(function () {
+      if (!window.__TM_SYNC) return;
+      refreshBtn.querySelector('.label').textContent = 'Đồng bộ từ Google Sheet';
+      refreshBtn.setAttribute('data-tooltip', 'Đồng bộ từ Google Sheet');
+      refreshBtn.title = 'Đọc Google Sheet và cập nhật dữ liệu mới lên app';
+    }).withFailureHandler(function () {}).getDataLastUpdated();
+  } catch (e) {}
   refreshBtn.addEventListener('click', function () {
+    if (refreshBtn.disabled) return;
     refreshBtn.disabled = true;
-    refreshBtn.style.opacity = '.6';
-    var prevLastUpdated = getLastUpdatedValue_();   // để khôi phục nếu làm mới thất bại
+    refreshBtn.classList.add('is-busy');
+    var prevLastUpdated = getLastUpdatedValue_();
+    var done = function () { refreshBtn.disabled = false; refreshBtn.classList.remove('is-busy'); };
+
+    if (window.__TM_SYNC) {
+      // Admin trên app web: bảo Google Sheet đẩy dữ liệu mới lên ngay, rồi tải về.
+      refreshBtn.querySelector('.label').textContent = 'Đang đồng bộ…';
+      syncCard_('run', 'Đang đồng bộ từ Google Sheet…', 'Đọc các sheet và đẩy phần thay đổi lên app.');
+      runServer('syncFromSheet', [], function (res) {
+        done(); refreshBtn.querySelector('.label').textContent = 'Đồng bộ từ Google Sheet';
+        reloadViewsAfterData_();
+        if (res && res.refreshedAt) setLastUpdatedValue_(fmtLastUpdated_(res.refreshedAt));
+        var labels = (res && res.changedLabels) || [];
+        if (labels.length) syncCard_('ok', 'Đã cập nhật: ' + labels.join(', '), (res.details || []).join(' · ') + (res.details && res.details.length ? ' · ' : '') + 'lúc ' + nowVn_());
+        else syncCard_('none', 'Không có thay đổi', 'Google Sheet giống dữ liệu đang có trên app · kiểm tra lúc ' + nowVn_());
+      }, function (e) {
+        done(); refreshBtn.querySelector('.label').textContent = 'Đồng bộ từ Google Sheet';
+        syncCard_('err', 'Đồng bộ thất bại', (e && e.message) || 'Thử lại sau ít phút.');
+      });
+      return;
+    }
+
+    // Bản cũ (Apps Script) / chưa có link đồng bộ: chỉ đọc lại dữ liệu
     setLastUpdatedValue_('đang cập nhật…');
     showToast('Đang làm mới dữ liệu…');
     runServer('refreshData', [], function (res) {
-      dashboardLoaded = false;
-      sanakyLoaded = false;
-      maintLoaded = false;
-      vattuLoaded = false;
-      dongiaLoaded = false;
-      dongiaCache = { bt: null, xd: null, snk: null };
-      vtDefaultApplied = false;
-
-      if (chartRegion) { chartRegion.destroy(); chartRegion = null; }
-      if (chartType) { chartType.destroy(); chartType = null; }
-      if (chartMaintQuarterlyQty) { chartMaintQuarterlyQty.destroy(); chartMaintQuarterlyQty = null; }
-      if (chartMaintQuarterlyCost) { chartMaintQuarterlyCost.destroy(); chartMaintQuarterlyCost = null; }
-
-      var activeView = $('.view.active');
-      var viewName = activeView ? activeView.id.replace('view-', '') : 'dashboard';
-
-      if (viewName === 'dashboard') loadDashboard();
-      else if (viewName === 'sanaky') { $('#sanakyListWrap').style.display = ''; $('#sanakyAssetDetailWrap').style.display = 'none'; loadSanakyView(); }
-      else if (viewName === 'maintenance') loadMaintenance();
-      else if (viewName === 'vattu') loadVatTu();
-      else if (viewName === 'dongia') loadDongia(currentDongiaCategory);
-      else loadDashboard();
-
-      refreshBtn.disabled = false;
-      refreshBtn.style.opacity = '';
-      /* refreshData() đã trả sẵn refreshedAt nên dùng luôn, khỏi gọi thêm getDataLastUpdated().
-         Thiếu trường này (bản Code.gs cũ) thì TRẢ MỐC CŨ TRƯỚC rồi mới hỏi lại server — nếu không
-         mà lời gọi đó cũng hỏng thì dòng chữ kẹt vĩnh viễn ở "đang cập nhật…". */
+      reloadViewsAfterData_();
+      done();
       if (res && res.refreshedAt) setLastUpdatedValue_(fmtLastUpdated_(res.refreshedAt));
       else { setLastUpdatedValue_(prevLastUpdated); loadLastUpdated(); }
       showToast(refreshMessage_(res));
     }, function () {
-      refreshBtn.disabled = false;
-      refreshBtn.style.opacity = '';
-      setLastUpdatedValue_(prevLastUpdated);   // trả mốc cũ trước khi thử hỏi lại
+      done();
+      setLastUpdatedValue_(prevLastUpdated);
       loadLastUpdated();
     });
   });
+
+  /* ===== Kiểm tra dữ liệu mới (chỉ bản web) =====
+     Admin: hiện thông báo "Có dữ liệu mới" + nút Tải về. Người dùng thường: tự tải lặng lẽ. */
+  var lastNewCheck_ = 0, newDataShown_ = false;
+  function checkNewData_() {
+    if (!window.__TM_ROLE || document.hidden || refreshBtn.disabled) return;
+    if (Date.now() - lastNewCheck_ < 60000) return;
+    lastNewCheck_ = Date.now();
+    try {
+      google.script.run.withSuccessHandler(function (labels) {
+        if (!labels || !labels.length) return;
+        if (window.__TM_ROLE === 'admin') {
+          if (newDataShown_) return;
+          newDataShown_ = true;
+          syncCard_('new', 'Có dữ liệu mới', labels.join(', ') + ' vừa được cập nhật.',
+            '<button type="button" class="sc-go" id="scLoadBtn">Tải về</button><button type="button" class="sc-later" id="scLaterBtn">Để sau</button>');
+          $('#scLoadBtn').onclick = function () {
+            syncCard_('run', 'Đang tải dữ liệu mới…', '');
+            runServer('refreshData', [], function (res) {
+              newDataShown_ = false; reloadViewsAfterData_();
+              if (res && res.refreshedAt) setLastUpdatedValue_(fmtLastUpdated_(res.refreshedAt));
+              syncCard_('ok', 'Đã tải dữ liệu mới', labels.join(', ') + ' · lúc ' + nowVn_());
+            }, function () { newDataShown_ = false; syncCard_(); });
+          };
+          $('#scLaterBtn').onclick = function () { newDataShown_ = false; syncCard_(); };
+        } else {
+          runServer('refreshData', [], function (res) {
+            reloadViewsAfterData_();
+            if (res && res.refreshedAt) setLastUpdatedValue_(fmtLastUpdated_(res.refreshedAt));
+          });
+        }
+      }).withFailureHandler(function () {}).checkNewData();
+    } catch (e) { /* bản Apps Script không có hàm này */ }
+  }
+  document.addEventListener('visibilitychange', checkNewData_);
+  setInterval(checkNewData_, 5 * 60000);
 
   // initial load
   loadLastUpdated();

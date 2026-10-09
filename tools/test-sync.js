@@ -64,7 +64,7 @@ const UrlFetchApp = { fetch(url, opt) {
   if (m) {
     const P = m[1], action = m[2].split('?')[0], body = opt.payload ? JSON.parse(opt.payload) : {};
     const list = authUsers[P];
-    if (action === ':lookup') { const u = list.filter((x) => body.email.includes(x.email)); return resp(200, u.length ? { users: u } : {}); }
+    if (action === ':lookup') { if (body.idToken) return resp(200, { users: [{ email: body.idToken.replace('tok:', '') }] }); const u = list.filter((x) => body.email.includes(x.email)); return resp(200, u.length ? { users: u } : {}); }
     if (action === '') { if (list.some((x) => x.email === body.email)) return resp(400, { error: 'EMAIL_EXISTS' }); const u = { localId: 'n' + list.length, email: body.email, emailVerified: body.emailVerified }; list.push(u); return resp(200, u); }
     if (action === ':update') { list.find((x) => x.localId === body.localId).emailVerified = body.emailVerified; return resp(200, {}); }
     if (action === ':sendOobCode') return resp(200, { email: body.email, oobLink: 'https://x.firebaseapp.com/__/auth/action?mode=resetPassword&p=' + P + '&e=' + body.email });
@@ -94,9 +94,10 @@ const ctx = {
   MailApp: { sendEmail: (o) => sentMail.push(o) },
   PropertiesService: { getScriptProperties: () => ({ getProperty: (k) => props[k] || null, setProperty: (k, v) => { props[k] = v; }, deleteProperty: (k) => delete props[k] }) },
   CacheService: { getScriptCache: () => ({ get: () => null, put() {}, getAll: () => ({}), putAll() {} }) },
+  ContentService: { MimeType: { JSON: 'json' }, createTextOutput: (t) => ({ setMimeType() { return this; }, getContent: () => t }) },
   LockService: { getDocumentLock: () => ({ tryLock: () => true, releaseLock() {} }), getScriptLock: () => ({ tryLock: () => true, releaseLock() {} }) },
   Session: { getActiveUser: () => ({ getEmail: () => 'me@x.vn' }), getEffectiveUser: () => ({ getEmail: () => '' }), getScriptTimeZone: () => 'Asia/Ho_Chi_Minh' },
-  ScriptApp: { getProjectTriggers: () => [], deleteTrigger() {}, newTrigger: () => ({ forSpreadsheet() { return this; }, onEdit() { return this; }, onChange() { return this; }, timeBased() { return this; }, everyMinutes() { return this; }, create() {} }) },
+  ScriptApp: { getProjectTriggers: () => [], deleteTrigger() {}, newTrigger: () => ({ forSpreadsheet() { return this; }, onEdit() { return this; }, onChange() { return this; }, timeBased() { return this; }, everyMinutes() { return this; }, everyHours() { return this; }, onOpen() { return this; }, create() {} }) },
   Utilities: {
     computeDigest: (a, s) => [...crypto.createHash('md5').update(s, 'utf8').digest()].map((b) => (b > 127 ? b - 256 : b)),
     DigestAlgorithm: { MD5: 1 }, Charset: { UTF_8: 1 },
@@ -107,7 +108,7 @@ const ctx = {
 };
 vm.createContext(ctx);
 vm.runInContext(fs.readFileSync(R('apps-script/Sync.gs'), 'utf8') +   /* Sync.gs chạy MỘT MÌNH, không cần Code.gs */
-  '\nthis.__t = { caiDatDongBoFirebase, caiDatPhieuSuaChua, fsSyncAll_, fsMirrorVatTu_, fsOnEdit, guiLaiEmailDatMatKhau };', ctx);
+  '\nthis.__t = { caiDatDongBoFirebase, caiDatPhieuSuaChua, fsSyncAll_, fsMirrorVatTu_, fsOnEdit, guiLaiEmailDatMatKhau, doPost };', ctx);
 
 let fails = 0; const ok = (c, m) => { console.log((c ? 'OK  ' : 'SAI ') + m); if (!c) fails++; };
 ctx.__t.caiDatDongBoFirebase();
@@ -134,15 +135,24 @@ ok(!!store['vattu/state'], 'kho vật tư được đưa lên lần đầu');
 // Đồng bộ lại không đổi gì -> không ghi sheetdata
 const before = JSON.stringify(store['sheetdata/chiphi__0']);
 const r2 = ctx.__t.fsSyncAll_(false); ok(r2.changed.length === 0, 'quét lại khi không đổi: không ghi bảng nào');
-// Sửa 1 ô -> onEdit
+// Sửa ô sheet dữ liệu -> onEdit KHÔNG đẩy (chờ admin bấm đồng bộ trên app)
 sheets['DS CH']._v()[1][2] = 'Địa chỉ mới';
 ctx.__t.fsOnEdit({ range: { getSheet: () => sheets['DS CH'] } });
-// Sửa ô bên file DG -> cũng đẩy ngay
 ext['DON GIA BT']._v()[2][5] = 700000;
 ctx.__t.fsOnEdit({ source: dgFile, range: { getSheet: () => ext['DON GIA BT'] } });
+ok(JSON.parse(store['meta/sheets'].fields.json.stringValue).sheets.stores.hash === meta.sheets.stores.hash, 'sửa ô sheet dữ liệu: chưa đẩy ngay');
+// Nút "Đồng bộ từ Google Sheet" trên app -> doPost (admin)
+const ADMIN_EMAIL = 'a@thmilk.vn';
+sheets['APP USERS']._v()[1][1] = 'admin';
+const call = (tok) => JSON.parse(ctx.__t.doPost({ postData: { contents: JSON.stringify({ action: 'sync', idToken: tok }) } }).getContent());
+const rBad = call('tok:khongco@gmail.com');
+ok(!rBad.ok && /không có quyền/.test(rBad.error), 'người không phải admin gọi đồng bộ -> bị từ chối');
+const rOk = call('tok:' + ADMIN_EMAIL);
+ok(rOk.ok && rOk.changed.includes('stores') && rOk.changed.includes('dongia_bt'), 'admin bấm đồng bộ -> đẩy DS CH + Đơn giá BT vừa sửa: ' + JSON.stringify(rOk.details));
 const m2 = JSON.parse(store['meta/sheets'].fields.json.stringValue);
-ok(m2.sheets.dongia_bt.hash !== meta.sheets.dongia_bt.hash, 'onEdit ở file DG đẩy Đơn giá BT');
-ok(m2.sheets.stores.hash !== meta.sheets.stores.hash, 'onEdit đẩy bảng vừa sửa');
+ok(m2.sheets.dongia_bt.hash !== meta.sheets.dongia_bt.hash && m2.sheets.stores.hash !== meta.sheets.stores.hash, 'meta mới');
+ok(call('tok:' + ADMIN_EMAIL).changed.length === 0, 'bấm lại khi không đổi -> Không có thay đổi');
+sheets['APP USERS']._v()[1][1] = 'user';
 
 // ---- Nạp vào core.js giống app.js ----
 globalThis.md5 = require(R('js/vendor/md5.min.js'));

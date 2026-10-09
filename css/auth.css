@@ -88,7 +88,9 @@ body.tm-viewer #vtManageHoldersBtn,
 body.tm-viewer #vtEditQtyBtn,
 body.tm-viewer #vtStockInBtn,
 body.tm-viewer #vtStockInOpenBtn,
-body.tm-viewer #vtCalcBtn{display:none !important;}
+body.tm-viewer #vtCalcBtn,
+body.tm-viewer #refreshDataBtn,
+body.tm-viewer #refreshBtn{display:none !important;}
 /* Ô mật khẩu trong hộp Tài khoản: cùng kiểu với app Phiếu sửa chữa (nền trắng, nhãn xanh đậm) */
 .tm-acc-pw .field label{color:var(--brand-900,#0B4C8C); font-size:12px; font-weight:600;}
 .tm-acc-pw .field input{background:#fff; border:1px solid var(--line,#E1E9F2); border-radius:8px;}

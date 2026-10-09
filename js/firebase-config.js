@@ -16,3 +16,7 @@ export const FIREBASE_CONFIG = {
 
 /** Dòng chữ nhỏ dưới logo "truemart" trên màn hình đăng nhập. */
 export const APP_TITLE = 'Hệ thống quản lý';
+
+/** Link Web app của Sync.gs (file TM) — Apps Script -> Triển khai -> Ứng dụng web. Để trống thì nút
+ *  "Đồng bộ từ Google Sheet" quay về chức năng cũ (chỉ tải lại dữ liệu đã có trên app). */
+export const SYNC_URL = '';

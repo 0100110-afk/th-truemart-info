@@ -547,6 +547,20 @@
   }
   .toast.show{transform:translateY(0); opacity:1;}
   .toast.error{background:var(--danger);}
+  .sync-card{position:fixed; top:calc(env(safe-area-inset-top,0px) + 66px); left:12px; right:12px; z-index:90; border-radius:14px; padding:13px 15px;
+    font-size:13px; font-weight:600; color:#fff; display:flex; gap:11px; align-items:flex-start;
+    box-shadow:0 12px 34px -8px rgba(8,58,107,.5); opacity:0; transform:translateY(-12px); pointer-events:none; transition:opacity .24s, transform .24s;}
+  .sync-card.show{opacity:1; transform:translateY(0); pointer-events:auto;}
+  .sync-card svg{width:18px; height:18px; flex-shrink:0;}
+  .sync-card .sc-s{font-weight:500; font-size:11.5px; opacity:.92; margin-top:3px; line-height:1.45;}
+  .sync-card.sc-run{background:var(--brand-900);} .sync-card.sc-ok{background:#2C7A55;} .sync-card.sc-none{background:#475467;} .sync-card.sc-err{background:var(--danger);}
+  .sync-card.sc-new{background:#fff; color:var(--ink-900); border:1px solid var(--line);}
+  .sync-card.sc-new .sc-s{color:var(--ink-500); opacity:1;}
+  .sync-card .sc-acts{display:flex; gap:8px; margin-top:10px;}
+  .sync-card .sc-acts button{height:32px; padding:0 16px; border-radius:9px; font-weight:700; font-size:12.5px; font-family:inherit;}
+  .sync-card .sc-go{background:var(--brand-900); color:#fff; border:0;} .sync-card .sc-later{background:#fff; color:var(--brand-900); border:1px solid var(--line);}
+  .sync-card .sc-dot{width:9px; height:9px; border-radius:50%; background:#F79009; margin-top:5px; flex-shrink:0; box-shadow:0 0 0 4px #FEF0C7;}
+  .sync-card .sc-spin{width:16px; height:16px; border-radius:50%; border:2.5px solid rgba(255,255,255,.35); border-top-color:#fff; animation:spin .7s linear infinite; flex-shrink:0;}
 
   /* ============================ CHART LEGEND (custom, below chart) ============================ */
   .chart-legend{
@@ -891,6 +905,7 @@
   </div>
 
   <div class="toast" id="toast"></div>
+  <div class="sync-card" id="syncCard" role="status" aria-live="polite"></div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js" onerror="var s=document.createElement('script'); s.src='https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js'; document.head.appendChild(s);"></script>
   <script>
@@ -2482,26 +2497,80 @@
 
   // ============================== LÀM MỚI ==============================
 
+  function reloadAfterData_(){
+    dashLoaded=false; sanakyLoaded=false; maintLoaded=false; vattuLoaded=false; dongiaLoaded=false;
+    dgCache={bt:null,xd:null,snk:null}; vtDefaultApplied=false;
+    if(chartRegion){chartRegion.destroy(); chartRegion=null;}
+    if(chartType){chartType.destroy(); chartType=null;}
+    if(chartMQty){chartMQty.destroy(); chartMQty=null;}
+    if(chartMCost){chartMCost.destroy(); chartMCost=null;}
+    /* CHỈ gọi goTab — các cờ "đã tải" vừa reset nên goTab tự nạp lại tab hiện tại. */
+    goTab(currentTab);
+  }
+  // Thông báo đồng bộ (trên cùng, dưới thanh tiêu đề)
+  var scTimer_=null;
+  function syncCard_(kind,title,sub,actions){
+    clearTimeout(scTimer_);
+    var el=$('#syncCard');
+    if(!kind){ el.className='sync-card'; return; }
+    var ico=kind==='run'?'<span class="sc-spin"></span>':kind==='new'?'<span class="sc-dot"></span>':
+      (kind==='ok'?'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>':
+      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16h.01"/></svg>');
+    el.innerHTML=ico+'<div><div class="sc-t">'+esc(title)+'</div>'+(sub?'<div class="sc-s">'+esc(sub)+'</div>':'')+(actions?'<div class="sc-acts">'+actions+'</div>':'')+'</div>';
+    el.className='sync-card show sc-'+kind;
+    if(kind==='ok'||kind==='none'||kind==='err') scTimer_=setTimeout(function(){ el.className='sync-card'; },kind==='err'?7000:5000);
+  }
+  function nowVnM_(){ var d=new Date(), p=function(n){return (n<10?'0':'')+n;}; return p(d.getHours())+':'+p(d.getMinutes())+' '+p(d.getDate())+'/'+p(d.getMonth()+1)+'/'+d.getFullYear(); }
+
   $('#refreshBtn').addEventListener('click',function(){
     var btn=this;
     if(btn.classList.contains('spinning')) return;
     btn.classList.add('spinning');
+    if(window.__TM_SYNC){
+      syncCard_('run','Đang đồng bộ từ Google Sheet…','Đọc các sheet và đẩy phần thay đổi lên app.');
+      runServer('syncFromSheet',[],function(res){
+        btn.classList.remove('spinning'); reloadAfterData_();
+        var labels=(res&&res.changedLabels)||[];
+        if(labels.length) syncCard_('ok','Đã cập nhật: '+labels.join(', '),((res.details||[]).length?res.details.join(' · ')+' · ':'')+'lúc '+nowVnM_());
+        else syncCard_('none','Không có thay đổi','Google Sheet giống dữ liệu đang có trên app · kiểm tra lúc '+nowVnM_());
+      },function(e){ btn.classList.remove('spinning'); syncCard_('err','Đồng bộ thất bại',(e&&e.message)||'Thử lại sau ít phút.'); });
+      return;
+    }
     toast('Đang làm mới dữ liệu…');
-    runServer('refreshData',[],function(res){
-      dashLoaded=false; sanakyLoaded=false; maintLoaded=false; vattuLoaded=false; dongiaLoaded=false;
-      dgCache={bt:null,xd:null,snk:null}; vtDefaultApplied=false;
-      if(chartRegion){chartRegion.destroy(); chartRegion=null;}
-      if(chartType){chartType.destroy(); chartType=null;}
-      if(chartMQty){chartMQty.destroy(); chartMQty=null;}
-      if(chartMCost){chartMCost.destroy(); chartMCost=null;}
+    runServer('refreshData',[],function(){
       btn.classList.remove('spinning');
-      // Nút này nay CHỈ ĐỌC — không còn đụng vào tồn kho nên không còn gì để báo thêm.
       toast('Đã làm mới dữ liệu.');
-      /* CHỈ gọi goTab — các cờ "đã tải" vừa reset ở trên nên goTab tự nạp lại tab hiện tại, kể cả
-         'dash'. Gọi thêm loadDash() ở đây là chạy getDashboardData hai lần song song. */
-      goTab(currentTab);
+      reloadAfterData_();
     },function(){ btn.classList.remove('spinning'); });
   });
+
+  /* Kiểm tra dữ liệu mới (bản web): admin thấy thông báo + nút Tải về; người dùng thường tự tải lặng lẽ. */
+  var lastNewCheck_=0, newShown_=false;
+  function checkNewData_(){
+    if(!window.__TM_ROLE||document.hidden||$('#refreshBtn').classList.contains('spinning')) return;
+    if(Date.now()-lastNewCheck_<60000) return;
+    lastNewCheck_=Date.now();
+    try{
+      google.script.run.withSuccessHandler(function(labels){
+        if(!labels||!labels.length) return;
+        if(window.__TM_ROLE==='admin'){
+          if(newShown_) return; newShown_=true;
+          syncCard_('new','Có dữ liệu mới',labels.join(', ')+' vừa được cập nhật.',
+            '<button type="button" class="sc-go" id="scLoadBtn">Tải về</button><button type="button" class="sc-later" id="scLaterBtn">Để sau</button>');
+          $('#scLoadBtn').onclick=function(){
+            syncCard_('run','Đang tải dữ liệu mới…','');
+            runServer('refreshData',[],function(){ newShown_=false; reloadAfterData_(); syncCard_('ok','Đã tải dữ liệu mới',labels.join(', ')+' · lúc '+nowVnM_()); },
+              function(){ newShown_=false; syncCard_(); });
+          };
+          $('#scLaterBtn').onclick=function(){ newShown_=false; syncCard_(); };
+        } else {
+          runServer('refreshData',[],function(){ reloadAfterData_(); });
+        }
+      }).withFailureHandler(function(){}).checkNewData();
+    }catch(e){}
+  }
+  document.addEventListener('visibilitychange',checkNewData_);
+  setInterval(checkNewData_,5*60000);
 
   // ============================== EXPOSE ==============================
 

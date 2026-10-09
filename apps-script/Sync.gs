@@ -70,7 +70,7 @@ const FS_SHEET_USERS = 'APP USERS';
 /** Mỗi tài liệu Firestore tối đa 1 MiB. Cắt theo BYTE UTF-8 (chữ Việt có dấu 3 byte/ký tự), chừa biên. */
 const FS_CHUNK_BYTES = 700000;
 const FS_AUTOLOG_CHUNK = 2500;          // phải khớp AUTOLOG_CHUNK_MAX trong js/app.js
-const FS_TICK_MINUTES = 10;
+const FS_TICK_HOURS = [7, 19];   // quét dự phòng chỉ trong khung giờ này (giờ VN)
 
 /** Danh sách bảng đẩy lên app. mode 'raw' = giữ số/chữ gốc (ô kiểu Ngày -> chuỗi hiển thị dd/MM/yyyy,
  *  đúng quy ước số 2 của Code.gs); 'display' = toàn bộ chuỗi hiển thị (Sanaky vốn đọc kiểu này). */
@@ -151,19 +151,21 @@ function caiDatDongBoFirebase() {
   fsEnsureUsersLayout_(us);
 
   // Trigger: xoá trigger cũ của file này rồi tạo lại
-  const mine = ['fsOnEdit', 'fsOnChange', 'fsTick'];
+  const mine = ['fsOnEdit', 'fsOnChange', 'fsTick', 'fsOnOpenPull'];
   ScriptApp.getProjectTriggers().forEach(function (t) {
     if (mine.indexOf(t.getHandlerFunction()) > -1) ScriptApp.deleteTrigger(t);
   });
+  /* Sheet dữ liệu (DS CH, CHI PHI, ...) KHÔNG đẩy ngay theo từng lần sửa: dữ liệu được cập nhật
+     hàng loạt vài lần/tháng, đẩy ngay sẽ đưa lên app bản đang dán dở. Admin bấm "Đồng bộ từ Google
+     Sheet" trên app (Web app doPost bên dưới) sau khi dán xong. Hai trigger sửa ô / xoá-chèn dòng
+     chỉ còn lo APP USERS (cấp quyền) và VAT TU / VAT TU NHAP KHO (sửa tay đẩy lên app). */
   ScriptApp.newTrigger('fsOnEdit').forSpreadsheet(ss).onEdit().create();
-  // Xoá / chèn dòng KHÔNG kích hoạt onEdit -> cần thêm onChange, nếu không dòng đã xoá trên sheet
-  // vẫn nằm trên app tới lượt quét 10 phút sau.
   ScriptApp.newTrigger('fsOnChange').forSpreadsheet(ss).onChange().create();
-  // Sửa file DG cũng đẩy lên ngay (cùng hàm xử lý, phân biệt bằng tên tab)
-  let dgNote = '';
-  try { ScriptApp.newTrigger('fsOnEdit').forSpreadsheet(fsDongiaSs_()).onEdit().create(); }
-  catch (e) { dgNote = '\n- CHÚ Ý: không gắn được trigger cho file DG (' + e.message + '). Đơn giá vẫn cập nhật theo lượt quét 10 phút.'; }
-  ScriptApp.newTrigger('fsTick').timeBased().everyMinutes(FS_TICK_MINUTES).create();
+  // Mở file TM -> kéo kho vật tư mới nhất từ app về sheet trước, để luôn sửa trên bản mới nhất.
+  ScriptApp.newTrigger('fsOnOpenPull').forSpreadsheet(ss).onOpen().create();
+  // Lưới an toàn: quét 1 giờ/lần, chỉ chạy trong giờ làm việc (fsTick tự bỏ qua ngoài FS_TICK_HOURS).
+  ScriptApp.newTrigger('fsTick').timeBased().everyHours(1).create();
+  const dgNote = '';
 
   // Lần đầu: đưa kho vật tư hiện có lên app (bỏ qua nếu app đã có dữ liệu vật tư)
   const imported = fsImportVatTu_(false);
@@ -171,7 +173,8 @@ function caiDatDongBoFirebase() {
   const msg = 'Đã cài đồng bộ.\n' +
     '- Bảng đã đẩy lên: ' + (res.changed.join(', ') || '(không đổi)') + '\n' +
     '- Kho vật tư: ' + (imported ? 'đã đưa lên app lần đầu' : 'app đã có sẵn, giữ nguyên') + '\n' +
-    '- Trigger: sửa ô / xoá-chèn dòng (file TM + file DG) -> đẩy ngay; quét lại mỗi ' + FS_TICK_MINUTES + ' phút.' + dgNote + '\n' +
+    '- Sheet dữ liệu: admin bấm "Đồng bộ từ Google Sheet" trên app; quét dự phòng 1 giờ/lần (' + FS_TICK_HOURS[0] + 'h–' + FS_TICK_HOURS[1] + 'h).' + dgNote + '\n' +
+    '- APP USERS, VAT TU, VAT TU NHAP KHO: sửa là đẩy lên app ngay.\n' +
     (res.missing.length ? '- KHÔNG tìm thấy sheet: ' + res.missing.join(', ') : '');
   fsAlert_(msg);
   return msg;
@@ -220,13 +223,7 @@ function fsOnEdit(e) {
     const name = e && e.range ? e.range.getSheet().getName() : '';
     if (name === FS_SHEET_USERS) { fsWithLock_(function () { fsSyncAllUsers_(false); }); return; }
     if (name === FS_TAB_VATTU || name === FS_TAB_VATTU_LOG) { fsWithLock_(function () { fsPushVatTuSheet_(name); }); return; }
-    const fromDg = e && e.source && e.source.getId && e.source.getId() === FS_DG_FILE_ID;
-    const src = fsSources_().filter(function (s) { return s.name === name && !!s.external === !!fromDg; })[0];
-    if (!src) return;
-    fsWithLock_(function () {
-      const meta = fsReadMeta_();
-      if (fsSyncOne_(src, meta)) fsWriteMetaOnly_(meta);
-    });
+    // Sheet dữ liệu: KHÔNG đẩy ngay (xem caiDatDongBoFirebase) — chờ admin bấm đồng bộ trên app.
   } catch (err) {
     console.error('fsOnEdit: ' + err.message);
   }
@@ -240,22 +237,83 @@ function fsOnChange(e) {
     if (t === 'FORMAT') return;
     const sh = e && e.source ? e.source.getActiveSheet() : null;
     const name = sh ? sh.getName() : '';
+    if (name === FS_SHEET_USERS) { fsWithLock_(function () { fsSyncAllUsers_(false); }); return; }
     if (name === FS_TAB_VATTU || name === FS_TAB_VATTU_LOG) { fsWithLock_(function () { fsPushVatTuSheet_(name); }); return; }
-    const src = fsSources_().filter(function (s) { return s.name === name && !s.external; })[0];
-    if (!src) return;
-    fsWithLock_(function () {
-      const meta = fsReadMeta_();
-      if (fsSyncOne_(src, meta)) fsWriteMetaOnly_(meta);
-    });
   } catch (err) {
     console.error('fsOnChange: ' + err.message);
   }
 }
 
+/** Mở file TM -> kéo kho vật tư + các ô đã xác nhận vật tư/người giữ từ app về sheet. */
+function fsOnOpenPull() {
+  try { fsWithLock_(function () { fsMirrorVatTu_(false); }); } catch (err) { console.error('fsOnOpenPull: ' + err.message); }
+}
+
 /** Trigger thời gian — quét toàn bộ (chỉ ghi bảng nào thật sự đổi) + kéo vật tư về sheet. */
 function fsTick() {
+  const h = Number(Utilities.formatDate(new Date(), 'Asia/Ho_Chi_Minh', 'H'));
+  if (h < FS_TICK_HOURS[0] || h >= FS_TICK_HOURS[1]) return;   // ngoài giờ làm việc: không quét
+  try { fsWithLock_(function () { fsMirrorVatTu_(false); }); } catch (err) { console.error('fsTick mirror: ' + err.message); }
   try { fsSyncAll_(false); } catch (err) { console.error('fsTick sync: ' + err.message); }
-  try { fsMirrorVatTu_(false); } catch (err) { console.error('fsTick mirror: ' + err.message); }
+}
+
+// ============================== WEB APP: NÚT "ĐỒNG BỘ TỪ GOOGLE SHEET" TRÊN APP ==============================
+/**
+ * App (admin) gọi POST { action:'sync', idToken }. Kiểm tra token đăng nhập Firebase -> email ->
+ * phải là admin cột "Hệ thống quản lý" trong APP USERS. Đạt thì: đẩy các sheet có thay đổi lên,
+ * ghi kho vật tư + ô đã xác nhận về sheet, trả danh sách sheet đã đổi.
+ * Triển khai: Apps Script -> Triển khai -> Tùy chọn triển khai mới -> Ứng dụng web
+ *   (Thực thi với tư cách: Tôi · Ai có quyền truy cập: Bất kỳ ai). Dán link vào js/firebase-config.js (SYNC_URL).
+ */
+function doPost(e) {
+  let out;
+  try {
+    const body = JSON.parse((e && e.postData && e.postData.contents) || '{}');
+    const email = fsVerifyIdToken_(body.idToken);
+    const me = fsReadUsers_().rows.filter(function (r) { return r.email === email; })[0];
+    if (!me || me.tm !== 'admin') throw new Error('Tài khoản ' + email + ' không có quyền đồng bộ dữ liệu.');
+    out = fsWebSync_();
+  } catch (err) {
+    out = { ok: false, error: err.message };
+  }
+  return ContentService.createTextOutput(JSON.stringify(out)).setMimeType(ContentService.MimeType.JSON);
+}
+
+function fsVerifyIdToken_(idToken) {
+  if (!idToken) throw new Error('Chưa đăng nhập.');
+  let r;
+  try { r = fsFetch_('post', fsAuthUrl_(':lookup'), { idToken: idToken }); }
+  catch (err) { throw new Error('Phiên đăng nhập hết hạn — tải lại trang rồi thử lại.'); }
+  const u = r && r.users && r.users[0];
+  if (!u || !u.email) throw new Error('Phiên đăng nhập không hợp lệ.');
+  return String(u.email).toLowerCase();
+}
+
+function fsWebSync_() {
+  const lock = LockService.getScriptLock();
+  if (!lock.tryLock(120000)) throw new Error('Đang có lượt đồng bộ khác chạy, thử lại sau ít phút.');
+  try {
+    // Kéo kho vật tư + ghi ô đã xác nhận vật tư/người giữ về sheet TRƯỚC, rồi mới đọc meta.
+    try { fsMirrorVatTu_(false); } catch (err) { console.error('web mirror: ' + err.message); }
+    const meta = fsReadMeta_();
+    const before = {};
+    Object.keys(meta.sheets || {}).forEach(function (k) { before[k] = meta.sheets[k].rowCount; });
+    const changed = [], details = [];
+    fsSources_().forEach(function (src) {
+      let r = null;
+      try { r = fsSyncOne_(src, meta, false); } catch (err) { console.error('web sync ' + src.key + ': ' + err.message); }
+      if (r) {
+        changed.push(src.key);
+        const n = meta.sheets[src.key].rowCount, o = before[src.key];
+        const label = src.name;
+        details.push(o === undefined ? label + ' ' + n + ' dòng'
+          : (n !== o ? label + ' ' + (n > o ? '+' : '−') + Math.abs(n - o) + ' dòng' : label + ' sửa nội dung'));
+      }
+    });
+    fsWriteMetaOnly_(meta);
+    try { fsSyncAllUsers_(false); } catch (err) { console.error('web users: ' + err.message); }
+    return { ok: true, changed: changed, details: details, at: new Date().toISOString() };
+  } finally { lock.releaseLock(); }
 }
 
 // ============================== SHEET -> FIRESTORE ==============================
@@ -977,7 +1035,13 @@ function fsMirrorVatTu_(force) {
   const st = JSON.parse(fsField_(d, 'json') || '{}');
   const holders = st.holders || [];
   // Sửa tay trên app (dòng chưa khớp vật tư / thiếu người giữ) -> ghi ngược vào sheet CHI PHI
-  try { if (fsApplyChiPhiFixes_(st.cpFixes)) fsSyncAll_(false); } catch (err) { console.error('cpFixes: ' + err.message); }
+  try {
+    if (fsApplyChiPhiFixes_(st.cpFixes)) {          // ô CHI PHI vừa đổi -> đẩy lại riêng CHI PHI (không lấy khoá)
+      const m = fsReadMeta_();
+      const src = fsSources_().filter(function (x) { return x.key === 'chiphi'; })[0];
+      if (fsSyncOne_(src, m)) fsWriteMetaOnly_(m);
+    }
+  } catch (err) { console.error('cpFixes: ' + err.message); }
   const sd = fsGetDoc_('vattu/stockin');
   const stockin = sd ? JSON.parse(fsField_(sd, 'json') || '[]') : [];
   const autolog = [];
@@ -1198,7 +1262,7 @@ function fsField_(doc, name) {
 // ============================== TIỆN ÍCH ==============================
 
 function fsWithLock_(fn) {
-  const lock = LockService.getDocumentLock() || LockService.getScriptLock();
+  const lock = LockService.getScriptLock();   // cùng loại khoá với nút đồng bộ trên app (doPost)
   if (!lock.tryLock(28000)) { console.warn('Đồng bộ khác đang chạy, bỏ qua lần này (lần quét sau sẽ bù).'); return; }
   try { return fn(); } finally { lock.releaseLock(); }
 }
