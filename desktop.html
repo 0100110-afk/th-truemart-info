@@ -288,6 +288,8 @@
     box-shadow:var(--shadow-card);
   }
   .stat-card{padding:18px 20px;}
+  .stat-card.stat-link{cursor:pointer; transition:border-color .15s, box-shadow .15s, transform .15s;}
+  .stat-card.stat-link:hover{border-color:var(--brand-300); box-shadow:0 6px 18px -8px rgba(11,76,140,.28); transform:translateY(-1px);}
   .stat-card .label{font-size:12px; color:var(--ink-500); font-weight:500;}
   /* Bỏ ellipsis: số tiền LUÔN hiện đủ, thiếu chỗ thì xuống dòng chứ không bị cắt cụt.
      tabular-nums cho các chữ số rộng bằng nhau, cột số nhìn thẳng hàng hơn. */
@@ -1814,10 +1816,12 @@
       esc(label || '') + '</span>';
   }
 
-  function statCard(label, value, sub, subTitle) {
+  function statCard(label, value, sub, subTitle, view) {
     // subTitle: chuỗi đầy đủ hiện khi rê chuột, phòng khi .delta bị cắt bằng ellipsis
     var t = subTitle ? ' title="' + esc(subTitle) + '"' : '';
-    return '<div class="card stat-card"><div class="label">' + esc(label) + '</div>' +
+    // view: bấm thẻ -> mở tab tương ứng (chỉ các thẻ ở Tổng quan)
+    var go = view ? ' stat-link" role="button" tabindex="0" data-goto="' + view : '';
+    return '<div class="card stat-card' + go + '"><div class="label">' + esc(label) + '</div>' +
       '<div class="value">' + esc(value) + '</div>' +
       (sub ? '<div class="delta"' + t + '>' + sub + '</div>' : '') + '</div>';
   }
@@ -1905,14 +1909,22 @@
     }
   }
 
+  // Bấm 1 trong 6 thẻ số liệu -> mở tab tương ứng
+  $('#statGrid').addEventListener('click', function (e) {
+    var c = e.target.closest('.stat-link'); if (c) goToView(c.dataset.goto);
+  });
+  $('#statGrid').addEventListener('keydown', function (e) {
+    var c = e.target.closest('.stat-link'); if (c && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); goToView(c.dataset.goto); }
+  });
+
   function renderDashboard(data) {
     $('#statGrid').innerHTML =
-      statCard('Tổng số cửa hàng', data.totalStores, '<span class="delta ok">Đang hoạt động</span>') +
-      statCard('Tổng tài sản', data.totalAssets, 'Đang được quản lý', 'Tài sản đang được quản lý') +
-      statCard('Chi phí sửa chữa THS', fmtVND(data.thsCost), data.thsCount + ' lượt sửa chữa') +
-      statCard('Chi phí sửa chữa LSC', fmtVND(data.lscCost), data.lscCount + ' lượt sửa chữa') +
-      statCard('Chi phí sửa chữa SNK', fmtVND(data.sanakyCost), data.sanakyCount + ' lượt sửa chữa') +
-      statCard('Chi phí bảo dưỡng', fmtVND(data.maintCost), data.maintCount + ' lượt bảo dưỡng');
+      statCard('Tổng số cửa hàng', data.totalStores, '<span class="delta ok">Đang hoạt động</span>', '', 'stores') +
+      statCard('Tổng tài sản', data.totalAssets, 'Đang được quản lý', 'Tài sản đang được quản lý', 'assets') +
+      statCard('Chi phí sửa chữa THS', fmtVND(data.thsCost), data.thsCount + ' lượt sửa chữa', '', 'chiphi-ths') +
+      statCard('Chi phí sửa chữa LSC', fmtVND(data.lscCost), data.lscCount + ' lượt sửa chữa', '', 'chiphi-lsc') +
+      statCard('Chi phí sửa chữa SNK', fmtVND(data.sanakyCost), data.sanakyCount + ' lượt sửa chữa', '', 'sanaky') +
+      statCard('Chi phí bảo dưỡng', fmtVND(data.maintCost), data.maintCount + ' lượt bảo dưỡng', '', 'maintenance');
 
     renderRecentCosts_(data.recentCosts || []);
 
@@ -2036,6 +2048,16 @@
 
   /** Vẽ số ngay trên đỉnh mỗi cột. */
   var REGION_CLOSED_COLOR_ = '#B4BEC9';
+  var REGION_TOOLTIP_ = {
+    callbacks: {
+      label: function (ctx) { return ' ' + (ctx.dataset.label || '') + ': ' + ctx.parsed.y + ' cửa hàng'; },
+      footer: function (items) {
+        if (items.length < 2) return '';
+        var t = items.reduce(function (a, it) { return a + (it.parsed.y || 0); }, 0);
+        return 'Tổng: ' + t + ' cửa hàng';
+      }
+    }
+  };
   var barValueLabelsPlugin = {
     id: 'barValueLabels',
     afterDatasetsDraw: function (chart) {
@@ -2322,7 +2344,9 @@
         // Kích thước biểu đồ có thể đổi SAU lần vẽ đầu (tự co giãn theo màn hình, font tải xong...)
         // -> căn lại dòng chú thích của biểu đồ tròn mỗi khi biểu đồ đổi cỡ.
         onResize: realignChartsSoon_,
-        plugins: { legend: { display: false } },
+        // Rê chuột vào 1 miền: hiện cả Đang hoạt động, Đóng cửa và Tổng của miền đó
+        interaction: { mode: 'index', intersect: false },
+        plugins: { legend: { display: false }, tooltip: REGION_TOOLTIP_ },
         scales: { y: { beginAtZero: true, grid: { color: '#E8EEF5' } }, x: { grid: { display: false, drawTicks: false } } }
       },
       plugins: [barValueLabelsPlugin]
@@ -2659,6 +2683,8 @@
   }
   $('#assetCodeSearchBtn').addEventListener('click', doAssetCodeSearch);
   $('#assetCodeInput').addEventListener('keydown', function (e) { if (e.key === 'Enter') doAssetCodeSearch(); });
+  // Xoá hết chữ -> tự xoá kết quả tìm kiếm
+  $('#assetCodeInput').addEventListener('input', function () { if (!this.value.trim()) doAssetCodeSearch(); });
 
   var assetStoreCandidatesCache = [];
 
@@ -2993,6 +3019,7 @@
   function cpSearch_() { cpState.query = $('#cpSearchInput').value.trim(); cpState.page = 1; fetchChiPhiKindRows_(); }
   $('#cpSearchBtn').addEventListener('click', cpSearch_);
   $('#cpSearchInput').addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); cpSearch_(); } });
+  $('#cpSearchInput').addEventListener('input', function () { if (!this.value.trim() && cpState.query) cpSearch_(); });
   $('#cpExportBtn').addEventListener('click', function () {
     var btn = this;
     btn.disabled = true;

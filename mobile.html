@@ -310,6 +310,8 @@
   }
   .li:last-child{border-bottom:none;}
   .li.tap:active{background:var(--cream);}
+  .stat-tile.tap, .hero-mini.tap{cursor:pointer; transition:transform .12s;}
+  .stat-tile.tap:active, .hero-mini.tap:active{transform:scale(.97);}
   .li-main{flex:1; min-width:0;}
   .li-title{font-size:13.5px; font-weight:600; color:var(--ink-900); line-height:1.35;}
   .li-sub{font-size:11.5px; color:var(--ink-500); margin-top:3px; line-height:1.4;}
@@ -1109,11 +1111,16 @@
     runServer('getDashboardData',[false,dashRegion,dashYear],renderDash);
   }
 
-  function statTile(icCls,icSvg,label,value,sub){
-    return '<div class="stat-tile"><div class="ic '+icCls+'">'+icSvg+'</div>'+
+  function statTile(icCls,icSvg,label,value,sub,go){
+    return '<div class="stat-tile'+(go?' tap" data-goto-tab="'+go:'')+'"><div class="ic '+icCls+'">'+icSvg+'</div>'+
       '<div class="k">'+esc(label)+'</div><div class="v">'+esc(value)+'</div>'+
       (sub?'<div class="s">'+esc(sub)+'</div>':'')+'</div>';
   }
+
+  // Bấm thẻ số liệu ở Tổng quan -> mở trang tương ứng
+  document.addEventListener('click',function(e){
+    var t=e.target.closest&&e.target.closest('[data-goto-tab]'); if(t) goTab(t.dataset.gotoTab);
+  });
 
   function renderDash(d){
     var totalCost=(d.thsCost||0)+(d.lscCost||0)+(d.sanakyCost||0)+(d.maintCost||0);
@@ -1123,8 +1130,8 @@
         '<div class="hero-value">'+fmtShort(totalCost)+'</div>'+
         '<div class="hero-sub"><span class="dot-ok"></span>'+d.openStores+' / '+d.totalStores+' cửa hàng đang hoạt động</div>'+
         '<div class="hero-split">'+
-          '<div class="hero-mini"><div class="k">Cửa hàng</div><div class="v">'+d.totalStores+'</div></div>'+
-          '<div class="hero-mini"><div class="k">Tài sản</div><div class="v">'+d.totalAssets+'</div></div>'+
+          '<div class="hero-mini tap" data-goto-tab="stores"><div class="k">Cửa hàng</div><div class="v">'+d.totalStores+'</div></div>'+
+          '<div class="hero-mini tap" data-goto-tab="assets"><div class="k">Tài sản</div><div class="v">'+d.totalAssets+'</div></div>'+
         '</div>'+
       '</div>';
 
@@ -1133,10 +1140,10 @@
     // Hiện số tiền ĐẦY ĐỦ (thẻ rộng ~175px, thừa chỗ cho 13 chữ số ở cỡ 16.5px).
     // Riêng con số hero phía trên vẫn dùng fmtShort vì cỡ chữ 33px.
     $('#dashStats').innerHTML=
-      statTile('sky',flash,'Sửa chữa THS',fmtVND(d.thsCost),d.thsCount+' lượt')+
-      statTile('gold',flash,'Sửa chữa LSC',fmtVND(d.lscCost),d.lscCount+' lượt')+
-      statTile('purple',flash,'Sửa chữa SNK',fmtVND(d.sanakyCost),d.sanakyCount+' lượt')+
-      statTile('green',wrench,'Bảo dưỡng',fmtVND(d.maintCost),d.maintCount+' lượt');
+      statTile('sky',flash,'Sửa chữa THS',fmtVND(d.thsCost),d.thsCount+' lượt','chiphi-ths')+
+      statTile('gold',flash,'Sửa chữa LSC',fmtVND(d.lscCost),d.lscCount+' lượt','chiphi-lsc')+
+      statTile('purple',flash,'Sửa chữa SNK',fmtVND(d.sanakyCost),d.sanakyCount+' lượt','sanaky')+
+      statTile('green',wrench,'Bảo dưỡng',fmtVND(d.maintCost),d.maintCount+' lượt','maint');
 
     renderRecentCosts_(d.recentCosts||[]);
 
@@ -1419,7 +1426,10 @@
       type:'bar',
       data:{labels:rl,datasets:rds},
       options:{responsive:true,maintainAspectRatio:false,layout:{padding:{top:18}},
-        plugins:{legend:{display:false}},
+        interaction:{mode:'index',intersect:false},
+        plugins:{legend:{display:false},tooltip:{callbacks:{
+          label:function(c){return ' '+(c.dataset.label||'')+': '+c.parsed.y+' cửa hàng';},
+          footer:function(it){ if(it.length<2) return ''; return 'Tổng: '+it.reduce(function(a,x){return a+(x.parsed.y||0);},0)+' cửa hàng'; }}}},
         scales:{y:{beginAtZero:true,grid:{color:'#E8EEF5'},ticks:{font:{size:10}}},x:{grid:{display:false,drawTicks:false},ticks:{font:{size:10}}}}},
       plugins:[barLabels]
     });
