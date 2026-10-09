@@ -2970,6 +2970,12 @@
   var cpKind = '';
   var cpState = { region: '', supplier: '', staff: '', year: '', month: '', query: '', page: 1, pageSize: 50 };
 
+  /* File Excel lớn (> ~2MB) tải bằng data: URL dễ bị trình duyệt chặn lặng lẽ -> chuyển sang Blob. */
+  function xlsxBlobUrl_(b64) {
+    var bin = atob(b64), n = bin.length, u8 = new Uint8Array(n);
+    for (var i = 0; i < n; i++) u8[i] = bin.charCodeAt(i);
+    return URL.createObjectURL(new Blob([u8], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }));
+  }
   function cpOpts_() {
     return { kind: cpKind, region: cpState.region, supplier: cpState.supplier, staff: cpState.staff, year: cpState.year, month: cpState.month,
              query: cpState.query, page: cpState.page, pageSize: cpState.pageSize };
@@ -3039,7 +3045,7 @@
       btn.disabled = false;
       if (!res || !res.base64) { showToast('Không xuất được file Excel.', true); return; }
       var a = document.createElement('a');
-      a.href = 'data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,' + res.base64;
+      a.href = xlsxBlobUrl_(res.base64);
       a.download = res.filename;
       document.body.appendChild(a); a.click(); a.remove();
     }, function () { btn.disabled = false; });
@@ -3371,7 +3377,7 @@
     }], function (res) {
       btn.disabled = false;
       var a = document.createElement('a');
-      a.href = 'data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,' + res.base64;
+      a.href = xlsxBlobUrl_(res.base64);
       a.download = res.filename;
       document.body.appendChild(a);
       a.click();

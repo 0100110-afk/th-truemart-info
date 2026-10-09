@@ -266,6 +266,8 @@ function getVatTuStockInHistory() {
 //@@END
 
 //@@EXPORT_BLOCK
+const VT_STATUS_LABELS_ = { done: 'Đã xuất kho', wait: 'Chờ xuất kho', no_holder: 'Thiếu người giữ',
+  no_qty: 'Thiếu số lượng', no_item: 'Chưa khớp vật tư', no_stock: 'Không đủ tồn' };
 /** Xuất Excel ngay trên trình duyệt bằng SheetJS (bản Apps Script phải tạo file tạm trên Drive). */
 function exportVatTuExcel(yearFilter, monthFilter, trackOpts) {
   trackOpts = trackOpts || {};
@@ -323,7 +325,8 @@ function exportVatTuExcel(yearFilter, monthFilter, trackOpts) {
     full.rows.map(function (r) {
       return [r.source, r.date, r.item, r.qty, r.staff, r.address, r.statusLabel, r.statusSub];
     }),
-    scopeText(trackYear, trackMonth, trackStaff, trackQuery));
+    scopeText(trackYear, trackMonth, trackStaff, trackQuery) +
+      (trackOpts.status ? '  ·  Trạng thái: ' + (VT_STATUS_LABELS_[trackOpts.status] || trackOpts.status) : ''));
 
   const label = (yearFilter || monthFilter) ? ('_' + (yearFilter || 'tatca') + (monthFilter ? '-' + pad2_(monthFilter) : '')) : '';
   return { success: true, base64: XL.write(wb, { bookType: 'xlsx', type: 'base64' }), filename: 'VatTu' + label + '.xlsx' };

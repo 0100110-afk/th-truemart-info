@@ -750,19 +750,8 @@ function computeDashboardData_(regionFilter, yearFilter) {
    * "503000101", "303260001"...) bị loại khỏi mọi bộ lọc Miền, gây chênh "Toàn quốc" > "Miền Bắc".
    */
   let chiphi = getChiPhiCached_();
-  if (regionFilter) {
-    chiphi = chiphi.filter(function (r) {
-      const areaG = regionGroup_(r[COLS.CP_AREA]);
-      if (areaG === regionFilter) return true;
-      const cc = normalizeCC_(r[COLS.CP_COST_CENTER]);
-      if (allowedCC.has(cc)) return true;
-      // Điều kiện (c): kho LSC chưa đăng ký, cột "Khu vực" cũng không nhận diện được.
-      if (areaG === 'KHAC' && !allKnownCCAll.has(cc) && isLscCC_(cc)) {
-        return regionFilter === LSC_DEFAULT_REGION_;
-      }
-      return false;
-    });
-  }
+  // Cùng một quy tắc với trang THS/LSC: cột "Khu vực" quyết định, trống mới xét Cost center.
+  if (regionFilter) chiphi = filterChiPhiByRegion_(chiphi, regionFilter);
     /**
    * Tách "Chi phí sửa chữa" thành 2 thẻ theo đầu số Cost center: bắt đầu bằng "5" là kho/LSC,
    * còn lại là cửa hàng THS.
@@ -1432,12 +1421,16 @@ function filterChiPhiByRegion_(rows, regionFilter) {
     .filter(function (s) { return regionGroup_(s[COLS.STORE_REGION]) === regionFilter; })
     .map(function (s) { return normalizeCC_(s[COLS.STORE_COST_CENTER]); }));
   const allKnownCCAll = new Set(getStoresCached_().map(function (s) { return normalizeCC_(s[COLS.STORE_COST_CENTER]); }));
+  /* Cột "Khu vực" QUYẾT ĐỊNH: ô ghi rõ miền thì chỉ tính vào đúng miền đó (không tính thêm miền khác
+     theo Cost center -> hết cảnh 1 dòng bị đếm ở 2 miền). Chỉ khi ô trống / ghi không rõ miền mới
+     suy ra từ Cost center theo DS CH; kho LSC (mã đầu 5) không có trong DS CH -> mặc định Miền Bắc. */
   return rows.filter(function (r) {
     const areaG = regionGroup_(r[COLS.CP_AREA]);
-    if (areaG === regionFilter) return true;
+    if (areaG !== 'KHAC') return areaG === regionFilter;
     const cc = normalizeCC_(r[COLS.CP_COST_CENTER]);
     if (allowedCC.has(cc)) return true;
-    if (areaG === 'KHAC' && !allKnownCCAll.has(cc) && isLscCC_(cc)) return regionFilter === LSC_DEFAULT_REGION_;
+    if (allKnownCCAll.has(cc)) return false;
+    if (isLscCC_(cc)) return regionFilter === LSC_DEFAULT_REGION_;
     return false;
   });
 }
