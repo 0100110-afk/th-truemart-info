@@ -852,14 +852,9 @@
   <div class="sheet-overlay" id="pwOverlay"></div>
   <div class="sheet" id="pwSheet">
     <div class="sheet-grip"></div>
-    <div class="sheet-head"><h3 id="pwTitle">Xác nhận mật khẩu</h3><button class="sheet-close" data-close="pw">✕</button></div>
+    <div class="sheet-head"><h3 id="pwTitle">Xác nhận</h3><button class="sheet-close" data-close="pw">✕</button></div>
     <div class="sheet-body">
-      <div id="pwMsg" style="font-size:12.5px; color:var(--ink-500); line-height:1.45; margin-bottom:14px;"></div>
-      <div class="field">
-        <label>Mật khẩu</label>
-        <input type="password" id="pwInput" inputmode="numeric" autocomplete="off" placeholder="Nhập mật khẩu...">
-      </div>
-      <div id="pwErr" style="display:none; font-size:12px; font-weight:700; color:var(--danger);">Mật khẩu không đúng.</div>
+      <div id="pwMsg" style="font-size:13px; color:var(--ink-700); line-height:1.5;"></div>
     </div>
     <!-- Huỷ / Xác nhận tỉ lệ 1:1, khớp modal mật khẩu bản desktop. -->
     <div class="sheet-foot" style="display:flex; gap:10px;">
@@ -912,18 +907,15 @@
      nó phóng to trang và không trả lại tỷ lệ cũ — và mật khẩu hiện rõ. Ô nhập phải giữ font-size
      16px (kế thừa .field input), dưới mức đó iOS tự phóng to khi focus bất kể user-scalable=no.
      Hỏi lại MỖI LẦN bấm, không nhớ phiên. */
-  var VT_PASSWORD_='121212';
   var pwResolve_=null;
 
+  // Hộp xác nhận bằng chữ (không còn mật khẩu) — chỉ cho thao tác ghi chạy ngay khi bấm.
   function requirePassword_(title,message){
     return new Promise(function(resolve){
       pwResolve_=resolve;
-      $('#pwTitle').textContent=title||'Xác nhận mật khẩu';
+      $('#pwTitle').textContent=title||'Xác nhận';
       $('#pwMsg').textContent=message||'';
-      $('#pwInput').value='';
-      $('#pwErr').style.display='none';
       openSheet('pw');
-      setTimeout(function(){ try{ $('#pwInput').focus(); }catch(e){} },280);
     });
   }
   function closePw_(ok){
@@ -931,12 +923,7 @@
     var r=pwResolve_; pwResolve_=null;
     if(r) r(!!ok);
   }
-  function submitPw_(){
-    if($('#pwInput').value===VT_PASSWORD_){ closePw_(true); return; }
-    $('#pwErr').style.display='block';
-    $('#pwInput').value='';
-    try{ $('#pwInput').focus(); }catch(e){}
-  }
+  function submitPw_(){ closePw_(true); }
 
   function toast(msg,isErr){
     var t=$('#toast'); t.textContent=msg; t.classList.toggle('error',!!isErr); t.classList.add('show');
@@ -2265,9 +2252,7 @@
 
   // ---- Nhập kho (bottom sheet) ----
   $('#vtStockInOpenBtn').addEventListener('click',function(){
-    requirePassword_('Cập nhật tồn kho',
-      'Thao tác này CỘNG DỒN số lượng vừa nhập vào tồn kho hiện có — cần mật khẩu để tiếp tục.')
-    .then(function(ok){
+    Promise.resolve(true).then(function(ok){
       if(!ok) return;
       if(!vtData||!vtData.materials.length){ toast('Chưa có vật tư nào trong danh mục.',true); return; }
       if(!vtData.holders.length){ toast('Chưa có người giữ vật tư nào.',true); return; }
@@ -2286,7 +2271,7 @@
     var btn=this;
     if(btn.disabled) return;
     requirePassword_('Khớp vật tư',
-      'Thao tác này TRỪ tồn kho theo các dòng chi phí mới chưa xử lý — cần mật khẩu để tiếp tục.')
+      'Thao tác này TRỪ tồn kho theo các dòng chi phí đang "Chờ xuất kho". Bạn có muốn tiếp tục?')
     .then(function(ok){
       if(!ok) return;
       btn.disabled=true; btn.style.opacity='.6';
@@ -2300,7 +2285,6 @@
   });
   $('#pwOkBtn').addEventListener('click',submitPw_);
   $('#pwCancelBtn').addEventListener('click',function(){ closePw_(false); });
-  $('#pwInput').addEventListener('keydown',function(e){ if(e.key==='Enter'){ e.preventDefault(); submitPw_(); } });
   $('#pwOverlay').addEventListener('click',function(){ closePw_(false); });
   $('#stockInSaveBtn').addEventListener('click',function(){
     var holder=$('#stockInHolder').value;

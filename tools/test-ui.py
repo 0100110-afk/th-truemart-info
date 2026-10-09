@@ -57,7 +57,7 @@ with sync_playwright() as p:
     pg.click('.nav-item[data-view="vattu"]')
     pg.wait_for_selector('#vtTrackTable tbody .vt-status', timeout=5000); pg.wait_for_timeout(300)
     pg.screenshot(path=f'{shots}/desktop-vattu.png')
-    pg.click('#vtCalcBtn'); pg.fill('#vtPasswordInput', '121212'); pg.click('#vtPasswordOkBtn'); pg.wait_for_timeout(800)
+    pg.click('#vtCalcBtn'); pg.click('#vtPasswordOkBtn'); pg.wait_for_timeout(800)
     toast = pg.inner_text('#toast'); print('toast khớp vật tư:', toast)
     with pg.expect_download() as dl: pg.click('#vtExportBtn')
     print('tải excel:', dl.value.suggested_filename)

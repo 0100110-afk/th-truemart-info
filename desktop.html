@@ -761,6 +761,8 @@
   .btn-ico{width:14px; height:14px; flex-shrink:0;}
   /* Bảng Chi phí THS / LSC: 11 cột như sheet CHI PHI, cùng cỡ chữ với các bảng khác của app.
      Cột chữ dài được xuống dòng với bề rộng cố định; bảng rộng hơn màn hình thì kéo ngang. */
+  .cp-toolbar{display:flex; flex-direction:column; align-items:flex-start; gap:12px; margin-bottom:16px;}
+  .cp-toolbar .filters-row{flex-wrap:wrap;}
   .table-wrap.wrap-cells #cpTable{min-width:1750px;}
   .table-wrap.wrap-cells #cpTable td.col-wrap, .table-wrap.wrap-cells #cpTable th.col-wrap{min-width:0;}
   #cpTable .w-store{width:340px;} #cpTable .w-issue{width:280px;} #cpTable .w-item{width:300px;}
@@ -1073,8 +1075,10 @@
 
         <!-- CHI PHÍ THS / LSC (dùng chung một khung, đổi theo mục menu) -->
         <section class="view" id="view-chiphi">
-          <div class="row-between">
-            <div class="search-bar" style="flex:1; max-width:560px; margin-bottom:0;">
+          <!-- Bố cục CỐ ĐỊNH 2 hàng: ô tìm kiếm ở trên, bộ lọc ở dưới — không tự nhảy lên cùng hàng
+               khi danh sách ngắn (mất thanh cuộn dọc làm vùng nội dung rộng thêm vài px). -->
+          <div class="cp-toolbar">
+            <div class="search-bar" style="width:100%; max-width:560px; margin-bottom:0;">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
               <input type="text" id="cpSearchInput" placeholder="Nhập nội dung tìm kiếm...">
               <button class="btn btn-primary" id="cpSearchBtn" type="button">Tìm kiếm</button>
@@ -1113,12 +1117,12 @@
             <div class="row-between" style="margin-bottom:14px;">
               <h3 style="margin:0;">Vật tư tồn kho theo người giữ</h3>
               <div style="display:flex; gap:8px; flex-wrap:wrap;">
-                <button class="btn btn-ghost btn-sm" id="vtManageItemsBtn"><svg class="btn-lock-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>Quản lý vật tư</button>
-                <button class="btn btn-ghost btn-sm" id="vtManageHoldersBtn"><svg class="btn-lock-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>Người giữ vật tư</button>
-                <button class="btn btn-ghost btn-sm" id="vtEditQtyBtn"><svg class="btn-lock-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>Chỉnh sửa tồn kho</button>
-                <button class="btn btn-primary btn-sm" id="vtStockInBtn"><svg class="btn-lock-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>Cập nhật tồn kho</button>
+                <button class="btn btn-ghost btn-sm" id="vtManageItemsBtn">Quản lý vật tư</button>
+                <button class="btn btn-ghost btn-sm" id="vtManageHoldersBtn">Người giữ vật tư</button>
+                <button class="btn btn-ghost btn-sm" id="vtEditQtyBtn">Chỉnh sửa tồn kho</button>
+                <button class="btn btn-primary btn-sm" id="vtStockInBtn">Cập nhật tồn kho</button>
                 <!-- Trừ kho theo các dòng CHI PHÍ mới. Chỉ chạy khi bấm nút này. -->
-                <button class="btn btn-primary btn-sm" id="vtCalcBtn"><svg class="btn-lock-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>Khớp vật tư</button>
+                <button class="btn btn-primary btn-sm" id="vtCalcBtn">Khớp vật tư</button>
                 <button class="btn btn-ghost btn-sm" id="vtExportBtn"><svg class="btn-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11M7.5 10.5 12 15l4.5-4.5"/><path d="M5 19h14"/></svg>Xuất Excel</button>
               </div>
             </div>
@@ -1287,11 +1291,9 @@
   <!-- MODAL: Xác nhận mật khẩu -->
   <div class="modal-overlay" id="vtPasswordModal">
     <div class="modal" style="max-width:380px;">
-      <div class="modal-head"><h3 id="vtPasswordTitle">Yêu cầu mật khẩu</h3><button class="modal-close" id="vtPasswordClose">×</button></div>
+      <div class="modal-head"><h3 id="vtPasswordTitle">Xác nhận</h3><button class="modal-close" id="vtPasswordClose">×</button></div>
       <div class="modal-body">
-        <div id="vtPasswordMsg" style="font-size:13px; color:var(--ink-500); margin-bottom:14px;"></div>
-        <div class="field"><label>Mật khẩu</label><input type="password" id="vtPasswordInput" placeholder="Nhập mật khẩu..."></div>
-        <div id="vtPasswordError" style="display:none; color:var(--danger); font-size:12.5px; margin-top:-8px;">Mật khẩu không đúng, thử lại.</div>
+        <div id="vtPasswordMsg" style="font-size:13.5px; color:var(--ink-700); line-height:1.5;"></div>
       </div>
       <div class="modal-foot">
         <button class="btn btn-ghost btn-sm" id="vtPasswordCancelBtn">Huỷ</button>
@@ -1490,42 +1492,31 @@
   }
 
   /** Modal xác nhận mật khẩu dùng chung, khoá thao tác ghi đè dữ liệu nhạy cảm. Trả về Promise<boolean>. */
-  function passwordDialog(title, message) {
-    if (window.__TM_ROLE === 'admin') return Promise.resolve(true);   // web: đã phân quyền bằng tài khoản
+  /* Hộp xác nhận bằng chữ (không còn mật khẩu) — chỉ dùng cho thao tác ghi chạy NGAY khi bấm.
+     Các nút mở bảng chỉnh sửa không hỏi vì bên trong đã có bước xác nhận riêng trước khi lưu. */
+  function confirmDialog(title, message) {
     return new Promise(function (resolve) {
-      $('#vtPasswordTitle').textContent = title || 'Yêu cầu mật khẩu';
+      $('#vtPasswordTitle').textContent = title || 'Xác nhận';
       $('#vtPasswordMsg').textContent = message || '';
-      $('#vtPasswordInput').value = '';
-      $('#vtPasswordError').style.display = 'none';
       var overlay = $('#vtPasswordModal');
       overlay.classList.add('active');
-      var okBtn = $('#vtPasswordOkBtn');
-      var cancelBtn = $('#vtPasswordCancelBtn');
-      var closeBtn = $('#vtPasswordClose');
-      var input = $('#vtPasswordInput');
-      setTimeout(function () { input.focus(); }, 50);
-
+      var okBtn = $('#vtPasswordOkBtn'), cancelBtn = $('#vtPasswordCancelBtn'), closeBtn = $('#vtPasswordClose');
+      setTimeout(function () { okBtn.focus(); }, 50);
       function cleanup(result) {
         overlay.classList.remove('active');
         okBtn.removeEventListener('click', onOk);
         cancelBtn.removeEventListener('click', onCancel);
         closeBtn.removeEventListener('click', onCancel);
-        input.removeEventListener('keydown', onKeydown);
         resolve(result);
       }
-      function onOk() {
-        if (input.value === '121212') { cleanup(true); }
-        else { $('#vtPasswordError').style.display = ''; input.value = ''; input.focus(); }
-      }
+      function onOk() { cleanup(true); }
       function onCancel() { cleanup(false); }
-      function onKeydown(e) { if (e.key === 'Enter') onOk(); }
-
       okBtn.addEventListener('click', onOk);
       cancelBtn.addEventListener('click', onCancel);
       closeBtn.addEventListener('click', onCancel);
-      input.addEventListener('keydown', onKeydown);
     });
   }
+
 
   function runServer(fnName, args, onOk, onErr) {
     var runner = google.script.run
@@ -3456,11 +3447,8 @@
     });
   }
 
-  /* MỤC 2: mọi nút GHI trong màn Vật tư đều hỏi mật khẩu, hỏi lại MỖI LẦN bấm (không nhớ phiên).
-     "Xuất Excel" cố ý KHÔNG khoá vì chỉ đọc, không thay đổi gì. */
   $('#vtManageItemsBtn').addEventListener('click', function () {
-    passwordDialog('Quản lý vật tư', 'Thao tác này THÊM / SỬA / XOÁ danh mục vật tư — cần mật khẩu để tiếp tục.')
-      .then(function (ok) { if (ok) openVtItemsModal(); });
+    openVtItemsModal();
   });
   $('#vtItemsModalClose').addEventListener('click', closeVtItemsModal);
   $('#vtItemsModal').addEventListener('click', function (e) { if (e.target === this) closeVtItemsModal(); });
@@ -3534,8 +3522,7 @@
   }
 
   $('#vtManageHoldersBtn').addEventListener('click', function () {
-    passwordDialog('Người giữ vật tư', 'Thêm / đổi tên / xoá người giữ sẽ ảnh hưởng tới cột tồn kho tương ứng — cần mật khẩu để tiếp tục.')
-      .then(function (ok) { if (ok) openVtHoldersModal(); });
+    openVtHoldersModal();
   });
   $('#vtHoldersModalClose').addEventListener('click', closeVtHoldersModal);
   $('#vtHoldersModal').addEventListener('click', function (e) { if (e.target === this) closeVtHoldersModal(); });
@@ -3570,9 +3557,7 @@
   $('#vtQtyHolderSelect').addEventListener('change', renderVtQtyTable);
 
   $('#vtEditQtyBtn').addEventListener('click', function () {
-    passwordDialog('Chỉnh sửa tồn kho', 'Thao tác này GHI ĐÈ trực tiếp số liệu tồn kho hiện có — cần mật khẩu để tiếp tục.').then(function (ok) {
-      if (ok) openVtQtyModal();
-    });
+    openVtQtyModal();
   });
   $('#vtQtyModalClose').addEventListener('click', closeVtQtyModal);
   $('#vtQtyModal').addEventListener('click', function (e) { if (e.target === this) closeVtQtyModal(); });
@@ -3669,16 +3654,15 @@
   }
 
   $('#vtStockInBtn').addEventListener('click', function () {
-    passwordDialog('Cập nhật tồn kho', 'Thao tác này CỘNG DỒN số lượng vào tồn kho hiện có — cần mật khẩu để tiếp tục.')
-      .then(function (ok) { if (ok) openVtStockInModal(); });
+    openVtStockInModal();
   });
 
   /* Nút này GHI vào tồn kho nên hỏi mật khẩu giống các nút ghi khác. Chạy có thể lâu (quét toàn bộ
      sheet CHI PHÍ) nên khoá nút lại trong lúc chờ, tránh bấm hai lần. */
   $('#vtCalcBtn').addEventListener('click', function () {
     var btn = this;
-    passwordDialog('Khớp vật tư',
-      'Thao tác này TRỪ tồn kho theo các dòng chi phí mới chưa xử lý — cần mật khẩu để tiếp tục.')
+    confirmDialog('Khớp vật tư',
+      'Thao tác này TRỪ tồn kho theo các dòng chi phí đang "Chờ xuất kho". Bạn có muốn tiếp tục?')
       .then(function (ok) {
         if (!ok) return;
         btn.disabled = true;

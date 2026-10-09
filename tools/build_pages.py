@@ -24,14 +24,7 @@ HEAD = '''<meta charset="utf-8">
 
 # Bản web có phân quyền thật (sheet APP USERS): admin thì bỏ hộp mật khẩu 121212, người dùng
 # (viewer) thì ẩn hẳn các nút ghi — xem css/auth.css (body.tm-viewer) và js/app.js (__TM_ROLE).
-PATCHES = {
-    'Index.html': [('  function passwordDialog(title, message) {\n',
-                    '  function passwordDialog(title, message) {\n'
-                    '    if (window.__TM_ROLE === \'admin\') return Promise.resolve(true);   // web: đã phân quyền bằng tài khoản\n')],
-    'IndexMobile.html': [('  function requirePassword_(title,message){\n',
-                          '  function requirePassword_(title,message){\n'
-                          '    if (window.__TM_ROLE === \'admin\') return Promise.resolve(true);   // web: đã phân quyền bằng tài khoản\n')],
-}
+PATCHES = {}   # bản web và bản Apps Script giờ giống nhau: không còn mật khẩu, chỉ hỏi xác nhận bằng chữ
 
 def build(src, dst, desktop):
     s = open(os.path.join(root, 'apps-script', src), encoding='utf-8').read()
