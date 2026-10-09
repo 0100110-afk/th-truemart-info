@@ -347,7 +347,11 @@
   .vt-fix .btn-xs{height:26px; padding:0 10px; font-size:11.5px; border-radius:7px; font-weight:600; cursor:pointer; border:1px solid var(--line); background:var(--white); color:var(--brand-800);}
   .vt-fix .btn-xs.ok{background:var(--brand-900); border-color:var(--brand-900); color:#fff;}
   .vt-fix .btn-xs:hover{border-color:var(--brand-500);}
-  .vt-icos{display:inline-flex; gap:4px; margin-left:4px; vertical-align:middle;}
+  /* Ô trên cao đúng bằng thẻ trạng thái (24px), ô dưới cách 4px như dòng tên vật tư .vt-sub */
+  table.vt-track-table td.vt-act{padding-left:0; padding-right:8px; text-align:center;}
+  .vt-act-top{height:24px; display:flex; align-items:center; justify-content:center;}
+  .vt-act-bot{margin-top:3px; height:18px; display:flex; align-items:center; justify-content:center;}
+  .vt-act-bot .vt-ico{width:20px; height:20px;}
   .vt-ico{width:22px; height:22px; display:inline-flex; align-items:center; justify-content:center; border-radius:6px; border:1px solid var(--line); background:var(--white); color:var(--brand-800); cursor:pointer; padding:0; vertical-align:middle;}
   .vt-ico svg{width:13px; height:13px;}
   .vt-ico.ok{color:var(--ok, #12B76A); border-color:#ABEFC6; background:#ECFDF3;}
@@ -1171,9 +1175,9 @@
                      mép phải trong khi cột Hạng mục bị bóp đến mức dòng nào cũng gãy đôi. -->
                 <colgroup>
                   <col style="width:11%"><col style="width:11%"><col style="width:15%"><col style="width:5%">
-                  <col style="width:13%"><col style="width:30%"><col style="width:15%">
+                  <col style="width:13%"><col style="width:26%"><col style="width:16%"><col style="width:3%">
                 </colgroup>
-                <thead><tr><th>Nguồn</th><th title="Ngày hoàn thành">Ngày</th><th class="col-wrap">Hạng mục vật tư</th><th title="Số lượng">SL</th><th>NV Phụ trách</th><th class="col-wrap">Địa chỉ</th><th>Trạng thái</th></tr></thead>
+                <thead><tr><th>Nguồn</th><th title="Ngày hoàn thành">Ngày</th><th class="col-wrap">Hạng mục vật tư</th><th title="Số lượng">SL</th><th>NV Phụ trách</th><th class="col-wrap">Địa chỉ</th><th>Trạng thái</th><th class="vt-act"></th></tr></thead>
                 <tbody></tbody>
               </table>
             </div>
@@ -3333,7 +3337,7 @@
     renderVtTrackSummary(data.counts);
     var tbody = $('#vtTrackTable tbody');
     if (!data.rows.length) {
-      tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:var(--ink-500); padding:24px;">Không có bản ghi phù hợp.</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; color:var(--ink-500); padding:24px;">Không có bản ghi phù hợp.</td></tr>';
     } else {
       vtTrackRows_ = data.rows;
       tbody.innerHTML = data.rows.map(function (r, i) {
@@ -3344,7 +3348,9 @@
              bảng ra ngoài khung. */
           '<td class="col-wrap">' + esc(r.item) + '</td><td>' + esc(r.qty) + '</td>' +
           '<td>' + esc(r.staff || '—') + '</td><td class="col-wrap">' + esc(r.address || '—') + '</td>' +
-          '<td>' + vtStatusBadge(r.status, r.statusLabel) + vtSubLine_(r, i) + '</td></tr>';
+          '<td>' + vtStatusBadge(r.status, r.statusLabel) +
+          (r.statusSub ? '<span class="vt-sub">' + esc(r.statusSub) + '</span>' : '') + '</td>' +
+          '<td class="vt-act">' + vtActIcons_(r, i) + '</td></tr>';
       }).join('');
     }
     var totalPages = Math.max(1, Math.ceil(data.total / data.pageSize));
@@ -3364,19 +3370,21 @@
   var VT_ICO_OK_ = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
   var VT_ICO_EDIT_ = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4L19 9l-4-4L4 16v4z"/><path d="M13.5 6.5l4 4"/></svg>';
   var VT_ICO_USER_ = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg>';
-  /* Dòng phụ dưới thẻ trạng thái: GIỮ NGUYÊN tên vật tư như cũ, thêm 2 icon nhỏ bên cạnh
-     (✓ xác nhận đúng · ✎ chọn vật tư khác). Dòng thiếu người giữ có icon chọn người giữ. */
-  function vtSubLine_(r, i) {
-    var canFix = !!r.id && (r.status === 'no_item' || r.status === 'wait');
+  /* Cột icon riêng (không tiêu đề) cạnh Trạng thái — các icon luôn thẳng cột với nhau:
+       ô trên (ngang thẻ trạng thái): ✓ xác nhận đúng vật tư, hoặc 👤 chọn người giữ khi thiếu người giữ
+       ô dưới (ngang tên vật tư):     ✎ chọn vật tư khác
+     Chỉ "Chưa khớp vật tư", "Chờ xuất kho" và "Thiếu người giữ" có icon; trạng thái khác để trống. */
+  function vtActIcons_(r, i) {
+    if (!r.id) return '';
     var ico = function (cls, title, svg, js) { return '<button type="button" class="vt-ico ' + cls + '" title="' + title + '" onclick="' + js + '">' + svg + '</button>'; };
-    if (r.status === 'no_holder') {
-      return '<span class="vt-sub">' + (r.id ? ico('', 'Chọn người giữ vật tư', VT_ICO_USER_, 'THTM.vtOpenFix(' + i + ',\'staff\')') : '') + '</span>';
-    }
-    if (!r.statusSub && !(canFix && r.status === 'no_item')) return '';
-    return '<span class="vt-sub">' + esc(r.statusSub || '') +
-      (canFix ? ' <span class="vt-icos">' +
-        (r.statusSub ? ico('ok', 'Đúng vật tư này — xác nhận', VT_ICO_OK_, 'THTM.vtQuickConfirm(' + i + ')') : '') +
-        ico('', 'Chọn vật tư khác', VT_ICO_EDIT_, 'THTM.vtOpenFix(' + i + ',\'item\')') + '</span>' : '') + '</span>';
+    var top = '', bottom = '';
+    if (r.status === 'no_item' || r.status === 'wait') {
+      if (r.statusSub) top = ico('ok', 'Đúng vật tư này — xác nhận', VT_ICO_OK_, 'THTM.vtQuickConfirm(' + i + ')');
+      bottom = ico('', 'Chọn vật tư khác', VT_ICO_EDIT_, 'THTM.vtOpenFix(' + i + ',\'item\')');
+    } else if (r.status === 'no_holder') {
+      top = ico('', 'Chọn người giữ vật tư', VT_ICO_USER_, 'THTM.vtOpenFix(' + i + ',\'staff\')');
+    } else return '';
+    return '<div class="vt-act-top">' + top + '</div>' + (bottom ? '<div class="vt-act-bot">' + bottom + '</div>' : '');
   }
   function vtFixSend_(r, fix, done) {
     runServer('confirmChiPhiFix', [r.id, fix], function () {
@@ -3427,7 +3435,7 @@
     var col = c.kind === 'item' ? 'Hạng mục/Vật tư' : 'NV phụ trách';
     var oldV = c.kind === 'item' ? c.row.item : (c.row.staff || '');
     $('#vtFixNote').innerHTML = v
-      ? 'Sau khi xác nhận:<br>• Ô <b>' + col + '</b> của dòng này trên sheet CHI PHI đổi từ <b>"' + esc(oldV) + '"</b> thành <b>"' + esc(v) + '"</b> (sheet cập nhật trong vòng 10 phút).<br>' +
+      ? 'Sau khi xác nhận:<br>• Ô <b>' + col + '</b> của dòng này trên sheet CHI PHI đổi từ <b>' + (oldV ? '"' + esc(oldV) + '"' : '(trống)') + '</b> thành <b>"' + esc(v) + '"</b> (sheet cập nhật trong vòng 10 phút).<br>' +
         '• Dòng chuyển sang trạng thái tiếp theo ngay trên app; bấm <b>Khớp vật tư</b> để trừ kho như bình thường.'
       : 'Chọn ' + (c.kind === 'item' ? 'vật tư' : 'người giữ') + ' đúng cho dòng này.';
     $('#vtFixOkBtn').disabled = !v;
