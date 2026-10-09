@@ -342,6 +342,14 @@
   /* white-space:normal — dòng phụ thừa hưởng nowrap từ td nên bản cũ đẩy cột Trạng thái rộng ra
      bằng cả câu "Đèn exit kết hợp sự cố"; cho xuống dòng thì cột giữ đúng bề rộng đã định. */
   .vt-sub{display:block; margin-top:4px; font-size:11px; color:var(--ink-500); line-height:1.35; white-space:normal;}
+  /* Dòng chưa khớp vật tư / thiếu người giữ: gợi ý + nút xác nhận ngay trong ô trạng thái */
+  .vt-fix{display:flex; flex-wrap:wrap; align-items:center; gap:6px; margin-top:6px;}
+  .vt-fix .btn-xs{height:26px; padding:0 10px; font-size:11.5px; border-radius:7px; font-weight:600; cursor:pointer; border:1px solid var(--line); background:var(--white); color:var(--brand-800);}
+  .vt-fix .btn-xs.ok{background:var(--brand-900); border-color:var(--brand-900); color:#fff;}
+  .vt-fix .btn-xs:hover{border-color:var(--brand-500);}
+  .vt-fix-row{display:grid; grid-template-columns:120px 1fr; gap:6px 12px; font-size:13px; margin-bottom:14px;}
+  .vt-fix-row .k{color:var(--ink-500);}
+  .vt-fix-note{font-size:12.5px; color:var(--ink-700); background:var(--cream-50); border:1px solid var(--line); border-radius:10px; padding:10px 12px; line-height:1.5; margin-top:12px;}
   /* Mã tài sản trống -> gạch ngang xanh thay vì viên thuốc rỗng */
   .cc-dash{color:var(--brand-700);}
 
@@ -1247,6 +1255,22 @@
       </div>
       <div class="modal-foot">
         <button class="btn btn-primary btn-sm" id="vtQtySaveBtn">Lưu số lượng</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: Xác nhận vật tư / người giữ cho dòng chi phí chưa khớp -->
+  <div class="modal-overlay" id="vtFixModal">
+    <div class="modal">
+      <div class="modal-head"><h3 id="vtFixTitle">Xác nhận vật tư</h3><button class="modal-close" id="vtFixClose">×</button></div>
+      <div class="modal-body">
+        <div class="vt-fix-row" id="vtFixInfo"></div>
+        <div class="field"><label id="vtFixLabel">Vật tư đúng</label><select id="vtFixSelect"></select></div>
+        <div class="vt-fix-note" id="vtFixNote"></div>
+      </div>
+      <div class="modal-foot">
+        <button class="btn btn-ghost btn-sm" id="vtFixBackBtn">Quay lại</button>
+        <button class="btn btn-primary btn-sm" id="vtFixOkBtn">Xác nhận</button>
       </div>
     </div>
   </div>
@@ -3305,7 +3329,8 @@
     if (!data.rows.length) {
       tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:var(--ink-500); padding:24px;">Không có bản ghi phù hợp.</td></tr>';
     } else {
-      tbody.innerHTML = data.rows.map(function (r) {
+      vtTrackRows_ = data.rows;
+      tbody.innerHTML = data.rows.map(function (r, i) {
         return '<tr><td><span class="cost-type-badge chiphi">' + esc(r.source || 'Khác') + '</span></td>' +
           '<td>' + esc(normalizeDateJS_(r.date)) + '</td>' +
           /* PHẢI có class col-wrap ở ĐÂY nữa, không chỉ ở <th>. Quy tắc .wrap-cells ép mọi ô
@@ -3314,7 +3339,8 @@
           '<td class="col-wrap">' + esc(r.item) + '</td><td>' + esc(r.qty) + '</td>' +
           '<td>' + esc(r.staff || '—') + '</td><td class="col-wrap">' + esc(r.address || '—') + '</td>' +
           '<td>' + vtStatusBadge(r.status, r.statusLabel) +
-          (r.statusSub ? '<span class="vt-sub">' + esc(r.statusSub) + '</span>' : '') + '</td></tr>';
+          (r.statusSub ? '<span class="vt-sub">' + (r.status === 'no_item' ? 'Gợi ý: ' : '') + esc(r.statusSub) + '</span>' : '') +
+          vtFixButtons_(r, i) + '</td></tr>';
       }).join('');
     }
     var totalPages = Math.max(1, Math.ceil(data.total / data.pageSize));
@@ -3325,6 +3351,80 @@
   }
 
   function vtTrackGoPage(p) { vtTrackPage = p; fetchVtTrackList(); }
+
+  /* ===== Xác nhận vật tư / người giữ cho dòng chưa khớp =====
+     Người dùng chọn đúng vật tư (hoặc người giữ) -> lưu vào kho vật tư trên app, dòng chuyển ngay
+     sang "Chờ xuất kho"; Sync.gs ghi ngược ô Hạng mục/Vật tư (hoặc NV phụ trách) trên sheet CHI PHI.
+     Chưa xác nhận thì dòng KHÔNG bao giờ bị trừ kho / ghi sổ "đã xuất". */
+  var vtTrackRows_ = [], vtFixCtx_ = null;
+  function vtFixButtons_(r, i) {
+    if (!r.id) return '';
+    if (r.status === 'no_item') {
+      return '<div class="vt-fix">' +
+        (r.statusSub ? '<button class="btn-xs ok" onclick="THTM.vtOpenFix(' + i + ',\'item\',true)">Đúng, xác nhận</button>' : '') +
+        '<button class="btn-xs" onclick="THTM.vtOpenFix(' + i + ',\'item\',false)">' + (r.statusSub ? 'Chọn vật tư khác' : 'Chọn vật tư') + '</button></div>';
+    }
+    if (r.status === 'no_holder') {
+      return '<div class="vt-fix"><button class="btn-xs" onclick="THTM.vtOpenFix(' + i + ',\'staff\',false)">Chọn người giữ</button></div>';
+    }
+    return '';
+  }
+  function vtOpenFix(i, kind, useSuggestion) {
+    var r = vtTrackRows_[i]; if (!r) return;
+    passwordDialog(kind === 'item' ? 'Xác nhận vật tư' : 'Chọn người giữ',
+      'Thao tác này sửa dữ liệu dòng chi phí trên sheet CHI PHI — cần mật khẩu để tiếp tục.')
+      .then(function (ok) {
+        if (!ok) return;
+        var go = function () {
+          vtFixCtx_ = { row: r, kind: kind };
+          $('#vtFixTitle').textContent = kind === 'item' ? 'Xác nhận vật tư cho dòng chi phí' : 'Chọn người giữ cho dòng chi phí';
+          $('#vtFixInfo').innerHTML =
+            '<div class="k">Hạng mục gốc</div><div><b>' + esc(r.item) + '</b></div>' +
+            '<div class="k">NV phụ trách</div><div>' + esc(r.staff || '—') + '</div>' +
+            '<div class="k">Ngày · SL</div><div>' + esc(normalizeDateJS_(r.date)) + ' · ' + esc(r.qty) + '</div>' +
+            '<div class="k">Địa chỉ</div><div>' + esc(r.address || '—') + '</div>';
+          if (kind === 'item') {
+            $('#vtFixLabel').textContent = 'Vật tư đúng trong danh mục';
+            $('#vtFixSelect').innerHTML = '<option value="">— Chọn vật tư —</option>' + vtData.materials.map(function (m) {
+              return '<option value="' + esc(m.name) + '"' + (useSuggestion && m.name === r.statusSub ? ' selected' : '') + '>' + esc(m.name) + ' (' + esc(m.code) + ')</option>';
+            }).join('');
+          } else {
+            $('#vtFixLabel').textContent = 'Người giữ vật tư';
+            $('#vtFixSelect').innerHTML = '<option value="">— Chọn người giữ —</option>' + vtData.holders.map(function (h) {
+              return '<option value="' + esc(h) + '">' + esc(h) + '</option>';
+            }).join('');
+          }
+          vtFixRenderNote_();
+          $('#vtFixModal').classList.add('active');
+        };
+        if (vtData) go(); else runServer('getVatTuData', [], function (d) { vtData = d; go(); });
+      });
+  }
+  function vtFixRenderNote_() {
+    var c = vtFixCtx_; if (!c) return;
+    var v = $('#vtFixSelect').value;
+    var col = c.kind === 'item' ? 'Hạng mục/Vật tư' : 'NV phụ trách';
+    var oldV = c.kind === 'item' ? c.row.item : (c.row.staff || '');
+    $('#vtFixNote').innerHTML = v
+      ? 'Sau khi xác nhận:<br>• Ô <b>' + col + '</b> của dòng này trên sheet CHI PHI đổi từ <b>"' + esc(oldV) + '"</b> thành <b>"' + esc(v) + '"</b> (sheet cập nhật trong vòng 10 phút).<br>' +
+        '• Dòng chuyển sang trạng thái tiếp theo ngay trên app; bấm <b>Khớp vật tư</b> để trừ kho như bình thường.'
+      : 'Chọn ' + (c.kind === 'item' ? 'vật tư' : 'người giữ') + ' đúng cho dòng này.';
+    $('#vtFixOkBtn').disabled = !v;
+  }
+  $('#vtFixSelect').addEventListener('change', vtFixRenderNote_);
+  function closeVtFix_() { $('#vtFixModal').classList.remove('active'); vtFixCtx_ = null; }
+  $('#vtFixClose').addEventListener('click', closeVtFix_);
+  $('#vtFixBackBtn').addEventListener('click', closeVtFix_);
+  $('#vtFixOkBtn').addEventListener('click', function () {
+    var c = vtFixCtx_, v = $('#vtFixSelect').value; if (!c || !v) return;
+    var fix = c.kind === 'item' ? { item: v, fromItem: c.row.item } : { staff: v, fromStaff: c.row.staff || '' };
+    var btn = this; btn.disabled = true;
+    runServer('confirmChiPhiFix', [c.row.id, fix], function () {
+      btn.disabled = false; closeVtFix_();
+      showToast('Đã xác nhận — dòng sẽ được trừ kho khi bấm Khớp vật tư.');
+      fetchVtTrackList();
+    }, function () { btn.disabled = false; });
+  });
 
   $('#vtTrackSearchInput').addEventListener('input', function () {
     clearTimeout(vtTrackDebounce);
@@ -3845,6 +3945,7 @@
     backToSanakyList: backToSanakyList,
     cpGoPage: cpGoPage,
     vtTrackGoPage: vtTrackGoPage,
+    vtOpenFix: vtOpenFix,
     vtEditItem: vtEditItem,
     vtDeleteItem: vtDeleteItem,
     vtMoveItem: vtMoveItem,

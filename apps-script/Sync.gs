@@ -912,6 +912,8 @@ function fsMirrorVatTu_(force) {
 
   const st = JSON.parse(fsField_(d, 'json') || '{}');
   const holders = st.holders || [];
+  // Sửa tay trên app (dòng chưa khớp vật tư / thiếu người giữ) -> ghi ngược vào sheet CHI PHI
+  try { if (fsApplyChiPhiFixes_(st.cpFixes)) fsSyncAll_(false); } catch (err) { console.error('cpFixes: ' + err.message); }
   const sd = fsGetDoc_('vattu/stockin');
   const stockin = sd ? JSON.parse(fsField_(sd, 'json') || '[]') : [];
   const autolog = [];
@@ -931,6 +933,33 @@ function fsMirrorVatTu_(force) {
 
   props.setProperty(FS_PROP_MIRROR_REV, rev);
   return 1;
+}
+
+/**
+ * Ghi các sửa tay của người dùng (vattu/state.cpFixes) vào sheet CHI PHI theo cột ID ẩn.
+ * Chỉ ghi khi ô vẫn còn đúng nội dung lúc người dùng xác nhận (from*) — ô đã được sửa tay trên
+ * sheet sau đó thì giữ nguyên bản trên sheet. Trả về số ô đã ghi.
+ */
+function fsApplyChiPhiFixes_(fixes) {
+  if (!fixes || !Object.keys(fixes).length) return 0;
+  const sh = SpreadsheetApp.getActive().getSheetByName(FS_TAB_CHIPHI);
+  if (!sh || sh.getLastRow() < 2) return 0;
+  const values = sh.getDataRange().getValues();
+  const headers = values[0].map(function (h) { return String(h || '').trim(); });
+  const cId = headers.indexOf(FS_CP_ID_HEADER), cItem = headers.indexOf('Hạng mục/Vật tư'), cStaff = headers.indexOf('NV phụ trách');
+  if (cId < 0) return 0;
+  let n = 0;
+  for (let i = 1; i < values.length; i++) {
+    const f = fixes[String(values[i][cId] || '').trim()];
+    if (!f) continue;
+    if (f.item && cItem > -1 && String(values[i][cItem] || '').trim() === String(f.fromItem || '').trim()) {
+      sh.getRange(i + 1, cItem + 1).setValue(f.item); n++;
+    }
+    if (f.staff && cStaff > -1 && String(values[i][cStaff] || '').trim() === String(f.fromStaff || '').trim()) {
+      sh.getRange(i + 1, cStaff + 1).setValue(f.staff); n++;
+    }
+  }
+  return n;
 }
 
 function fsWriteTable_(ss, name, headers, rows, firstColText) {

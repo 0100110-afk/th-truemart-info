@@ -120,6 +120,22 @@ replace_func('readVatTuAutoLogMap_', '''function readVatTuAutoLogMap_() {
   return map;
 }''')
 replace_func('exportVatTuExcel', '@@EXPORT_BLOCK@@')
+delete_func('confirmChiPhiFix')
+replace_func('applyChiPhiFixes_', '''/** Phủ các sửa tay (vattu/state.cpFixes) lên dòng CHI PHÍ theo ID — chỉ khi ô trên sheet vẫn còn
+ *  đúng nội dung lúc người dùng xác nhận (from*). Sync.gs ghi ngược vào sheet xong thì ô đã mang
+ *  giá trị mới -> lớp phủ tự thành vô hiệu, không cần dọn. */
+function applyChiPhiFixes_(rows) {
+  const fixes = (TM_VT.state && TM_VT.state.cpFixes) || {};
+  if (!Object.keys(fixes).length) return rows;
+  return rows.map(function (r) {
+    const f = fixes[String(r[COLS.CP_ID] || '').trim()];
+    if (!f) return r;
+    const o = Object.assign({}, r);
+    if (f.item && String(o[COLS.CP_ITEM] || '').trim() === String(f.fromItem || '').trim()) o[COLS.CP_ITEM] = f.item;
+    if (f.staff && String(o[COLS.CP_STAFF] || '').trim() === String(f.fromStaff || '').trim()) o[COLS.CP_STAFF] = f.staff;
+    return o;
+  });
+}''')
 delete_func('ensureVatTuAutoLogSheet_')
 delete_func('migrateVatTuAutoLog_')
 replace_func('runVatTuAutoDeduction', '@@DEDUCT_BLOCK@@')

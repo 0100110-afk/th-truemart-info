@@ -366,7 +366,7 @@ async function runVatTuAutoDeduction() {
 function buildApi() {
   const api = Object.assign({}, TMCore.READ_API);
   ['saveVatTuItem', 'deleteVatTuItem', 'moveVatTuItem', 'addVatTuHolder', 'renameVatTuHolder',
-    'deleteVatTuHolder', 'setVatTuQty', 'setVatTuQtyBulk'].forEach((n) => { api[n] = opWrapper(n); });
+    'deleteVatTuHolder', 'setVatTuQty', 'setVatTuQtyBulk', 'confirmChiPhiFix'].forEach((n) => { api[n] = opWrapper(n); });
   api.addVatTuStock = (holder, items) => mutateVatTu((st, stockin) => TMCore.VT_OPS.addVatTuStock(st, stockin, holder, items));
   api.runVatTuAutoDeduction = runVatTuAutoDeduction;
   api.getDataLastUpdated = () => lastUpdatedIso;

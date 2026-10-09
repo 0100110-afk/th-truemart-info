@@ -1248,9 +1248,27 @@ var TMCore = (function () {
 
   function getChiPhiCached_(forceRefresh) {
     return getCachedOrCompute_('chiphi_raw_v2', CACHE_TTL_FAST, function () {
-      return sheetToObjects_(SHEET_CHIPHI, [COLS.CP_DATE]);
+      return applyChiPhiFixes_(sheetToObjects_(SHEET_CHIPHI, [COLS.CP_DATE]));
     }, forceRefresh);
   }
+
+  /** Phủ các sửa tay (vattu/state.cpFixes) lên dòng CHI PHÍ theo ID — chỉ khi ô trên sheet vẫn còn
+   *  đúng nội dung lúc người dùng xác nhận (from*). Sync.gs ghi ngược vào sheet xong thì ô đã mang
+   *  giá trị mới -> lớp phủ tự thành vô hiệu, không cần dọn. */
+  function applyChiPhiFixes_(rows) {
+    const fixes = (TM_VT.state && TM_VT.state.cpFixes) || {};
+    if (!Object.keys(fixes).length) return rows;
+    return rows.map(function (r) {
+      const f = fixes[String(r[COLS.CP_ID] || '').trim()];
+      if (!f) return r;
+      const o = Object.assign({}, r);
+      if (f.item && String(o[COLS.CP_ITEM] || '').trim() === String(f.fromItem || '').trim()) o[COLS.CP_ITEM] = f.item;
+      if (f.staff && String(o[COLS.CP_STAFF] || '').trim() === String(f.fromStaff || '').trim()) o[COLS.CP_STAFF] = f.staff;
+      return o;
+    });
+  }
+
+  /** Bản Apps Script: ghi thẳng ô Hạng mục/Vật tư hoặc NV phụ trách của dòng có ID tương ứng. */
 
   /**
    * PHẠM VI VẬT TƯ: chỉ NCC được đánh dấu "Trừ kho vật tư" trong sheet NCC THEO DÕI (mặc định TD
@@ -2162,6 +2180,32 @@ var TMCore = (function () {
   /* Các thao tác GHI — hàm thuần, SỬA TRỰC TIẾP `st`. app.js gọi trong transaction. Thông báo lỗi giữ
      nguyên văn bản Apps Script. */
   const VT_OPS = {
+    /**
+     * Người dùng xác nhận vật tư / người giữ cho 1 dòng CHI PHÍ chưa khớp. Lưu vào st.cpFixes[ID]
+     * (giao dịch Firestore như mọi thao tác vật tư); Sync.gs ghi ngược ô trên sheet CHI PHI.
+     * fix = { item, fromItem } hoặc { staff, fromStaff }.
+     */
+    confirmChiPhiFix: function (st, id, fix) {
+      id = String(id || '').trim();
+      if (!id) throw new Error('Dòng chi phí chưa có ID — chạy đồng bộ rồi thử lại.');
+      fix = fix || {};
+      const cur = (st.cpFixes && st.cpFixes[id]) || {};
+      const next = Object.assign({}, cur);
+      if (fix.item) {
+        const ok = (st.materials || []).some(function (m) { return String(m.name || '').trim() === String(fix.item).trim(); });
+        if (!ok) throw new Error('Vật tư "' + fix.item + '" không có trong danh mục.');
+        next.item = String(fix.item).trim(); next.fromItem = String(fix.fromItem || '').trim();
+      }
+      if (fix.staff) {
+        if ((st.holders || []).indexOf(String(fix.staff).trim()) === -1) throw new Error('Người giữ "' + fix.staff + '" không có trong danh sách.');
+        next.staff = String(fix.staff).trim(); next.fromStaff = String(fix.fromStaff || '').trim();
+      }
+      next.at = todayVn_();
+      st.cpFixes = st.cpFixes || {};
+      st.cpFixes[id] = next;
+      return { success: true };
+    },
+
     saveVatTuItem: function (st, item) {
       const code = String((item && item.code) || '').trim();
       if (!code) throw new Error('Thiếu mã vật tư.');
@@ -2765,6 +2809,7 @@ var TMCore = (function () {
         const st = vatTuRowStatus_(match, holder, qty, logOf(i), res, availByIdx[i]);
 
         return {
+          id: chiPhiRowId_(r),
           source: r[COLS.CP_SUPPLIER] || 'Khác',
           // NGUYÊN VĂN trên sheet CHI PHÍ. Bản cũ thay bằng tên danh mục nên khi bật khớp gần đúng
           // sẽ không còn đối chiếu được máy khớp đúng hay sai.
@@ -2815,7 +2860,7 @@ var TMCore = (function () {
     const start = (page - 1) * pageSize;
     const pageRows = rows.slice(start, start + pageSize).map(function (r) {
       return {
-        source: r.source, item: r.item, qty: r.qty, staff: r.staff, address: r.address, date: r.date,
+        id: r.id, source: r.source, item: r.item, qty: r.qty, staff: r.staff, address: r.address, date: r.date,
         matched: r.matched, matchedName: r.matchedName,
         status: r.status, statusLabel: r.statusLabel, statusSub: r.statusSub
       };
@@ -3191,7 +3236,7 @@ var TMCore = (function () {
     TM_VT.state = state || emptyVatTuState_();
     TM_VT.stockin = stockin || [];
     TM_VT.autolog = autolog || [];
-    delete MEMO['vattu_autolog_v1'];
+    MEMO = {};   // dòng CHI PHÍ phụ thuộc cả state (lớp sửa tay cpFixes) -> tính lại toàn bộ
   }
 
   /** Các hàm giao diện được phép gọi qua google.script.run (chỉ ĐỌC; phần GHI do app.js bọc). */

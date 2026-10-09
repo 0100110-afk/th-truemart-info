@@ -131,6 +131,32 @@ function vtHolderName_(st, holder) {
 /* Các thao tác GHI — hàm thuần, SỬA TRỰC TIẾP `st`. app.js gọi trong transaction. Thông báo lỗi giữ
    nguyên văn bản Apps Script. */
 const VT_OPS = {
+  /**
+   * Người dùng xác nhận vật tư / người giữ cho 1 dòng CHI PHÍ chưa khớp. Lưu vào st.cpFixes[ID]
+   * (giao dịch Firestore như mọi thao tác vật tư); Sync.gs ghi ngược ô trên sheet CHI PHI.
+   * fix = { item, fromItem } hoặc { staff, fromStaff }.
+   */
+  confirmChiPhiFix: function (st, id, fix) {
+    id = String(id || '').trim();
+    if (!id) throw new Error('Dòng chi phí chưa có ID — chạy đồng bộ rồi thử lại.');
+    fix = fix || {};
+    const cur = (st.cpFixes && st.cpFixes[id]) || {};
+    const next = Object.assign({}, cur);
+    if (fix.item) {
+      const ok = (st.materials || []).some(function (m) { return String(m.name || '').trim() === String(fix.item).trim(); });
+      if (!ok) throw new Error('Vật tư "' + fix.item + '" không có trong danh mục.');
+      next.item = String(fix.item).trim(); next.fromItem = String(fix.fromItem || '').trim();
+    }
+    if (fix.staff) {
+      if ((st.holders || []).indexOf(String(fix.staff).trim()) === -1) throw new Error('Người giữ "' + fix.staff + '" không có trong danh sách.');
+      next.staff = String(fix.staff).trim(); next.fromStaff = String(fix.fromStaff || '').trim();
+    }
+    next.at = todayVn_();
+    st.cpFixes = st.cpFixes || {};
+    st.cpFixes[id] = next;
+    return { success: true };
+  },
+
   saveVatTuItem: function (st, item) {
     const code = String((item && item.code) || '').trim();
     if (!code) throw new Error('Thiếu mã vật tư.');
@@ -517,7 +543,7 @@ function syncAutologWithIds_(cpRows, keys, autolog, matcher, holders) {
     TM_VT.state = state || emptyVatTuState_();
     TM_VT.stockin = stockin || [];
     TM_VT.autolog = autolog || [];
-    delete MEMO['vattu_autolog_v1'];
+    MEMO = {};   // dòng CHI PHÍ phụ thuộc cả state (lớp sửa tay cpFixes) -> tính lại toàn bộ
   }
 
   /** Các hàm giao diện được phép gọi qua google.script.run (chỉ ĐỌC; phần GHI do app.js bọc). */

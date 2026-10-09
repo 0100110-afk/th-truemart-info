@@ -1254,8 +1254,33 @@ function getMaintenanceQuarterlyStats() {
 
 function getChiPhiCached_(forceRefresh) {
   return getCachedOrCompute_('chiphi_raw_v2', CACHE_TTL_FAST, function () {
-    return sheetToObjects_(SHEET_CHIPHI, [COLS.CP_DATE]);
+    return applyChiPhiFixes_(sheetToObjects_(SHEET_CHIPHI, [COLS.CP_DATE]));
   }, forceRefresh);
+}
+
+/**
+ * Sửa tay của người dùng cho dòng "Chưa khớp vật tư" / "Thiếu người giữ" (bản web lưu trong
+ * vattu/state.cpFixes, Sync.gs ghi ngược vào sheet). Bản Apps Script ghi THẲNG vào sheet nên ở
+ * đây không cần phủ gì — giữ hàm rỗng để hai bản dùng chung getChiPhiCached_.
+ */
+function applyChiPhiFixes_(rows) { return rows; }
+
+/** Bản Apps Script: ghi thẳng ô Hạng mục/Vật tư hoặc NV phụ trách của dòng có ID tương ứng. */
+function confirmChiPhiFix(id, fix) {
+  id = String(id || '').trim();
+  if (!id) throw new Error('Dòng chi phí chưa có ID — chạy đồng bộ rồi thử lại.');
+  const sh = getSheet_(SHEET_CHIPHI);
+  const values = sh.getDataRange().getValues();
+  const headers = values[0].map(function (h) { return String(h).trim(); });
+  const cId = headers.indexOf(COLS.CP_ID), cItem = headers.indexOf(COLS.CP_ITEM), cStaff = headers.indexOf(COLS.CP_STAFF);
+  for (let i = 1; i < values.length; i++) {
+    if (String(values[i][cId]).trim() !== id) continue;
+    if (fix.item) sh.getRange(i + 1, cItem + 1).setValue(fix.item);
+    if (fix.staff) sh.getRange(i + 1, cStaff + 1).setValue(fix.staff);
+    getChiPhiCached_(true);
+    return { success: true };
+  }
+  throw new Error('Không tìm thấy dòng chi phí (có thể đã bị xoá).');
 }
 
 /**
@@ -2907,6 +2932,7 @@ function getVatTuTrackingList(opts) {
       const st = vatTuRowStatus_(match, holder, qty, logOf(i), res, availByIdx[i]);
 
       return {
+        id: chiPhiRowId_(r),
         source: r[COLS.CP_SUPPLIER] || 'Khác',
         // NGUYÊN VĂN trên sheet CHI PHÍ. Bản cũ thay bằng tên danh mục nên khi bật khớp gần đúng
         // sẽ không còn đối chiếu được máy khớp đúng hay sai.
@@ -2957,7 +2983,7 @@ function getVatTuTrackingList(opts) {
   const start = (page - 1) * pageSize;
   const pageRows = rows.slice(start, start + pageSize).map(function (r) {
     return {
-      source: r.source, item: r.item, qty: r.qty, staff: r.staff, address: r.address, date: r.date,
+      id: r.id, source: r.source, item: r.item, qty: r.qty, staff: r.staff, address: r.address, date: r.date,
       matched: r.matched, matchedName: r.matchedName,
       status: r.status, statusLabel: r.statusLabel, statusSub: r.statusSub
     };
