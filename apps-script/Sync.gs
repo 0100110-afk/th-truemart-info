@@ -150,11 +150,14 @@ function caiDatDongBoFirebase() {
   fsEnsureUsersLayout_(us);
 
   // Trigger: xoá trigger cũ của file này rồi tạo lại
-  const mine = ['fsOnEdit', 'fsTick'];
+  const mine = ['fsOnEdit', 'fsOnChange', 'fsTick'];
   ScriptApp.getProjectTriggers().forEach(function (t) {
     if (mine.indexOf(t.getHandlerFunction()) > -1) ScriptApp.deleteTrigger(t);
   });
   ScriptApp.newTrigger('fsOnEdit').forSpreadsheet(ss).onEdit().create();
+  // Xoá / chèn dòng KHÔNG kích hoạt onEdit -> cần thêm onChange, nếu không dòng đã xoá trên sheet
+  // vẫn nằm trên app tới lượt quét 10 phút sau.
+  ScriptApp.newTrigger('fsOnChange').forSpreadsheet(ss).onChange().create();
   // Sửa file DG cũng đẩy lên ngay (cùng hàm xử lý, phân biệt bằng tên tab)
   let dgNote = '';
   try { ScriptApp.newTrigger('fsOnEdit').forSpreadsheet(fsDongiaSs_()).onEdit().create(); }
@@ -167,7 +170,7 @@ function caiDatDongBoFirebase() {
   const msg = 'Đã cài đồng bộ.\n' +
     '- Bảng đã đẩy lên: ' + (res.changed.join(', ') || '(không đổi)') + '\n' +
     '- Kho vật tư: ' + (imported ? 'đã đưa lên app lần đầu' : 'app đã có sẵn, giữ nguyên') + '\n' +
-    '- Trigger: sửa ô (file TM + file DG) -> đẩy ngay; quét lại mỗi ' + FS_TICK_MINUTES + ' phút.' + dgNote + '\n' +
+    '- Trigger: sửa ô / xoá-chèn dòng (file TM + file DG) -> đẩy ngay; quét lại mỗi ' + FS_TICK_MINUTES + ' phút.' + dgNote + '\n' +
     (res.missing.length ? '- KHÔNG tìm thấy sheet: ' + res.missing.join(', ') : '');
   fsAlert_(msg);
   return msg;
@@ -224,6 +227,25 @@ function fsOnEdit(e) {
     });
   } catch (err) {
     console.error('fsOnEdit: ' + err.message);
+  }
+}
+
+/** Trigger cài đặt onChange — xoá/chèn dòng, dán nhiều ô... (những thay đổi onEdit không bắt được).
+ *  Không biết chính xác tab nào đổi -> đồng bộ tab đang mở; tab khác vẫn được lượt quét 10 phút bù. */
+function fsOnChange(e) {
+  try {
+    const t = e && e.changeType;
+    if (t === 'FORMAT') return;
+    const sh = e && e.source ? e.source.getActiveSheet() : null;
+    const name = sh ? sh.getName() : '';
+    const src = fsSources_().filter(function (s) { return s.name === name && !s.external; })[0];
+    if (!src) return;
+    fsWithLock_(function () {
+      const meta = fsReadMeta_();
+      if (fsSyncOne_(src, meta)) fsWriteMetaOnly_(meta);
+    });
+  } catch (err) {
+    console.error('fsOnChange: ' + err.message);
   }
 }
 

@@ -96,7 +96,7 @@ const ctx = {
   CacheService: { getScriptCache: () => ({ get: () => null, put() {}, getAll: () => ({}), putAll() {} }) },
   LockService: { getDocumentLock: () => ({ tryLock: () => true, releaseLock() {} }), getScriptLock: () => ({ tryLock: () => true, releaseLock() {} }) },
   Session: { getActiveUser: () => ({ getEmail: () => 'me@x.vn' }), getEffectiveUser: () => ({ getEmail: () => '' }), getScriptTimeZone: () => 'Asia/Ho_Chi_Minh' },
-  ScriptApp: { getProjectTriggers: () => [], deleteTrigger() {}, newTrigger: () => ({ forSpreadsheet() { return this; }, onEdit() { return this; }, timeBased() { return this; }, everyMinutes() { return this; }, create() {} }) },
+  ScriptApp: { getProjectTriggers: () => [], deleteTrigger() {}, newTrigger: () => ({ forSpreadsheet() { return this; }, onEdit() { return this; }, onChange() { return this; }, timeBased() { return this; }, everyMinutes() { return this; }, create() {} }) },
   Utilities: {
     computeDigest: (a, s) => [...crypto.createHash('md5').update(s, 'utf8').digest()].map((b) => (b > 127 ? b - 256 : b)),
     DigestAlgorithm: { MD5: 1 }, Charset: { UTF_8: 1 },
