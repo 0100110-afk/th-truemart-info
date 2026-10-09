@@ -2683,8 +2683,9 @@
   }
   $('#assetCodeSearchBtn').addEventListener('click', doAssetCodeSearch);
   $('#assetCodeInput').addEventListener('keydown', function (e) { if (e.key === 'Enter') doAssetCodeSearch(); });
-  // Xoá hết chữ -> tự xoá kết quả tìm kiếm
-  $('#assetCodeInput').addEventListener('input', function () { if (!this.value.trim()) doAssetCodeSearch(); });
+  // Tìm ngay khi gõ (chờ 400ms sau phím cuối); xoá hết chữ -> xoá kết quả
+  var assetCodeDebounce_ = null;
+  $('#assetCodeInput').addEventListener('input', function () { clearTimeout(assetCodeDebounce_); assetCodeDebounce_ = setTimeout(doAssetCodeSearch, 400); });
 
   var assetStoreCandidatesCache = [];
 
@@ -2879,8 +2880,15 @@
   $('#sanakySearchInput').addEventListener('keydown', function (e) {
     if (e.key === 'Enter') { e.preventDefault(); runSanakySearch(); }
   });
+  // Gõ là lọc ngay danh sách; Enter vẫn mở thẳng chi tiết nếu khớp đúng mã tài sản / cửa hàng
+  var sanakyDebounce_ = null;
   $('#sanakySearchInput').addEventListener('input', function () {
-    if (!this.value.trim() && sanakyQuery) { sanakyQuery = ''; sanakyPage = 1; fetchSanakyList(); }
+    var v = this.value.trim();
+    clearTimeout(sanakyDebounce_);
+    sanakyDebounce_ = setTimeout(function () {
+      if (v === sanakyQuery) return;
+      sanakyQuery = v; sanakyPage = 1; backToSanakyList(); fetchSanakyList();
+    }, 350);
   });
 
   function showSanakyAsset(assetCode) {
@@ -3019,7 +3027,11 @@
   function cpSearch_() { cpState.query = $('#cpSearchInput').value.trim(); cpState.page = 1; fetchChiPhiKindRows_(); }
   $('#cpSearchBtn').addEventListener('click', cpSearch_);
   $('#cpSearchInput').addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); cpSearch_(); } });
-  $('#cpSearchInput').addEventListener('input', function () { if (!this.value.trim() && cpState.query) cpSearch_(); });
+  var cpDebounce_ = null;
+  $('#cpSearchInput').addEventListener('input', function () {
+    clearTimeout(cpDebounce_);
+    cpDebounce_ = setTimeout(function () { if ($('#cpSearchInput').value.trim() !== cpState.query) cpSearch_(); }, 350);
+  });
   $('#cpExportBtn').addEventListener('click', function () {
     var btn = this;
     btn.disabled = true;

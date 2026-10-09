@@ -1891,7 +1891,8 @@
     });
   }
   $('#sanakySearchInput').addEventListener('keydown',function(e){ if(e.key==='Enter'){ e.preventDefault(); this.blur(); runSanakySearch(); } });
-  $('#sanakySearchInput').addEventListener('input',function(){ if(!this.value.trim()&&snkQuery){ snkQuery=''; fetchSanakyList(true); } });
+  var snkDebounce_=null;
+  $('#sanakySearchInput').addEventListener('input',function(){ var v=this.value.trim(); clearTimeout(snkDebounce_); snkDebounce_=setTimeout(function(){ if(v===snkQuery) return; snkQuery=v; fetchSanakyList(true); },350); });
 
   function openSanakyAsset(code){
     goTab('sanaky');
@@ -1988,7 +1989,8 @@
   $('#cpSupplierSelect').addEventListener('change',function(){ cpState.supplier=this.value; fetchChiPhiKind(true); });
   $('#cpStaffSelect').addEventListener('change',function(){ cpState.staff=this.value; fetchChiPhiKind(true); });
   $('#cpSearchInput').addEventListener('keydown',function(e){ if(e.key==='Enter'){ e.preventDefault(); this.blur(); cpState.query=this.value.trim(); fetchChiPhiKind(true); } });
-  $('#cpSearchInput').addEventListener('input',function(){ if(!this.value.trim()&&cpState.query){ cpState.query=''; fetchChiPhiKind(true); } });
+  var cpDebounce_=null;
+  $('#cpSearchInput').addEventListener('input',function(){ var v=this.value.trim(); clearTimeout(cpDebounce_); cpDebounce_=setTimeout(function(){ if(v===cpState.query) return; cpState.query=v; fetchChiPhiKind(true); },350); });
 
   // ============================== BẢO DƯỠNG ==============================
 

@@ -153,8 +153,15 @@ function addHeaderAliases_(obj, headers) {
     if (!h) continue;
     const k = h.replace(/\s+/g, ' ');
     if (k !== h && !Object.prototype.hasOwnProperty.call(obj, k)) obj[k] = obj[h];
+    // Cột Tỉnh/Thành phố của DS CH / CH OFF: nhận cả tên cũ "Thành Phố trực thuộc" lẫn tên mới
+    // "Tỉnh/Thành phố" (có/không dấu, có/không xuống dòng) -> quy về COLS.STORE_CITY.
+    const norm = stripAccents_(h).replace(/[^a-z0-9]/g, '');
+    if (STORE_CITY_HEADER_KEYS_.indexOf(norm) > -1 && !Object.prototype.hasOwnProperty.call(obj, COLS.STORE_CITY)) {
+      obj[COLS.STORE_CITY] = obj[h];
+    }
   }
 }
+const STORE_CITY_HEADER_KEYS_ = ['thanhphotructhuoc', 'tinhthanhpho', 'tinhthanh', 'tinhtp'];
 
 function stripAccents_(str) {
   if (str === null || str === undefined) return '';
