@@ -2490,7 +2490,9 @@ const VT_MATCH_MIN_GAP = 0.10;
 
 /** Chuẩn hoá: "2x1.5mm" / "2 × 1.5mm" -> "2*1.5mm", rồi bỏ dấu và về chữ thường */
 function normVatTu_(s) {
-  return stripAccents_(String(s || '').replace(/(\d)\s*[x×]\s*(\d)/gi, '$1*$2'));
+  /* Dấu phẩy thập phân giữa hai chữ số -> dấu chấm: "2x1,5" phải giống hệt "2*1.5mm". Không đổi thì
+     dấu phẩy bị coi là dấu tách từ, "1" và "5" thành hai số trơ, khớp nhầm sang vật tư khác. */
+  return stripAccents_(String(s || '').replace(/(\d),(\d)/g, '$1.$2').replace(/(\d)\s*[x×]\s*(\d)/gi, '$1*$2'));
 }
 
 /** Tách từ. Cố ý KHÔNG cắt dấu chấm để giữ nguyên quy cách dạng "1.5mm". */
@@ -2648,6 +2650,12 @@ function vtMatch_(matcher, freeText) {
     else if (sc > secondScore) { secondScore = sc; }
   });
   if (!best) return null;
+  /* Phải trùng ÍT NHẤT 2 từ với vật tư thì mới được TỰ ĐỘNG khớp. Một từ hiếm trùng một mình vẫn
+     kéo điểm lên cao: "Ổ cắm điện" chỉ trùng chữ "ổ" mà khớp thẳng "Ổ cứng HDD 1TB". Không đủ 2 từ
+     thì vẫn trả vật tư làm GỢI Ý (để người dùng bấm xác nhận / chọn lại) nhưng hạ điểm dưới ngưỡng. */
+  const bestPrep = matcher.prepared.filter(function (p) { return p.m === best; })[0];
+  const shared = A.filter(function (a) { return bestPrep.all.some(function (t) { return vtTokenEq_(a, t); }); }).length;
+  if (shared < 2) bestScore = Math.min(bestScore, VT_MATCH_MIN_SCORE - 0.01);
   return { material: best, score: bestScore, gap: bestScore - secondScore, exact: false };
 }
 
