@@ -19,4 +19,4 @@ export const APP_TITLE = 'Hệ thống quản lý';
 
 /** Link Web app của Sync.gs (file TM) — Apps Script -> Triển khai -> Ứng dụng web. Để trống thì nút
  *  "Đồng bộ từ Google Sheet" quay về chức năng cũ (chỉ tải lại dữ liệu đã có trên app). */
-export const SYNC_URL = '';
+export const SYNC_URL = 'https://script.google.com/macros/s/AKfycbwZjAzoIfapaA-p0srP8BFXH34xgW0VUDTI1Zc0HJZPfJRUWRQd-ZhgduxRiPqz4nyUcg/exec';
