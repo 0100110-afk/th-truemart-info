@@ -2020,7 +2020,7 @@
     applyChartDefaults_();
     if(!d||!d.labels||!d.labels.length) return;
     try{
-      var qds=[{type:'bar',label:'Tổng',data:d.totalCount,backgroundColor:'#14202B',borderRadius:5}];
+      var qds=[{type:'bar',label:'Tổng',data:d.totalCount,backgroundColor:'#0E9384',borderRadius:5}];
       d.countSeries.forEach(function(s,i){ qds.push({type:'bar',label:s.name,data:s.data,backgroundColor:MPAL[i%MPAL.length],borderRadius:5}); });
       if(chartMQty) chartMQty.destroy();
       chartMQty=new Chart($('#chartMaintQty').getContext('2d'),{
