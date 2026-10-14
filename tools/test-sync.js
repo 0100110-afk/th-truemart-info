@@ -18,6 +18,7 @@ function mkSheet(name, values, display) {
         clearContent() { for (let i = r - 1; i < r - 1 + nr; i++) if (v[i]) for (let j = c - 1; j < c - 1 + nc; j++) v[i][j] = ''; while (v.length && v[v.length - 1].every((x) => x === '')) v.pop(); return this; },
         setValue(x) { v[r - 1] = v[r - 1] || []; v[r - 1][c - 1] = x; return this; },
         setNumberFormat() { return this; }, setFontWeight() { return this; }, setDataValidation() { return this; },
+        getNumberFormats: () => { const o = []; for (let i = 0; i < nr; i++) { const a = []; for (let j = 0; j < nc; j++) a.push(''); o.push(a); } return o; },
         getRow: () => r
       };
     },

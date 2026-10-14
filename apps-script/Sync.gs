@@ -1135,9 +1135,19 @@ function fsWriteTable_(ss, name, headers, rows, firstColText) {
   sh.getRange(1, 1, 1, headers.length).setValues([headers]);
   if (rows.length) {
     // Sheet đã chuyển thành "Bảng" (Table) của Google Sheets: cột có kiểu riêng thì Google KHÔNG cho
-    // đặt định dạng số ("Bạn không thể đặt định dạng số của các ô trong một cột đã nhập") -> bỏ qua,
-    // vẫn ghi dữ liệu. Trước đây lỗi này làm dừng giữa chừng: sheet đã xoá mà chưa kịp ghi lại.
-    if (firstColText) { try { sh.getRange(2, 1, rows.length, 1).setNumberFormat('@'); } catch (e) { console.warn('setNumberFormat ' + name + ': ' + e.message); } }
+    // đặt định dạng số ("Bạn không thể đặt định dạng số của các ô trong một cột đã nhập") -> bỏ qua.
+    // Apps Script gom lệnh lại chạy sau, nên lỗi chỉ hiện ở lệnh kế tiếp (ngoài try/catch) ->
+    // flush() TRƯỚC để chốt các lệnh đã có, và flush() NGAY TRONG try để lỗi (nếu có) bị bắt tại đây.
+    // Cột đã là văn bản ("@", vd cột kiểu Văn bản của Bảng) thì không cần đặt lại.
+    if (firstColText) {
+      const fr = sh.getRange(2, 1, rows.length, 1);
+      const allText = fr.getNumberFormats().every(function (r) { return r[0] === '@'; });
+      if (!allText) {
+        SpreadsheetApp.flush();
+        try { fr.setNumberFormat('@'); SpreadsheetApp.flush(); }
+        catch (e) { console.warn('setNumberFormat ' + name + ': ' + e.message); }
+      }
+    }
     sh.getRange(2, 1, rows.length, headers.length).setValues(rows.map(pad));
   }
   const used = rows.length + 1;
