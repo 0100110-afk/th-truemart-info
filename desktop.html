@@ -44,6 +44,7 @@
     --cream-50:#F3F8FC;
     --white:#FFFFFF;
     --ink-900:#16231E;
+    --ink-700:#2B3A34;
     --ink-600:#40514A;
     --ink-500:#5B6B63;
     --ink-300:#93A29A;
@@ -2038,8 +2039,11 @@
       renderCharts(data);
     } catch (err) {
       var msg = '<div class="empty-state" style="padding:24px;">Không tải được biểu đồ (thư viện Chart.js chưa sẵn sàng). Thử tải lại trang.</div>';
-      var regionCard = $('#chartRegion').closest('.panel');
-      var typeCard = $('#chartType').closest('.panel');
+      /* Lấy cả 2 khung TRƯỚC khi ghi đè (cùng khung thì ghi đè cái đầu làm mất canvas cái sau) */
+      var rc = $('#chartRegion'), tc = $('#chartType');
+      var regionCard = rc ? rc.closest('.panel') : null;
+      var typeCard = tc ? tc.closest('.panel') : null;
+      if (typeCard === regionCard) typeCard = null;
       if (regionCard) regionCard.innerHTML = msg;
       if (typeCard) typeCard.innerHTML = msg;
     }
