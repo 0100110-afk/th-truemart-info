@@ -5,9 +5,18 @@
  * Các giá trị này KHÔNG phải bí mật (mọi web app Firebase đều lộ ra trình duyệt). Bảo mật dữ liệu nằm
  * ở firebase/firestore.rules + danh sách người dùng trong sheet "APP USERS".
  */
+/* Đăng nhập Google chạy qua CHÍNH tên miền của app (Vercel chuyển tiếp /__/auth/* về Firebase —
+   xem vercel.json). Nếu để authDomain = …firebaseapp.com (khác tên miền app), Safari/iPhone tách bộ
+   nhớ giữa 2 tên miền nên Firebase mất trạng thái giữa chừng -> trang trắng "missing initial state".
+   Chỉ tên miền có cấu hình chuyển tiếp mới dùng cách này (và phải có trong Google Cloud → OAuth
+   client → Authorized redirect URIs: https://<tên miền>/__/auth/handler); nơi khác giữ như cũ. */
+const PROXIED_AUTH_HOSTS = ['th-truemart-info.vercel.app'];
+const AUTH_DOMAIN = (typeof location !== 'undefined' && PROXIED_AUTH_HOSTS.indexOf(location.host) > -1)
+  ? location.host : 'th-truemart-info.firebaseapp.com';
+
 export const FIREBASE_CONFIG = {
   apiKey: 'AIzaSyDC7uYhXaaIIWQ9c9awYoEkBR2T3MdCbl0',
-  authDomain: 'th-truemart-info.firebaseapp.com',
+  authDomain: AUTH_DOMAIN,
   projectId: 'th-truemart-info',
   storageBucket: 'th-truemart-info.firebasestorage.app',
   messagingSenderId: '689058170024',

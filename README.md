@@ -76,6 +76,10 @@ Cột *TH true care* cấp quyền app [th-true-care](https://github.com/0100110
    tạo bản ghi `CNAME  tm  →  <tên-tài-khoản-github>.github.io` → đợi xác minh → tick **Enforce HTTPS**.
 4. **Firebase → Authentication → Settings → Authorized domains → Add domain**: thêm `tm.tenmiencuaban.vn`
    (và `<tên-tài-khoản>.github.io` nếu dùng cả link mặc định). Thiếu bước này đăng nhập Google sẽ báo lỗi.
+5. **Đăng nhập Google qua chính tên miền app** (tránh lỗi trang trắng *"missing initial state"* trên iPhone):
+   `vercel.json` chuyển tiếp `/__/auth/*` về Firebase, `js/firebase-config.js` liệt kê tên miền đó trong
+   `PROXIED_AUTH_HOSTS`. Mỗi tên miền mới phải thêm vào **Google Cloud → Google Auth Platform → Clients →
+   Web client → Authorized redirect URIs**: `https://<tên miền>/__/auth/handler`.
 
 > Dùng **Vercel** như app Phiếu sửa chữa cũng được: Import repo → Framework *Other* → không cần build
 > command → Deploy → Settings → Domains. File `.vercelignore` đã loại sẵn phần không cần xuất bản.
