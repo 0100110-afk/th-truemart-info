@@ -318,6 +318,8 @@
   }
   .rec-top{display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:8px; flex-wrap:wrap;}
   .rec-top-left{display:flex; align-items:center; gap:7px; flex-wrap:wrap;}
+  /* Mã thiết bị cạnh tên nguồn (tab Tổng hợp): cùng cỡ, cùng chiều cao với badge bên cạnh */
+  .rec-top-left .cc-pill{font-size:10.5px; padding:1px 9px; line-height:1.35;}
   .rec-date{font-size:11px; color:var(--ink-500); font-weight:600;}
   .rec-body{font-size:13px; color:var(--ink-900); line-height:1.45;}
   .rec-sub{font-size:11.5px; color:var(--ink-500); margin-top:5px; line-height:1.45;}
@@ -1697,8 +1699,14 @@
       runServer('getStoreRepairHistory',[cc],function(d){
         if(!d.rows.length){ wrap.innerHTML=emptyState('Chưa có chi phí nào',''); return; }
         wrap.innerHTML=summaryLine(d.totalCount,d.totalCost)+d.rows.map(function(r){
+          // Mã thiết bị đứng ngay sau tên nguồn (badge). Nhiều hạng mục cùng mã -> hiện 1 lần;
+          // dòng không ghi mã thì không hiện gì. Chạm mã = sao chép (giống tab Tài sản).
+          var codes=[];
+          (r.items||[]).forEach(function(it){ var c=String(it.assetCode||'').trim(); if(c&&codes.indexOf(c)===-1) codes.push(c); });
           return '<div class="rec"><div class="rec-top"><div class="rec-top-left">'+
-            '<span class="badge '+costBadgeCls(r.source)+'">'+esc(r.source)+'</span></div>'+
+            '<span class="badge '+costBadgeCls(r.source)+'">'+esc(r.source)+'</span>'+
+            codes.map(function(c){ return '<span class="cc-pill outline copyable" role="button" onclick="THM.copyCode(\''+esc(c).replace(/'/g,"\\'")+'\')">'+esc(c)+'</span>'; }).join('')+
+            '</div>'+
             '<span class="rec-date">'+esc(nDate(r.date))+'</span></div>'+
             itemsBlock(r.items)+
             '<div class="rec-foot"><span class="rec-total-label">Tổng</span><span class="rec-total">'+fmtVND(r.cost)+'</span></div></div>';
