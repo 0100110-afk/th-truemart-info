@@ -259,6 +259,9 @@
   /* Tài sản › Theo cửa hàng: chạm mã = sao chép, nút kính lúp = tra cứu theo mã */
   .code-pill-wrap{display:inline-flex; align-items:center; gap:6px; vertical-align:middle;}
   .cc-pill.copyable{font-family:'Be Vietnam Pro',-apple-system,sans-serif; letter-spacing:.02em; font-variant-numeric:tabular-nums; cursor:copy;}
+  /* Mã 7 số và mã 9 số dài khác nhau làm nút kính lúp lệch hàng -> ô mã rộng tối thiểu bằng mã 9 số,
+     chữ canh giữa, nên kính lúp và ngày thẳng một cột. Mã dài hơn thì ô tự giãn. */
+  .code-pill-wrap .cc-pill.copyable{min-width:calc(9.4ch + 20px); justify-content:center;}
   .code-lookup{display:inline-grid; place-items:center; width:28px; height:28px; padding:0; border:1px solid var(--line); border-radius:999px; background:#fff; color:var(--brand-700);}
   .code-lookup svg{width:14px; height:14px;}
   .cc-pill{
@@ -481,12 +484,14 @@
   .stockin-row{display:flex; align-items:center; gap:10px; padding:10px 0; border-bottom:1px solid var(--line);}
   .stockin-row:last-child{border-bottom:none;}
   .stockin-name{flex:1; min-width:0; font-size:12.5px; font-weight:600; color:var(--ink-900); line-height:1.35;}
-  .stockin-code{font-size:10px; color:var(--ink-300); margin-top:2px; font-family:ui-monospace,monospace;}
+  .stockin-spec{font-size:11px; font-weight:400; color:var(--ink-500); margin-top:2px; line-height:1.35;}
   .stockin-input{
     width:78px; flex-shrink:0; border:1px solid var(--line); border-radius:10px; padding:9px 10px;
     font-size:16px; text-align:center; outline:none; background:var(--cream);
   }
   .stockin-input:focus{border-color:var(--brand-500); background:var(--white);}
+  /* Ô đã nhập số > 0: cùng màu với bảng Nhập kho bản máy tính (table.vt-grid input.changed) */
+  .stockin-input.changed,.stockin-input.changed:focus{border-color:#E3A83B; background:#FFF8E6; font-weight:700;}
 
   /* ============================ VAT TU ============================ */
   .vt-card{padding:0;}
@@ -1280,8 +1285,37 @@
     /* Vẽ dư độ phân giải (tối thiểu 2x) cho chữ trên canvas hết nhoè ở màn hình có
        devicePixelRatio lẻ. Đồng bộ với bản desktop. */
     Chart.defaults.devicePixelRatio=Math.max(2, window.devicePixelRatio||1);
+    // Ô thông tin chỉ theo CHẠM (bỏ touchstart/mousemove), chạm lại đúng chỗ thì ẩn.
+    Chart.defaults.events=['click'];
+    Chart.register(tapTooltipToggle_);
     chartDefaultsApplied_=true;
   }
+
+  /* Chạm 1 lần: hiện ô thông tin. Chạm lại đúng cột/lát đó: ẩn. Chạm chỗ khác: chuyển sang chỗ đó.
+     Ẩn ở afterEvent (chạy SAU plugin tooltip của Chart.js) nên onClick của biểu đồ (lọc Bảo dưỡng)
+     vẫn chạy như cũ. */
+  var tapTooltipToggle_={
+    id:'tapTooltipToggle',
+    beforeEvent:function(chart,args){
+      var e=args.event, tt=chart.tooltip;
+      chart.$tapHide=false;
+      if(e.type!=='click'||!tt) return;
+      var cur=tt.getActiveElements();
+      if(!cur.length) return;
+      var ia=chart.options.interaction||{};
+      var hit=chart.getElementsAtEventForMode(e,ia.mode||'nearest',{intersect:ia.intersect!==false,axis:ia.axis},false);
+      chart.$tapHide=hit.length>0&&hit.length===cur.length&&hit.every(function(h,k){
+        return h.datasetIndex===cur[k].datasetIndex&&h.index===cur[k].index;
+      });
+    },
+    afterEvent:function(chart,args){
+      if(!chart.$tapHide) return;
+      chart.$tapHide=false;
+      chart.tooltip.setActiveElements([],{x:0,y:0});
+      chart.setActiveElements([]);
+      args.changed=true;
+    }
+  };
 
   var barLabels={
     id:'barLabels',
@@ -2496,8 +2530,9 @@
       if(!vtData.holders.length){ toast('Chưa có người giữ vật tư nào.',true); return; }
       $('#stockInHolder').innerHTML=vtData.holders.map(function(h){return '<option value="'+esc(h)+'">'+esc(h)+'</option>';}).join('');
       $('#stockInRows').innerHTML=vtData.materials.map(function(m){
+        // Dòng phụ: yêu cầu kỹ thuật (không có thì bỏ trống). Mã vật tư vẫn nằm ở data-code để lưu.
         return '<div class="stockin-row"><div class="stockin-name">'+esc(m.name)+
-          '<div class="stockin-code">'+esc(m.code)+'</div></div>'+
+          (m.spec?'<div class="stockin-spec">'+esc(m.spec)+'</div>':'')+'</div>'+
           '<input type="number" min="0" step="1" placeholder="0" inputmode="numeric" class="stockin-input" data-code="'+esc(m.code)+'">'+
         '</div>';
       }).join('');
@@ -2524,6 +2559,10 @@
   $('#pwOkBtn').addEventListener('click',submitPw_);
   $('#pwCancelBtn').addEventListener('click',function(){ closePw_(false); });
   $('#pwOverlay').addEventListener('click',function(){ closePw_(false); });
+  $('#stockInRows').addEventListener('input',function(e){
+    var t=e.target; if(!t.classList.contains('stockin-input')) return;
+    t.classList.toggle('changed',Number(t.value)>0);
+  });
   $('#stockInSaveBtn').addEventListener('click',function(){
     var holder=$('#stockInHolder').value;
     var items=$all('.stockin-input',$('#stockInRows'))
