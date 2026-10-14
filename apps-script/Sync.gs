@@ -995,6 +995,14 @@ function fsReadStockinSheet_(ss) {
   return out;
 }
 
+/** Sheet vật tư bị trống hẳn -> không đẩy lên app, báo cho người đang sửa biết. */
+function fsBlockEmptyPush_(name) {
+  const msg = 'Sheet ' + name + ' đang trống nên KHÔNG đẩy lên app (dữ liệu trên app giữ nguyên). ' +
+    'Muốn lấy lại dữ liệu: menu App TM → Kéo vật tư từ app về sheet.';
+  console.warn(msg);
+  try { SpreadsheetApp.getActive().toast(msg, 'Đồng bộ vật tư', 10); } catch (e) {}
+}
+
 /**
  * Sửa tay trên sheet VAT TU / VAT TU NHAP KHO -> đẩy lên app ngay (đồng bộ 2 chiều).
  *  - VAT TU: thay danh mục + tồn kho theo người giữ; GIỮ NGUYÊN sổ trừ kho, cpFixes... của app.
@@ -1016,6 +1024,8 @@ function fsPushVatTuSheet_(name) {
       const parsed = fsReadVatTuSheet_(ss);
       if (!parsed) return false;
       const st = JSON.parse(fsField_(d, 'json') || '{}');
+      // Chốt an toàn: sheet trống hẳn mà app đang có danh mục -> KHÔNG đẩy (tránh xoá sạch kho trên app)
+      if (!parsed.materials.length && (st.materials || []).length) { fsBlockEmptyPush_(name); return false; }
       st.holders = parsed.holders;
       st.materials = parsed.materials;
       writes = [{ update: { name: fsDocName_('vattu/state'), fields: {
@@ -1024,6 +1034,11 @@ function fsPushVatTuSheet_(name) {
     } else {
       const stockin = fsReadStockinSheet_(ss);
       if (!stockin) return false;
+      // Chốt an toàn: sheet trống hẳn mà app đang có lịch sử nhập -> KHÔNG đẩy (tránh mất lịch sử trên app)
+      if (!stockin.length) {
+        const sd = fsGetDoc_('vattu/stockin');
+        if (sd && JSON.parse(fsField_(sd, 'json') || '[]').length) { fsBlockEmptyPush_(name); return false; }
+      }
       // Đổi rev của state để app biết dữ liệu vật tư đã đổi (app đọc lại cả stockin khi tải).
       writes = [
         { update: { name: fsDocName_('vattu/stockin'), fields: { json: { stringValue: JSON.stringify(stockin) }, updatedAt: { timestampValue: now } } } },
@@ -1114,7 +1129,8 @@ function fsWriteTable_(ss, name, headers, rows, firstColText) {
   if (!sh) sh = ss.insertSheet(name);
   const width = Math.max(headers.length, sh.getLastColumn(), 1);
   const oldRows = Math.max(sh.getLastRow(), 1);
-  sh.getRange(1, 1, oldRows, width).clearContent();
+  // GHI ĐÈ TRƯỚC, XOÁ PHẦN THỪA SAU: nếu lệnh ghi bị Google chặn (vd cột kiểu thả xuống của "Bảng"
+  // từ chối giá trị mới) thì dữ liệu cũ trên sheet vẫn còn, không bị trống như trước.
   const pad = function (r) { const a = r.slice(); while (a.length < headers.length) a.push(''); return a; };
   sh.getRange(1, 1, 1, headers.length).setValues([headers]);
   if (rows.length) {
@@ -1124,6 +1140,9 @@ function fsWriteTable_(ss, name, headers, rows, firstColText) {
     if (firstColText) { try { sh.getRange(2, 1, rows.length, 1).setNumberFormat('@'); } catch (e) { console.warn('setNumberFormat ' + name + ': ' + e.message); } }
     sh.getRange(2, 1, rows.length, headers.length).setValues(rows.map(pad));
   }
+  const used = rows.length + 1;
+  if (oldRows > used) sh.getRange(used + 1, 1, oldRows - used, width).clearContent();   // dòng thừa bên dưới
+  if (width > headers.length) sh.getRange(1, headers.length + 1, used, width - headers.length).clearContent();   // cột thừa bên phải
 }
 
 // ============================== FIRESTORE REST ==============================

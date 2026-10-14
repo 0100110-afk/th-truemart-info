@@ -218,6 +218,14 @@ sheets['VAT TU NHAP KHO']._v()[1][3] = 99;
 ctx.__t.fsOnEdit({ range: { getSheet: () => sheets['VAT TU NHAP KHO'] } });
 const si = JSON.parse(store['vattu/stockin'].fields.json.stringValue);
 ok(si[0].qty === 99 && !!store['vattu/state'].fields.json, 'sửa sheet NHAP KHO -> lịch sử nhập trên app đổi, state giữ nguyên');
+// Chốt an toàn: sheet NHAP KHO bị trống hẳn -> không đẩy rỗng lên app
+{
+  const keep = store['vattu/stockin'].fields.json.stringValue;
+  const sv = sheets['VAT TU NHAP KHO']._v(); const saved = sv.splice(1);
+  ctx.__t.fsOnEdit({ range: { getSheet: () => sheets['VAT TU NHAP KHO'] } });
+  ok(store['vattu/stockin'].fields.json.stringValue === keep, 'sheet NHAP KHO trống -> KHÔNG xoá lịch sử trên app');
+  saved.forEach(function (r) { sv.push(r); });
+}
 // ---- Cấp quyền Phiếu sửa chữa từ cùng sheet APP USERS ----
 stores.p2['admins/quantri@th.com'] = { name: 'projects/p2/databases/(default)/documents/admins/quantri@th.com', fields: { role: { stringValue: 'admin' } } };
 props.FIREBASE_SA_PSC = JSON.stringify({ client_email: 'y', private_key: 'k', project_id: 'p2' });
