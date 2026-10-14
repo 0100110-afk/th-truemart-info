@@ -554,6 +554,7 @@ function syncAutologWithIds_(cpRows, keys, autolog, matcher, holders) {
     searchAssetByCode: searchAssetByCode,
     getAssetsByStore: getAssetsByStore,
     getMaintenanceList: getMaintenanceList,
+    getMaintenanceFilterOptions: getMaintenanceFilterOptions,
     getMaintenanceByStore: getMaintenanceByStore,
     getMaintenanceByAsset: getMaintenanceByAsset,
     getMaintenanceQuarterlyStats: getMaintenanceQuarterlyStats,

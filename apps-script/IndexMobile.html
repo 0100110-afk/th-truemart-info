@@ -1832,8 +1832,8 @@
       statTileSnk('purple',snow,'Tủ đã sửa chữa',d.totalDevices)+
       statTileSnk('sky',snow,'Lượt sửa chữa',d.totalRepairs)+
       statTileSnk('green',snow,'Tổng chi phí',fmtVND(d.totalCost));
-    $('#sanakyTopStores').innerHTML=d.topStores.length?d.topStores.map(rankRow).join(''):'<div class="empty" style="padding:20px;">Chưa có dữ liệu</div>';
-    $('#sanakyTopDevices').innerHTML=d.topDevices.length?d.topDevices.map(rankRow).join(''):'<div class="empty" style="padding:20px;">Chưa có dữ liệu</div>';
+    $('#sanakyTopStores').innerHTML=d.topStores.length?d.topStores.slice(0,3).map(rankRow).join(''):'<div class="empty" style="padding:20px;">Chưa có dữ liệu</div>';
+    $('#sanakyTopDevices').innerHTML=d.topDevices.length?d.topDevices.slice(0,3).map(rankRow).join(''):'<div class="empty" style="padding:20px;">Chưa có dữ liệu</div>';
   }
   function statTileSnk(cls,ic,k,v){
     return '<div class="stat-tile" style="flex:0 0 40%;"><div class="ic '+cls+'">'+ic+'</div><div class="k">'+esc(k)+'</div><div class="v">'+esc(v)+'</div></div>';

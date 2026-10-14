@@ -534,6 +534,14 @@
   .rank-sub{font-size:11px; color:var(--ink-500); margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
   .rank-count{font-size:10.5px; color:var(--ink-300); margin-top:1px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
   .rank-money{font-weight:700; color:var(--ok); font-size:12.5px; white-space:nowrap; flex-shrink:0;}
+  .rank-badge.rn{background:#EEF3F8; color:var(--ink-500); font-size:12px; font-weight:700;}
+  .rank-item.on{background:#EAF2FB; border-radius:10px; padding-left:8px; padding-right:8px;}
+  .rank-more{display:block; width:100%; margin-top:6px; padding:8px; border:0; border-top:1px dashed var(--line); background:none; color:var(--brand-700); font-weight:600; font-size:12.5px; cursor:pointer; font-family:inherit;}
+  .rank-more:hover{color:var(--brand-900);}
+  /* Sanaky: 3 thẻ số liệu cùng cỡ chữ với 6 thẻ ở Tổng quan */
+  #sanakyStatGrid .stat-card .value{font-size:20px;}
+  .snk-filter-chip{display:inline-flex; align-items:center; gap:8px; margin:0 0 10px; padding:6px 8px 6px 12px; border-radius:999px; background:#EAF2FB; color:var(--brand-900); font-size:12.5px; font-weight:600;}
+  .snk-filter-chip button{border:0; background:#fff; color:var(--brand-900); width:22px; height:22px; border-radius:50%; cursor:pointer; font-size:13px; line-height:1;}
 
   /* Dòng gộp nhiều hạng mục cùng ngày */
   .multi-line{display:flex; flex-direction:column; gap:4px;}
@@ -1041,6 +1049,7 @@
               </div>
             </div>
 
+            <div class="snk-filter-chip" id="snkFilterChip" style="display:none;"></div>
             <div class="card">
               <div class="table-wrap wrap-cells">
                 <table class="data-table" id="sanakyTable">
@@ -1070,10 +1079,16 @@
             </div>
           </div>
 
-          <div class="row-between">
-            <div class="search-bar" style="flex:1; max-width:520px;">
+          <div class="cp-toolbar">
+            <div class="search-bar" style="width:100%; max-width:560px; margin-bottom:0;">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
               <input type="text" id="maintSearchInput" placeholder="Tìm theo mã tài sản, địa chỉ, nhà cung cấp...">
+            </div>
+            <div class="filters-row">
+              <select class="filter-select" id="maintQuarterSelect"><option value="">Tất cả quý</option></select>
+              <select class="filter-select" id="maintSupplierSelect"><option value="">Tất cả nhà cung cấp</option></select>
+              <select class="filter-select" id="maintTypeSelect"><option value="">Tất cả loại thiết bị</option></select>
+              <button class="btn btn-ghost btn-sm" id="maintClearBtn" type="button" style="display:none;">Xoá lọc</button>
             </div>
           </div>
 
@@ -2808,11 +2823,15 @@
     });
   }
 
-  function rankItemHTML(x, i) {
-    var cls = i === 0 ? 'r1' : i === 1 ? 'r2' : 'r3';
-    return '<div class="rank-item">' +
+  /* Bảng xếp hạng: hiện 3 mục đầu, "Xem thêm" mở tới 10. Bấm 1 mục -> lọc danh sách bên dưới
+     theo đúng mã đó; bấm lại -> bỏ lọc. */
+  var snkRank_ = { stores: [], devices: [], open: { stores: false, devices: false } }, snkPick_ = null;
+  function rankItemHTML(x, i, kind) {
+    var cls = i === 0 ? 'r1' : i === 1 ? 'r2' : i === 2 ? 'r3' : 'rn';
+    var on = snkPick_ && snkPick_.kind === kind && snkPick_.code === String(x.key);
+    return '<div class="rank-item' + (on ? ' on' : '') + '" title="Bấm để lọc danh sách theo mã này" onclick="THTM.snkPickRank(\'' + kind + '\',' + i + ')">' +
       '<div class="rank-left">' +
-        '<div class="rank-badge ' + cls + '">' + ICONS.trophy + '</div>' +
+        '<div class="rank-badge ' + cls + '">' + (i < 3 ? ICONS.trophy : (i + 1)) + '</div>' +
         '<div class="rank-info">' +
           '<div class="rank-name">' + esc(x.key) + '</div>' +
           '<div class="rank-sub">' + esc(x.address || 'Không có địa chỉ') + '</div>' +
@@ -2829,18 +2848,37 @@
       statCard('Tổng số lần sửa chữa', data.totalRepairs, '') +
       statCard('Tổng chi phí sửa chữa', fmtVND(data.totalCost), '');
 
-    $('#sanakyTopStores').innerHTML = data.topStores.length
-      ? data.topStores.map(rankItemHTML).join('')
-      : '<div class="tab-empty">Chưa có dữ liệu</div>';
-
-    $('#sanakyTopDevices').innerHTML = data.topDevices.length
-      ? data.topDevices.map(rankItemHTML).join('')
-      : '<div class="tab-empty">Chưa có dữ liệu</div>';
+    snkRank_.stores = data.topStores || []; snkRank_.devices = data.topDevices || [];
+    renderSnkRanks_();
   }
+  function renderSnkRanks_() {
+    [['stores', '#sanakyTopStores', 'cửa hàng'], ['devices', '#sanakyTopDevices', 'mã tài sản']].forEach(function (x) {
+      var list = snkRank_[x[0]], open = snkRank_.open[x[0]];
+      $(x[1]).innerHTML = list.length
+        ? list.slice(0, open ? 10 : 3).map(function (it, i) { return rankItemHTML(it, i, x[0]); }).join('') +
+          (list.length > 3 ? '<button type="button" class="rank-more" onclick="THTM.snkToggleRank(\'' + x[0] + '\')">' +
+            (open ? 'Thu gọn' : 'Xem thêm (top ' + Math.min(10, list.length) + ' ' + x[2] + ')') + '</button>' : '')
+        : '<div class="tab-empty">Chưa có dữ liệu</div>';
+    });
+  }
+  function snkToggleRank(kind) { snkRank_.open[kind] = !snkRank_.open[kind]; renderSnkRanks_(); }
+  function snkPickRank(kind, i) {
+    var it = snkRank_[kind][i]; if (!it) return;
+    var code = String(it.key);
+    snkPick_ = (snkPick_ && snkPick_.kind === kind && snkPick_.code === code) ? null : { kind: kind, code: code };
+    renderSnkRanks_();
+    sanakyPage = 1; backToSanakyList(); fetchSanakyList();
+    if (snkPick_) $('#sanakyTable').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+  function snkClearPick() { snkPick_ = null; renderSnkRanks_(); sanakyPage = 1; fetchSanakyList(); }
 
   function fetchSanakyList() {
     $('#sanakyTable tbody').innerHTML = skelTableRows(8, 6);
-    runServer('getSanakyList', [{ query: sanakyQuery, year: sanakyYearFilter, month: sanakyMonthFilter, page: sanakyPage, pageSize: sanakyPageSize }], renderSanakyTable);
+    var chip = $('#snkFilterChip');
+    chip.style.display = snkPick_ ? '' : 'none';
+    if (snkPick_) chip.innerHTML = 'Đang lọc ' + (snkPick_.kind === 'stores' ? 'mã cửa hàng ' : 'mã tài sản ') + esc(snkPick_.code) + ' <button type="button" title="Bỏ lọc" onclick="THTM.snkClearPick()">✕</button>';
+    runServer('getSanakyList', [{ query: sanakyQuery, year: sanakyYearFilter, month: sanakyMonthFilter, page: sanakyPage, pageSize: sanakyPageSize,
+      storeCode: snkPick_ && snkPick_.kind === 'stores' ? snkPick_.code : '', assetCode: snkPick_ && snkPick_.kind === 'devices' ? snkPick_.code : '' }], renderSanakyTable);
   }
 
   function warrantyBadge(status) {
@@ -3080,6 +3118,7 @@
   var maintLoaded = false;
   var maintPage = 1;
   var maintQuery = '';
+  var maintFilter = { quarter: '', supplier: '', type: '' }, maintChartData = null;
   var maintPageSize = 20;
   var maintDebounce = null;
   var chartMaintQuarterlyQty = null;
@@ -3089,6 +3128,13 @@
 
   function loadMaintenance() {
     maintLoaded = true;
+    runServer('getMaintenanceFilterOptions', [], function (o) {
+      var opt = function (all, list) { return '<option value="">' + all + '</option>' + list; };
+      $('#maintQuarterSelect').innerHTML = opt('Tất cả quý', (o.quarters || []).map(function (q) { return '<option value="' + q.value + '">' + esc(q.label) + '</option>'; }).join(''));
+      $('#maintSupplierSelect').innerHTML = opt('Tất cả nhà cung cấp', (o.suppliers || []).map(function (v) { return '<option value="' + esc(v) + '">' + esc(v) + '</option>'; }).join('') + '<option value="__others__">NCC khác (ngoài biểu đồ)</option>');
+      $('#maintTypeSelect').innerHTML = opt('Tất cả loại thiết bị', (o.types || []).map(function (v) { return '<option value="' + esc(v) + '">' + esc(v) + '</option>'; }).join(''));
+      syncMaintSelects_();
+    });
     fetchMaintenance();
     loadMaintQuarterlyChart();
   }
@@ -3097,7 +3143,52 @@
     runServer('getMaintenanceQuarterlyStats', [], renderMaintQuarterlyChart);
   }
 
+  /* ===== Lọc Bảo dưỡng: ô chọn + bấm vào cột biểu đồ =====
+     Biểu đồ số lượng: cột "Tổng số lượng" -> lọc theo quý; cột NCC -> quý + NCC đó.
+     Biểu đồ chi phí: bấm 1 phần cột -> quý + NCC đó. Bấm lại đúng cột đang chọn -> bỏ lọc. */
+  function syncMaintSelects_() {
+    $('#maintQuarterSelect').value = maintFilter.quarter;
+    $('#maintSupplierSelect').value = maintFilter.supplier;
+    $('#maintTypeSelect').value = maintFilter.type;
+    $('#maintClearBtn').style.display = (maintFilter.quarter || maintFilter.supplier || maintFilter.type) ? '' : 'none';
+  }
+  function applyMaintFilter_() {
+    maintPage = 1; syncMaintSelects_(); highlightMaintCharts_(); fetchMaintenance();
+  }
+  function maintSupplierOf_(name) { return name === 'NCC khác' ? '__others__' : (name === 'Tổng số lượng' ? '' : name); }
+  function onMaintChartClick_(chart, evt) {
+    if (!maintChartData) return;
+    var els = chart.getElementsAtEventForMode(evt, 'nearest', { intersect: true }, true);
+    if (!els.length) return;
+    var qk = maintChartData.keys[els[0].index];
+    var sup = maintSupplierOf_(chart.data.datasets[els[0].datasetIndex].label);
+    if (maintFilter.quarter === qk && maintFilter.supplier === sup) { maintFilter.quarter = ''; maintFilter.supplier = ''; }
+    else { maintFilter.quarter = qk; maintFilter.supplier = sup; }
+    applyMaintFilter_();
+    $('#maintTable').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+  /* Làm mờ những cột không thuộc bộ lọc để thấy rõ đang lọc cột nào */
+  function highlightMaintCharts_() {
+    [chartMaintQuarterlyQty, chartMaintQuarterlyCost].forEach(function (ch) {
+      if (!ch || !maintChartData) return;
+      ch.data.datasets.forEach(function (ds) {
+        if (!ds._base) ds._base = ds.backgroundColor;
+        var sup = maintSupplierOf_(ds.label);
+        ds.backgroundColor = maintChartData.keys.map(function (k) {
+          var on = (!maintFilter.quarter || maintFilter.quarter === k) && (!maintFilter.supplier || maintFilter.supplier === sup || (sup === '' && ch === chartMaintQuarterlyQty));
+          return on ? ds._base : ds._base + '40';
+        });
+      });
+      ch.update('none');
+    });
+  }
+  ['#maintQuarterSelect', '#maintSupplierSelect', '#maintTypeSelect'].forEach(function (sel, i) {
+    $(sel).addEventListener('change', function () { maintFilter[['quarter', 'supplier', 'type'][i]] = this.value; applyMaintFilter_(); });
+  });
+  $('#maintClearBtn').addEventListener('click', function () { maintFilter = { quarter: '', supplier: '', type: '' }; applyMaintFilter_(); });
+
   function renderMaintQuarterlyChart(data) {
+    maintChartData = data;
     applyChartDefaults_();
     if (!data || !data.labels || !data.labels.length) {
       ['#chartMaintQuarterlyQty', '#chartMaintQuarterlyCost'].forEach(function (sel) {
@@ -3119,6 +3210,8 @@
           responsive: true,
           maintainAspectRatio: false,
           layout: { padding: { top: 18 } },
+          onClick: function (evt) { onMaintChartClick_(chartMaintQuarterlyQty, evt); },
+          onHover: function (evt, els) { evt.native.target.style.cursor = els.length ? 'pointer' : 'default'; },
           plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10.5 } } } },
           scales: {
             x: { grid: { display: false, drawTicks: false } },
@@ -3139,6 +3232,8 @@
           responsive: true,
           maintainAspectRatio: false,
           layout: { padding: { top: 22 } },
+          onClick: function (evt) { onMaintChartClick_(chartMaintQuarterlyCost, evt); },
+          onHover: function (evt, els) { evt.native.target.style.cursor = els.length ? 'pointer' : 'default'; },
           plugins: {
             legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10.5 } } },
             tooltip: { callbacks: { label: function (ctx) { return ctx.dataset.label + ': ' + fmtVND(ctx.raw); } } }
@@ -3150,6 +3245,7 @@
         },
         plugins: [stackedCostLabelsPlugin]
       });
+      highlightMaintCharts_();
     } catch (err) {
       ['#chartMaintQuarterlyQty', '#chartMaintQuarterlyCost'].forEach(function (sel) {
         var cont = $(sel) ? $(sel).closest('.panel') : null;
@@ -3160,7 +3256,7 @@
 
   function fetchMaintenance() {
     $('#maintTable tbody').innerHTML = skelTableRows(8, 6);
-    runServer('getMaintenanceList', [{ query: maintQuery, page: maintPage, pageSize: maintPageSize }], renderMaintTable);
+    runServer('getMaintenanceList', [{ query: maintQuery, quarter: maintFilter.quarter, supplier: maintFilter.supplier, type: maintFilter.type, page: maintPage, pageSize: maintPageSize }], renderMaintTable);
   }
 
   function renderMaintTable(data) {
@@ -3178,7 +3274,7 @@
 
     var totalPages = Math.max(1, Math.ceil(data.total / data.pageSize));
     $('#maintPagination').innerHTML =
-      '<span>Trang ' + data.page + ' / ' + totalPages + ' · ' + data.total + ' bản ghi</span>' +
+      '<span>Trang ' + data.page + ' / ' + totalPages + ' · ' + data.total + ' bản ghi' + (data.totalCost != null ? ' · ' + fmtVND(data.totalCost) : '') + '</span>' +
       '<button ' + (data.page <= 1 ? 'disabled' : '') + ' onclick="THTM.maintGoPage(' + (data.page - 1) + ')">← Trước</button>' +
       '<button ' + (data.page >= totalPages ? 'disabled' : '') + ' onclick="THTM.maintGoPage(' + (data.page + 1) + ')">Sau →</button>';
   }
@@ -3991,6 +4087,7 @@
     cpGoPage: cpGoPage,
     vtTrackGoPage: vtTrackGoPage,
     vtOpenFix: vtOpenFix,
+    snkPickRank: snkPickRank, snkToggleRank: snkToggleRank, snkClearPick: snkClearPick,
     vtQuickConfirm: vtQuickConfirm,
     vtEditItem: vtEditItem,
     vtDeleteItem: vtDeleteItem,

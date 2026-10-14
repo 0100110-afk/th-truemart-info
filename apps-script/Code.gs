@@ -1054,13 +1054,54 @@ function getAssetsByStore(costCenter) {
 
 // ============================== BẢO DƯỠNG ==============================
 
+/** Khoá quý "2026-Q1" của 1 dòng BẢO DƯỠNG — cùng quy tắc với biểu đồ theo Quý (ghi chú trước, ngày sau). */
+function maintQuarterKey_(m) {
+  const y = extractYear_(m[COLS.MAINT_DATE]);
+  if (!y) return '';
+  let q = quarterFromNote_(m[COLS.MAINT_NOTE]);
+  if (!q) {
+    const parts = normalizeDate_(m[COLS.MAINT_DATE]).split('/');
+    const month = parts.length === 3 ? Number(parts[1]) : null;
+    if (!month) return '';
+    q = Math.ceil(month / 3);
+  }
+  return y + '-Q' + q;
+}
+
+/** Giá trị cho bộ lọc Bảo dưỡng: Quý, Nhà cung cấp, Loại thiết bị có trong dữ liệu. */
+function getMaintenanceFilterOptions() {
+  const qs = {}, sup = {}, types = {};
+  getMaintCached_().forEach(function (m) {
+    const k = maintQuarterKey_(m); if (k) qs[k] = 1;
+    const s = String(m[COLS.MAINT_SUPPLIER] || '').trim(); if (s) sup[s] = 1;
+    const t = String(m[COLS.MAINT_TYPE] || '').trim(); if (t) types[t] = 1;
+  });
+  const cmp = function (a, b) { return a.localeCompare(b, 'vi'); };
+  return {
+    quarters: Object.keys(qs).sort().reverse().map(function (k) { const p = k.split('-Q'); return { value: k, label: 'Q' + p[1] + '/' + p[0] }; }),
+    suppliers: Object.keys(sup).sort(cmp), types: Object.keys(types).sort(cmp)
+  };
+}
+
 function getMaintenanceList(opts) {
   opts = opts || {};
   const q = String(opts.query || '').trim();
   const page = Math.max(1, Number(opts.page) || 1);
   const pageSize = Number(opts.pageSize) || 20;
+  const quarter = String(opts.quarter || '').trim();
+  const supplier = String(opts.supplier || '').trim();
+  const type = String(opts.type || '').trim();
 
   let rows = getMaintCached_();
+  if (quarter) rows = rows.filter(function (m) { return maintQuarterKey_(m) === quarter; });
+  /* "NCC khác" (cột gộp của biểu đồ) = mọi NCC ngoài danh sách top hiển thị trên biểu đồ */
+  if (supplier === '__others__') {
+    const top = getMaintenanceQuarterlyStats().countSeries.map(function (x) { return x.name; });
+    rows = rows.filter(function (m) { return top.indexOf(String(m[COLS.MAINT_SUPPLIER] || 'Không rõ').trim() || 'Không rõ') === -1; });
+  } else if (supplier) {
+    rows = rows.filter(function (m) { return (String(m[COLS.MAINT_SUPPLIER] || 'Không rõ').trim() || 'Không rõ') === supplier; });
+  }
+  if (type) rows = rows.filter(function (m) { return String(m[COLS.MAINT_TYPE] || '').trim() === type; });
 
   if (q) {
     rows = rows.filter(function (m) {
@@ -1100,7 +1141,8 @@ function getMaintenanceList(opts) {
     };
   });
 
-  return { rows: pageRows, total: total, page: page, pageSize: pageSize };
+  const totalCost = rows.reduce(function (t, m) { return t + (Number(m[COLS.MAINT_COST]) || 0); }, 0);
+  return { rows: pageRows, total: total, totalCost: totalCost, page: page, pageSize: pageSize };
 }
 
 function getMaintenanceByStore(costCenter) {
@@ -1243,6 +1285,7 @@ function getMaintenanceQuarterlyStats() {
 
   return {
     labels: labels,
+    keys: quarterKeys,
     totalCost: totalCost,
     totalCount: totalCount,
     costSeries: buildSeries_('bySupplierCost'),
@@ -1929,8 +1972,8 @@ function getSanakyDashboardData(yearFilter, monthFilter) {
     totalDevices: totalDevices,
     totalRepairs: repairSet.size,
     totalCost: totalCost,
-    topStores: topN(byStore, 3),
-    topDevices: topN(byDevice, 3)
+    topStores: topN(byStore, 10),
+    topDevices: topN(byDevice, 10)
   };
 }
 
@@ -1952,6 +1995,11 @@ function getSanakyList(opts) {
       return k && k.split('-')[1] === mm;
     });
   }
+
+  // Bấm 1 mục trong bảng xếp hạng -> lọc ĐÚNG mã cửa hàng / mã tài sản đó
+  const storeCode = String(opts.storeCode || '').trim(), assetCode = String(opts.assetCode || '').trim();
+  if (storeCode) rows = rows.filter(function (r) { return normalizeCC_(r.costCenter) === normalizeCC_(storeCode); });
+  if (assetCode) rows = rows.filter(function (r) { return String(r.assetCode).trim() === assetCode; });
 
   if (q) {
     rows = rows.filter(function (r) {
