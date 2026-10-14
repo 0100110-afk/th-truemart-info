@@ -772,7 +772,7 @@
       <div class="page-section-title">Tồn kho theo người giữ
         <!-- 2 nút gom thành 1 cụm bên phải: Khớp vật tư nằm sát Nhập kho (trước đây space-between
              chia đều khoảng trống nên nút Khớp lơ lửng giữa hàng). Padding Khớp hẹp hơn vì nhãn dài hơn -->
-        <span style="display:inline-flex; align-items:center; gap:22px; margin-left:auto; flex-shrink:0;">
+        <span style="display:inline-flex; align-items:center; gap:8px; margin-left:auto; flex-shrink:0;">
           <button class="btn btn-ghost" style="padding:8px 10px; font-size:12px; border-radius:11px; white-space:nowrap;" id="vtCalcBtn">Khớp vật tư</button>
           <button class="btn btn-primary" style="padding:8px 14px; font-size:12px; border-radius:11px; white-space:nowrap;" id="vtStockInOpenBtn">+ Nhập kho</button>
         </span>
@@ -1723,7 +1723,7 @@
       '</div><span class="rec-date">'+esc(nDate(r.date))+'</span></div>'+
       '<div class="rec-body">'+esc(r.desc||'—')+'</div>'+
       '<div class="rec-sub">'+esc(r.supplier||'')+(r.note?' · '+esc(r.note):'')+'</div>'+
-      '<div class="rec-foot"><span class="rec-total-label">Chi phí</span><span class="rec-total">'+fmtVND(r.cost)+'</span></div></div>';
+      '<div class="rec-foot"><span class="rec-total-label">Tổng</span><span class="rec-total">'+fmtVND(r.cost)+'</span></div></div>';
   }
 
   function viewAssetsOfStore(cc){
@@ -1785,8 +1785,7 @@
           '<span class="rec-date">'+esc(nDate(r.date))+'</span></div>'+
           /* Nhiều hạng mục -> mỗi hạng mục 1 dòng kèm SL + chi phí riêng (giống Sanaky); 1 hạng mục thì giữ 1 dòng chữ */
           ((r.items&&r.items.length>1)?itemsBlock(r.items):'<div class="rec-body">'+esc(r.detail||'—')+'</div>')+
-          (r.supplier?'<div class="rec-sub">'+esc(r.supplier)+'</div>':'')+
-          '<div class="rec-foot"><span class="rec-total-label">Chi phí</span><span class="rec-total">'+fmtVND(r.cost)+'</span></div></div>';
+          '<div class="rec-foot"><span class="rec-total-label">Tổng</span><span class="rec-total">'+fmtVND(r.cost)+'</span></div></div>';
       }).join('');
     });
   }
@@ -1889,19 +1888,18 @@
       $(x[1]).innerHTML=list.length
         ? list.slice(0,open?10:3).map(function(it,i){
             var on=snkPick_&&snkPick_.kind===x[0]&&snkPick_.code===String(it.key);
-            return rankRow(it,i).replace('<div class="rank-row">','<div class="rank-row tap'+(on?' on':'')+'" onclick="THM.snkPickRank(\''+x[0]+'\','+i+')">');
+            return rankRow(it,i).replace('<div class="rank-row">','<div class="rank-row tap" onclick="THM.snkPickRank(\''+x[0]+'\','+i+')">');
           }).join('')+
           (list.length>3?'<button type="button" class="rank-more" onclick="THM.snkToggleRank(\''+x[0]+'\')">'+(open?'Thu gọn':'Xem thêm')+'</button>':'')
         : '<div class="empty" style="padding:20px;">Chưa có dữ liệu</div>';
     });
   }
   function snkToggleRank(kind){ snkRank_.open[kind]=!snkRank_.open[kind]; renderSnkRanks_(); }
+  /* Chạm 1 mục xếp hạng -> mở trang chi tiết riêng (giống chạm mã trong danh sách bên dưới), không lọc */
   function snkPickRank(kind,i){
     var it=snkRank_[kind][i]; if(!it) return;
     var code=String(it.key);
-    snkPick_=(snkPick_&&snkPick_.kind===kind&&snkPick_.code===code)?null:{kind:kind,code:code};
-    renderSnkRanks_(); fetchSanakyList(true);
-    if(snkPick_) $('#snkFilterChip').scrollIntoView({behavior:'smooth',block:'start'});
+    if(kind==='stores') openSanakyStore(code); else openSanakyAsset(code);
   }
   function snkClearPick(){ snkPick_=null; renderSnkRanks_(); fetchSanakyList(true); }
   $('#sanakyClearBtn').addEventListener('click',function(){
@@ -2237,7 +2235,7 @@
         '<div class="rec-body">'+esc(r.desc||'—')+'</div>'+
         '<div class="rec-sub">'+esc(r.address||'')+'</div>'+
         '<div class="rec-sub">'+esc(r.supplier||'')+(r.note?' · '+esc(r.note):'')+'</div>'+
-        '<div class="rec-foot"><span class="rec-total-label">Chi phí</span><span class="rec-total">'+fmtVND(r.cost)+'</span></div></div>';
+        '<div class="rec-foot"><span class="rec-total-label">Tổng</span><span class="rec-total">'+fmtVND(r.cost)+'</span></div></div>';
     }).join('');
     $('#maintMoreBtn').style.display=mRows.length<mTotal?'':'none';
   }
@@ -2300,7 +2298,10 @@
 
   function renderVtStock(d){
     if(!d.materials.length){ $('#vtStockList').innerHTML=emptyState('Chưa có vật tư nào','Quản lý danh mục trên bản máy tính.'); return; }
-    $('#vtStockList').innerHTML=d.materials.map(function(m,i){
+    // Vật tư đã hết (tổng tồn = 0) ẩn lặng lẽ, giống bản máy tính
+    var shown=d.materials.filter(function(m){ return Number(m.total)>0; });
+    if(!shown.length){ $('#vtStockList').innerHTML=emptyState('Tất cả vật tư đều đã hết',''); return; }
+    $('#vtStockList').innerHTML=shown.map(function(m,i){
       var detail=d.holders.map(function(h){
         var q=m.qty[h]||0;
         return '<div class="vt-holder-line"><span class="h">'+esc(h)+'</span><span class="q'+(q?'':' zero')+'">'+(q||'—')+'</span></div>';

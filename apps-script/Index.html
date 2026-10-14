@@ -639,24 +639,25 @@
     box-shadow:var(--shadow-pop); max-height:90vh; overflow-y:auto;
   }
   .modal.modal-wide{max-width:820px;}
-  .modal.modal-xwide{max-width:min(1180px, 96vw);}
+  .modal.modal-xwide{max-width:min(1180px, 96vw); width:fit-content; min-width:min(620px, 96vw);}
   /* Bảng nhập tồn kho dạng lưới: hàng = vật tư, cột = người giữ (giống bảng thống kê).
      Ghim hàng tiêu đề + cột tên vật tư khi cuộn. */
-  .vt-grid-wrap{max-height:min(460px, 58vh); overflow:auto; border:1px solid var(--line); border-radius:10px;}
-  table.vt-grid{border-collapse:separate; border-spacing:0; font-size:13px; width:100%;}
+  .vt-grid-wrap{max-height:min(460px, 58vh); overflow:auto; border:1px solid var(--line); border-radius:10px; width:fit-content; max-width:100%;}
+  table.vt-grid{border-collapse:separate; border-spacing:0; font-size:13px; width:auto;}
   table.vt-grid th, table.vt-grid td{padding:6px 8px; border-bottom:1px solid var(--line); border-right:1px solid var(--line); white-space:nowrap; background:var(--white);}
   table.vt-grid th:last-child, table.vt-grid td:last-child{border-right:none;}
   table.vt-grid thead th{position:sticky; top:0; z-index:2; font-weight:700; color:var(--brand-900); text-align:center; font-size:12.5px;}
-  table.vt-grid .vt-grid-name{position:sticky; left:0; z-index:1; text-align:left; min-width:200px; max-width:260px; white-space:normal; line-height:1.35;}
+  table.vt-grid .vt-grid-name{position:sticky; left:0; z-index:1; text-align:left; min-width:190px; max-width:240px; white-space:normal; line-height:1.35; font-weight:700; color:var(--ink-900);}
+  table.vt-grid thead th:not(.vt-grid-name){min-width:76px;}
   table.vt-grid thead th.vt-grid-name{z-index:3;}
   table.vt-grid tbody tr:hover td{background:#F7FAFD;}
   table.vt-grid td.vt-grid-cell{padding:4px 6px; text-align:center;}
-  table.vt-grid input{width:64px; height:30px; border:1px solid var(--line); border-radius:6px; padding:0 6px; text-align:center;
+  table.vt-grid input{width:58px; height:30px; border:1px solid var(--line); border-radius:6px; padding:0 6px; text-align:center;
     font:inherit; font-variant-numeric:tabular-nums; background:var(--white); -moz-appearance:textfield;}
   table.vt-grid input::-webkit-outer-spin-button, table.vt-grid input::-webkit-inner-spin-button{-webkit-appearance:none; margin:0;}
   table.vt-grid input:focus{outline:none; border-color:var(--brand-700); box-shadow:0 0 0 3px rgba(19,111,191,.15);}
   table.vt-grid input.changed{border-color:var(--gold-500, #D4A017); background:#FFF8E6; font-weight:700;}
-  table.vt-grid .vt-grid-sub{display:block; font-size:11px; color:var(--ink-500); font-weight:500;}
+  table.vt-grid .vt-grid-sub{display:block; font-size:11px; color:var(--ink-500); font-weight:400;}
   .modal-head{padding:20px 24px; border-bottom:1px solid var(--line); display:flex; align-items:center; justify-content:space-between;}
   .modal-head h3{font-size:16px; font-weight:700; color:var(--brand-900);}
   .modal-close{cursor:pointer; color:var(--ink-500); font-size:20px; line-height:1; background:none; border:none;}
@@ -1318,7 +1319,7 @@
     <div class="modal modal-xwide">
       <div class="modal-head"><h3>Chỉnh sửa tồn kho (ghi đè)</h3><button class="modal-close" id="vtQtyModalClose">×</button></div>
       <div class="modal-body">
-        <div class="hint" style="margin:0 0 10px;">Sửa trực tiếp số lượng của từng người giữ trong bảng (ô đổi màu là ô đã sửa), rồi bấm Lưu một lần cho tất cả. Số nhập vào sẽ GHI ĐÈ số hiện có.</div>
+        <div class="hint" style="margin:0 0 10px;">Sửa trực tiếp số lượng của từng người giữ (ô trống = 0, ô đổi màu là ô đã sửa), rồi bấm Lưu một lần cho tất cả. Số nhập vào sẽ GHI ĐÈ số hiện có.</div>
         <div class="vt-grid-wrap"><table class="vt-grid" id="vtQtyTable"><thead></thead><tbody id="vtQtyTableBody"></tbody></table></div>
       </div>
       <div class="modal-foot">
@@ -2877,7 +2878,7 @@
   function rankItemHTML(x, i, kind) {
     var cls = i === 0 ? 'r1' : i === 1 ? 'r2' : i === 2 ? 'r3' : 'rn';
     var on = snkPick_ && snkPick_.kind === kind && snkPick_.code === String(x.key);
-    return '<div class="rank-item' + (on ? ' on' : '') + '" title="Bấm để lọc danh sách theo mã này" onclick="THTM.snkPickRank(\'' + kind + '\',' + i + ')">' +
+    return '<div class="rank-item' + (on ? ' on' : '') + '" title="Bấm để xem chi tiết" onclick="THTM.snkPickRank(\'' + kind + '\',' + i + ')">' +
       '<div class="rank-left">' +
         '<div class="rank-badge ' + cls + '">' + (i < 3 ? ICONS.trophy : (i + 1)) + '</div>' +
         '<div class="rank-info">' +
@@ -2910,14 +2911,13 @@
     });
   }
   function snkToggleRank(kind) { snkRank_.open[kind] = !snkRank_.open[kind]; renderSnkRanks_(); }
+  /* Bấm 1 mục xếp hạng -> mở trang chi tiết riêng (giống bấm mã trong bảng bên dưới), không lọc */
   function snkPickRank(kind, i) {
     var it = snkRank_[kind][i]; if (!it) return;
     var code = String(it.key);
-    snkPick_ = (snkPick_ && snkPick_.kind === kind && snkPick_.code === code) ? null : { kind: kind, code: code };
-    renderSnkRanks_();
-    sanakyPage = 1; backToSanakyList(); fetchSanakyList();
-    if (snkPick_) $('#sanakyTable').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    if (kind === 'stores') showSanakyStore(code); else showSanakyAsset(code);
   }
+
   function snkClearPick() { snkPick_ = null; renderSnkRanks_(); sanakyPage = 1; fetchSanakyList(); }
   $('#sanakyClearBtn').addEventListener('click', function () {
     snkPick_ = null; sanakyQuery = ''; $('#sanakySearchInput').value = ''; renderSnkRanks_(); backToSanakyList();
@@ -3413,7 +3413,6 @@
     /* Vật tư đã HẾT (tổng tồn = 0) ẩn khỏi bảng thống kê cho gọn. Bảng nhập kho / chỉnh sửa vẫn
        liệt kê đủ để còn nhập cho chúng. */
     var shown = data.materials.filter(function (m) { return Number(m.total) > 0; });
-    var hidden = data.materials.length - shown.length;
     if (!shown.length) {
       $('#vtStockTableWrap').innerHTML = '<div class="empty-state"><div class="t">Tất cả vật tư đều đã hết</div>Bấm "Cập nhật tồn kho" để nhập kho.</div>';
       return;
@@ -3425,8 +3424,7 @@
         data.holders.map(function (h) { return '<td style="text-align:center;">' + (m.qty[h] ? esc(m.qty[h]) : '—') + '</td>'; }).join('') +
         '</tr>';
     }).join('');
-    $('#vtStockTableWrap').innerHTML = '<table class="vt-compact"><thead><tr>' + headCols + '</tr></thead><tbody>' + bodyRows + '</tbody></table>' +
-      (hidden ? '<div class="hint" style="margin:8px 2px 0;">Đang ẩn ' + hidden + ' vật tư đã hết (tồn = 0).</div>' : '');
+    $('#vtStockTableWrap').innerHTML = '<table class="vt-compact"><thead><tr>' + headCols + '</tr></thead><tbody>' + bodyRows + '</tbody></table>';
   }
 
   /** Mặc định chọn THÁNG MỚI NHẤT có dữ liệu, chỉ áp dụng ở lần tải đầu tiên. */
@@ -3866,7 +3864,7 @@
           var cur = (m.qty && m.qty[h]) || 0;
           return '<td class="vt-grid-cell"><input type="number" min="0" step="1" inputmode="numeric" class="' + inputCls + '"' +
             ' data-r="' + r + '" data-c="' + c + '" data-cur="' + cur + '"' +
-            (prefill ? ' value="' + cur + '"' : ' placeholder="" value=""') +
+            ' value="' + (prefill && cur ? cur : '') + '"' +   // số 0 -> ô trống cho dễ nhìn
             ' title="' + esc(m.name) + ' — ' + esc(h) + ' (hiện có ' + cur + ')"></td>';
         }).join('') + '</tr>';
     }).join('');
@@ -3883,12 +3881,13 @@
     });
   }
   /* Gom các ô đã nhập thành [{ holder, items:[{code, qty}] }] — chỉ những ô thoả `pick` */
-  function vtGridCollect_(tbody, inputCls, pick) {
+  function vtGridCollect_(tbody, inputCls, pick, blankIsZero) {
     var byHolder = {}, cells = [];
     $all('.' + inputCls, tbody).forEach(function (inp) {
       var raw = String(inp.value).trim(), cur = Number(inp.dataset.cur) || 0;
       var val = raw === '' ? null : Math.max(0, Math.floor(Number(raw) || 0));
       if (!pick(val, cur)) return;
+      if (val === null && blankIsZero) val = 0;
       var m = vtData.materials[Number(inp.dataset.r)], h = vtData.holders[Number(inp.dataset.c)];
       (byHolder[h] = byHolder[h] || []).push({ code: m.code, qty: val });
       cells.push({ name: m.name, holder: h, cur: cur, val: val });
@@ -3912,7 +3911,7 @@
   vtGridKeys_($('#vtQtyTableBody'), 'vt-qty-input');
   $('#vtQtyTableBody').addEventListener('input', function (e) {
     var t = e.target; if (!t.classList.contains('vt-qty-input')) return;
-    t.classList.toggle('changed', String(t.value).trim() !== '' && Number(t.value) !== Number(t.dataset.cur));
+    t.classList.toggle('changed', (Number(t.value) || 0) !== Number(t.dataset.cur));
   });
 
   $('#vtEditQtyBtn').addEventListener('click', function () {
@@ -3946,7 +3945,8 @@
 
   $('#vtQtySaveBtn').addEventListener('click', function () {
     // Ô bị xoá trắng coi như không sửa (giữ số cũ) — muốn về 0 thì gõ 0
-    var res = vtGridCollect_($('#vtQtyTableBody'), 'vt-qty-input', function (val, cur) { return val !== null && val !== cur; });
+    // Ô trống = 0 (bảng hiện số 0 thành ô trống) -> xoá trắng ô đang có số là đặt về 0
+    var res = vtGridCollect_($('#vtQtyTableBody'), 'vt-qty-input', function (val, cur) { return (val === null ? 0 : val) !== cur; }, true);
     if (!res.cells.length) { showToast('Không có thay đổi nào để cập nhật.'); return; }
     openVtConfirm_('Xác nhận chỉnh sửa tồn kho (ghi đè)',
       '<strong>' + res.cells.length + '</strong> ô thay đổi · <strong>' + res.grid.length + '</strong> người giữ. Số mới sẽ GHI ĐÈ số hiện tại.',
