@@ -190,6 +190,22 @@ const vt = sheets['VAT TU']._v();
 ok(vt[1][4] === 7, 'kéo tồn kho mới về sheet VAT TU');
 ok(sheets['VAT TU TU DONG TRU']._v().length === 6001, 'sổ trừ kho về sheet đủ 6000 dòng');
 ok(sheets['VAT TU NHAP KHO']._v()[1][4] === 'Nguyễn Duy Đức', 'lịch sử nhập kho giữ nguyên');
+// Sheet VAT TU NHAP KHO: ngày nhập mới nhất ở trên cùng, cùng ngày thì dòng nhập sau ở trên
+{
+  const si0 = store['vattu/stockin'].fields.json.stringValue;
+  store['vattu/stockin'].fields.json.stringValue = JSON.stringify([
+    { date: '27/07/2026', code: 'A', name: 'a', qty: 1, holder: 'X' },
+    { date: '12/09/2026', code: 'B', name: 'b', qty: 2, holder: 'X' },
+    { date: '24/08/2026', code: 'C', name: 'c', qty: 3, holder: 'X' },
+    { date: '12/09/2026', code: 'D', name: 'd', qty: 4, holder: 'X' }]);
+  store['vattu/state'].fields.rev = { integerValue: String(Number(store['vattu/state'].fields.rev.integerValue) + 1) };
+  ctx.__t.fsMirrorVatTu_(false);
+  const order = sheets['VAT TU NHAP KHO']._v().slice(1).map(function (r) { return r[1]; }).join('');
+  ok(order === 'DBCA', 'sheet nhập kho: mới nhất lên đầu (' + order + ')');
+  store['vattu/stockin'].fields.json.stringValue = si0;
+  store['vattu/state'].fields.rev = { integerValue: String(Number(store['vattu/state'].fields.rev.integerValue) + 1) };
+  ctx.__t.fsMirrorVatTu_(false);
+}
 // ---- Sửa tay trên sheet vật tư -> đẩy ngược lên app ----
 const revBefore = Number(store['vattu/state'].fields.rev.integerValue);
 sheets['VAT TU']._v()[1][4] = 42;

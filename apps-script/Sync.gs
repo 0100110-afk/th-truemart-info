@@ -962,6 +962,25 @@ function fsReadVatTuSheet_(ss) {
   return { holders: holders, materials: materials };
 }
 
+/**
+ * Lịch sử nhập kho ghi ra sheet theo NGÀY NHẬP MỚI NHẤT Ở TRÊN CÙNG. Cùng ngày thì dòng nhập sau nằm
+ * trên. Chỉ đổi thứ tự trên sheet: app tự sắp lịch sử theo ngày khi hiển thị nên không bị ảnh hưởng.
+ * Ngày không đọc được -> xuống cuối.
+ */
+function fsStockinNewestFirst_(rows) {
+  const key = function (v) {
+    const t = String(v || '').trim();
+    let m = t.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+    if (m) return Number(m[3]) * 10000 + Number(m[2]) * 100 + Number(m[1]);
+    m = t.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+    if (m) return Number(m[1]) * 10000 + Number(m[2]) * 100 + Number(m[3]);
+    return 0;
+  };
+  return (rows || []).map(function (r, i) { return { r: r, i: i, k: key(r.date) }; })
+    .sort(function (a, b) { return (b.k - a.k) || (b.i - a.i); })
+    .map(function (x) { return x.r; });
+}
+
 /** Đọc sheet VAT TU NHAP KHO -> mảng lịch sử nhập. */
 function fsReadStockinSheet_(ss) {
   const lg = ss.getSheetByName(FS_TAB_VATTU_LOG);
@@ -1055,7 +1074,7 @@ function fsMirrorVatTu_(force) {
       return [m.code, m.name, m.spec || ''].concat(holders.map(function (h) { return Number(m.qty && m.qty[h]) || 0; }));
     }), false);
   fsWriteTable_(ss, FS_TAB_VATTU_LOG, ['Ngày nhập', 'Mã vật tư', 'Tên vật tư', 'Số lượng nhập', 'Người giữ'],
-    stockin.map(function (r) { return [r.date, r.code, r.name, r.qty, r.holder]; }), true);
+    fsStockinNewestFirst_(stockin).map(function (r) { return [r.date, r.code, r.name, r.qty, r.holder]; }), true);
   fsWriteTable_(ss, 'VAT TU TU DONG TRU', ['Khoá dòng', 'Ngày xử lý', 'Mã vật tư', 'Tên vật tư', 'Số lượng đã trừ', 'Người bị trừ'],
     autolog.map(function (e) { return [e.k, e.d, e.code, e.name, e.qty, e.holder]; }), true);
 
