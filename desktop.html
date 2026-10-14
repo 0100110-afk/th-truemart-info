@@ -1663,6 +1663,11 @@
      bấm là trả TẤT CẢ về mặc định và tải lại 1 lần. Mỗi trang gọi syncClear_ ngay trong hàm tải dữ
      liệu của nó, nên lọc bằng cách nào (ô chọn, bấm biểu đồ, bấm thẻ) nút cũng hiện đúng. */
   function syncClear_(sel, active) { var b = $(sel); if (b) b.style.display = active ? '' : 'none'; }
+  // Ô lọc có độ rộng cố định: rê chuột vào là thấy đủ tên đang chọn
+  document.addEventListener('mouseover', function (e) {
+    var sel = e.target && e.target.closest ? e.target.closest('select.filter-select') : null;
+    if (sel) { var o = sel.options[sel.selectedIndex]; sel.title = o ? o.text : ''; }
+  });
 
   var LOOKUP_ICON_ = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="m20 20-4.2-4.2"/></svg>';
 
