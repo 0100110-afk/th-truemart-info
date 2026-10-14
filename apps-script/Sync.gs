@@ -1118,7 +1118,10 @@ function fsWriteTable_(ss, name, headers, rows, firstColText) {
   const pad = function (r) { const a = r.slice(); while (a.length < headers.length) a.push(''); return a; };
   sh.getRange(1, 1, 1, headers.length).setValues([headers]);
   if (rows.length) {
-    if (firstColText) sh.getRange(2, 1, rows.length, 1).setNumberFormat('@');
+    // Sheet đã chuyển thành "Bảng" (Table) của Google Sheets: cột có kiểu riêng thì Google KHÔNG cho
+    // đặt định dạng số ("Bạn không thể đặt định dạng số của các ô trong một cột đã nhập") -> bỏ qua,
+    // vẫn ghi dữ liệu. Trước đây lỗi này làm dừng giữa chừng: sheet đã xoá mà chưa kịp ghi lại.
+    if (firstColText) { try { sh.getRange(2, 1, rows.length, 1).setNumberFormat('@'); } catch (e) { console.warn('setNumberFormat ' + name + ': ' + e.message); } }
     sh.getRange(2, 1, rows.length, headers.length).setValues(rows.map(pad));
   }
 }
