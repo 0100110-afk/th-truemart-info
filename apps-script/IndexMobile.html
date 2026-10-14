@@ -405,9 +405,15 @@
   /* ============================ RANK ============================ */
   .rank-row{display:flex; align-items:center; gap:11px; padding:11px 14px; border-bottom:1px solid var(--line);}
   .rank-row:last-child{border-bottom:none;}
+  .rank-row.tap{cursor:pointer;}
+  .rank-row.on{background:var(--brand-100);}
+  .rank-more{display:block; width:100%; padding:10px; font-size:12.5px; font-weight:700; color:var(--brand-700,#0B4C8C); background:none; border:none; border-top:1px solid var(--line);}
+  .filter-chip{display:inline-flex; align-items:center; gap:8px; margin:0 0 10px; padding:6px 8px 6px 12px; border-radius:999px; background:var(--brand-100); color:var(--brand-900); font-size:12px; font-weight:700;}
+  .filter-chip button{width:22px; height:22px; border-radius:50%; background:var(--white); color:var(--ink-600); font-size:11px; border:none;}
+  .chip-clear{flex-shrink:0; padding:8px 14px; border-radius:999px; font-size:12.5px; font-weight:700; background:none; color:#C1443A; border:1px solid #F1C9C5;}
   .rank-medal{width:28px; height:28px; border-radius:50%; display:flex; align-items:center; justify-content:center; flex-shrink:0; color:var(--brand-900);}
   .rank-medal svg{width:13px; height:13px;}
-  .rank-medal.r1{background:#FCE7A6;} .rank-medal.r2{background:#E5E9ED;} .rank-medal.r3{background:#F3D2AE;}
+  .rank-medal.r1{background:#FCE7A6;} .rank-medal.r2{background:#E5E9ED;} .rank-medal.r3{background:#F3D2AE;} .rank-medal.rn{background:#EEF2F6; color:var(--ink-600);}
   .rank-main{flex:1; min-width:0;}
   .rank-name{font-size:12.5px; font-weight:700; color:var(--ink-900); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
   .rank-sub{font-size:10.5px; color:var(--ink-500); margin-top:1px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
@@ -692,6 +698,7 @@
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
           <input type="text" id="sanakySearchInput" placeholder="Nhập mã tài sản, địa chỉ hoặc mã cửa hàng" inputmode="search" enterkeyhint="search">
         </div>
+        <div id="snkFilterChip" class="filter-chip" style="display:none;"></div>
         <div id="sanakyList"></div>
         <button class="btn-load-more" id="sanakyMoreBtn" style="display:none;">Tải thêm</button>
       </div>
@@ -729,6 +736,12 @@
       <div class="search-box">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
         <input type="text" id="maintSearchInput" placeholder="Mã tài sản, địa chỉ, nhà cung cấp…" inputmode="search">
+      </div>
+      <div class="chip-row">
+        <select class="chip-select" id="maintQuarterSelect"><option value="">Tất cả quý</option></select>
+        <select class="chip-select" id="maintSupplierSelect"><option value="">Tất cả NCC</option></select>
+        <select class="chip-select" id="maintTypeSelect"><option value="">Tất cả loại TB</option></select>
+        <button type="button" class="chip-clear" id="maintClearBtn" style="display:none;">Xoá lọc</button>
       </div>
       <div id="maintList"></div>
       <button class="btn-load-more" id="maintMoreBtn" style="display:none;">Tải thêm</button>
@@ -1832,15 +1845,38 @@
       statTileSnk('purple',snow,'Tủ đã sửa chữa',d.totalDevices)+
       statTileSnk('sky',snow,'Lượt sửa chữa',d.totalRepairs)+
       statTileSnk('green',snow,'Tổng chi phí',fmtVND(d.totalCost));
-    $('#sanakyTopStores').innerHTML=d.topStores.length?d.topStores.slice(0,3).map(rankRow).join(''):'<div class="empty" style="padding:20px;">Chưa có dữ liệu</div>';
-    $('#sanakyTopDevices').innerHTML=d.topDevices.length?d.topDevices.slice(0,3).map(rankRow).join(''):'<div class="empty" style="padding:20px;">Chưa có dữ liệu</div>';
+    snkRank_.stores=d.topStores||[]; snkRank_.devices=d.topDevices||[];
+    renderSnkRanks_();
   }
+  /* Xếp hạng: hiện 3, "Xem thêm" mở top 10. Chạm 1 dòng -> lọc lịch sử theo mã đó, chạm lại -> bỏ lọc. */
+  var snkRank_={stores:[],devices:[],open:{stores:false,devices:false}}, snkPick_=null;
+  function renderSnkRanks_(){
+    [['stores','#sanakyTopStores','cửa hàng'],['devices','#sanakyTopDevices','mã tài sản']].forEach(function(x){
+      var list=snkRank_[x[0]], open=snkRank_.open[x[0]];
+      $(x[1]).innerHTML=list.length
+        ? list.slice(0,open?10:3).map(function(it,i){
+            var on=snkPick_&&snkPick_.kind===x[0]&&snkPick_.code===String(it.key);
+            return rankRow(it,i).replace('<div class="rank-row">','<div class="rank-row tap'+(on?' on':'')+'" onclick="THM.snkPickRank(\''+x[0]+'\','+i+')">');
+          }).join('')+
+          (list.length>3?'<button type="button" class="rank-more" onclick="THM.snkToggleRank(\''+x[0]+'\')">'+(open?'Thu gọn':'Xem thêm (top '+Math.min(10,list.length)+' '+x[2]+')')+'</button>':'')
+        : '<div class="empty" style="padding:20px;">Chưa có dữ liệu</div>';
+    });
+  }
+  function snkToggleRank(kind){ snkRank_.open[kind]=!snkRank_.open[kind]; renderSnkRanks_(); }
+  function snkPickRank(kind,i){
+    var it=snkRank_[kind][i]; if(!it) return;
+    var code=String(it.key);
+    snkPick_=(snkPick_&&snkPick_.kind===kind&&snkPick_.code===code)?null:{kind:kind,code:code};
+    renderSnkRanks_(); fetchSanakyList(true);
+    if(snkPick_) $('#snkFilterChip').scrollIntoView({behavior:'smooth',block:'start'});
+  }
+  function snkClearPick(){ snkPick_=null; renderSnkRanks_(); fetchSanakyList(true); }
   function statTileSnk(cls,ic,k,v){
     return '<div class="stat-tile" style="flex:0 0 40%;"><div class="ic '+cls+'">'+ic+'</div><div class="k">'+esc(k)+'</div><div class="v">'+esc(v)+'</div></div>';
   }
   function rankRow(x,i){
-    var cls=i===0?'r1':i===1?'r2':'r3';
-    return '<div class="rank-row"><div class="rank-medal '+cls+'">'+trophy()+'</div>'+
+    var cls=i===0?'r1':i===1?'r2':i===2?'r3':'rn';
+    return '<div class="rank-row"><div class="rank-medal '+cls+'">'+(i<3?trophy():'<b style="font-size:11px;">'+(i+1)+'</b>')+'</div>'+
       '<div class="rank-main"><div class="rank-name">'+esc(x.key)+'</div>'+
       '<div class="rank-sub">'+esc(x.address||'Không có địa chỉ')+' · '+x.count+' lượt</div></div>'+
       '<div class="rank-money">'+fmtVND(x.cost)+'</div></div>';
@@ -1848,7 +1884,11 @@
 
   function fetchSanakyList(reset){
     if(reset){ snkRows=[]; snkPage=1; $('#sanakyList').innerHTML=skeleton(3); }
-    runServer('getSanakyList',[{query:snkQuery,year:snkYear,month:snkMonth,page:snkPage,pageSize:snkPageSize}],function(d){
+    var chip=$('#snkFilterChip');
+    chip.style.display=snkPick_?'':'none';
+    if(snkPick_) chip.innerHTML='Đang lọc '+(snkPick_.kind==='stores'?'mã cửa hàng ':'mã tài sản ')+esc(snkPick_.code)+' <button type="button" onclick="THM.snkClearPick()">✕</button>';
+    runServer('getSanakyList',[{query:snkQuery,year:snkYear,month:snkMonth,page:snkPage,pageSize:snkPageSize,
+      storeCode:snkPick_&&snkPick_.kind==='stores'?snkPick_.code:'',assetCode:snkPick_&&snkPick_.kind==='devices'?snkPick_.code:''}],function(d){
       snkTotal=d.total;
       snkRows=snkRows.concat(d.rows);
       renderSanakyList();
@@ -2010,13 +2050,61 @@
   var chartMQty=null, chartMCost=null;
   var MPAL=['#2E9BE0','#E3A83B','#7A2FA0','#2C7A4B','#C1443A','#7FC4EE','#94A3AF'];
 
+  var maintFilter={quarter:'',supplier:'',type:''}, maintChartData=null;
   function loadMaint(){
     maintLoaded=true;
+    runServer('getMaintenanceFilterOptions',[],function(o){
+      var opt=function(all,list){ return '<option value="">'+all+'</option>'+list; };
+      $('#maintQuarterSelect').innerHTML=opt('Tất cả quý',(o.quarters||[]).map(function(q){ return '<option value="'+q.value+'">'+esc(q.label)+'</option>'; }).join(''));
+      $('#maintSupplierSelect').innerHTML=opt('Tất cả NCC',(o.suppliers||[]).map(function(v){ return '<option value="'+esc(v)+'">'+esc(v)+'</option>'; }).join('')+'<option value="__others__">NCC khác (ngoài biểu đồ)</option>');
+      $('#maintTypeSelect').innerHTML=opt('Tất cả loại TB',(o.types||[]).map(function(v){ return '<option value="'+esc(v)+'">'+esc(v)+'</option>'; }).join(''));
+      syncMaintSelects_();
+    });
     fetchMaint(true);
     runServer('getMaintenanceQuarterlyStats',[],renderMaintCharts);
   }
 
+  /* Lọc Bảo dưỡng: ô chọn + chạm vào cột biểu đồ (giống bản máy tính). Chạm lại đúng cột đang chọn -> bỏ lọc. */
+  function syncMaintSelects_(){
+    $('#maintQuarterSelect').value=maintFilter.quarter;
+    $('#maintSupplierSelect').value=maintFilter.supplier;
+    $('#maintTypeSelect').value=maintFilter.type;
+    $('#maintClearBtn').style.display=(maintFilter.quarter||maintFilter.supplier||maintFilter.type)?'':'none';
+  }
+  function applyMaintFilter_(){ syncMaintSelects_(); highlightMaintCharts_(); fetchMaint(true); }
+  function maintSupplierOf_(name){ return name==='NCC khác'?'__others__':(name==='Tổng'?'':name); }
+  function onMaintChartClick_(chart,evt){
+    if(!maintChartData||!maintChartData.keys) return;
+    var els=chart.getElementsAtEventForMode(evt,'nearest',{intersect:true},true);
+    if(!els.length) return;
+    var qk=maintChartData.keys[els[0].index];
+    var sup=maintSupplierOf_(chart.data.datasets[els[0].datasetIndex].label);
+    if(maintFilter.quarter===qk&&maintFilter.supplier===sup){ maintFilter.quarter=''; maintFilter.supplier=''; }
+    else { maintFilter.quarter=qk; maintFilter.supplier=sup; }
+    applyMaintFilter_();
+    $('#maintList').scrollIntoView({behavior:'smooth',block:'start'});
+  }
+  function highlightMaintCharts_(){
+    [chartMQty,chartMCost].forEach(function(ch){
+      if(!ch||!maintChartData||!maintChartData.keys) return;
+      ch.data.datasets.forEach(function(ds){
+        if(!ds._base) ds._base=ds.backgroundColor;
+        var sup=maintSupplierOf_(ds.label);
+        ds.backgroundColor=maintChartData.keys.map(function(k){
+          var on=(!maintFilter.quarter||maintFilter.quarter===k)&&(!maintFilter.supplier||maintFilter.supplier===sup||(sup===''&&ch===chartMQty));
+          return on?ds._base:ds._base+'40';
+        });
+      });
+      ch.update('none');
+    });
+  }
+  ['#maintQuarterSelect','#maintSupplierSelect','#maintTypeSelect'].forEach(function(sel,i){
+    $(sel).addEventListener('change',function(){ maintFilter[['quarter','supplier','type'][i]]=this.value; applyMaintFilter_(); });
+  });
+  $('#maintClearBtn').addEventListener('click',function(){ maintFilter={quarter:'',supplier:'',type:''}; applyMaintFilter_(); });
+
   function renderMaintCharts(d){
+    maintChartData=d;
     applyChartDefaults_();
     if(!d||!d.labels||!d.labels.length) return;
     try{
@@ -2026,6 +2114,7 @@
       chartMQty=new Chart($('#chartMaintQty').getContext('2d'),{
         type:'bar',data:{labels:d.labels,datasets:qds},
         options:{responsive:true,maintainAspectRatio:false,layout:{padding:{top:18}},
+          onClick:function(e){ onMaintChartClick_(this,e); },
           plugins:{legend:{position:'bottom',labels:{boxWidth:8,font:{size:9}}}},
           scales:{x:{grid:{display:false,drawTicks:false},ticks:{font:{size:9}}},y:{beginAtZero:true,grid:{color:'#E8EEF5'},ticks:{font:{size:9}}}}},
         plugins:[barLabels]
@@ -2035,6 +2124,7 @@
       chartMCost=new Chart($('#chartMaintCost').getContext('2d'),{
         type:'bar',data:{labels:d.labels,datasets:cds},
         options:{responsive:true,maintainAspectRatio:false,layout:{padding:{top:18}},
+          onClick:function(e){ onMaintChartClick_(this,e); },
           plugins:{legend:{position:'bottom',labels:{boxWidth:8,font:{size:9}}},
             tooltip:{callbacks:{label:function(ctx){return ctx.dataset.label+': '+fmtVND(ctx.raw);}}}},
           scales:{x:{stacked:true,grid:{display:false},ticks:{font:{size:9}}},
@@ -2074,12 +2164,13 @@
           }
         }]
       });
+      highlightMaintCharts_();
     }catch(e){}
   }
 
   function fetchMaint(reset){
     if(reset){ mRows=[]; mPage=1; $('#maintList').innerHTML=skeleton(3); }
-    runServer('getMaintenanceList',[{query:mQuery,page:mPage,pageSize:mPageSize}],function(d){
+    runServer('getMaintenanceList',[{query:mQuery,page:mPage,pageSize:mPageSize,quarter:maintFilter.quarter,supplier:maintFilter.supplier,type:maintFilter.type}],function(d){
       mTotal=d.total;
       mRows=mRows.concat(d.rows);
       renderMaintList();
@@ -2586,7 +2677,8 @@
     copyCode:copyCode,
     backToSanakyList:backToSanakyList,
     vtToggle:vtToggle,
-    vtStaffToggle:vtStaffToggle
+    vtStaffToggle:vtStaffToggle,
+    snkPickRank:snkPickRank, snkToggleRank:snkToggleRank, snkClearPick:snkClearPick
   };
 
   // initial
