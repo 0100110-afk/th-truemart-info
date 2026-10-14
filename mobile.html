@@ -284,6 +284,7 @@
     padding:3px 9px; border-radius:999px; white-space:nowrap;
   }
   .cc-pill.light{background:var(--brand-100); color:var(--brand-900);}
+  .badge-closed{display:inline-block; margin-left:4px; padding:2px 9px; border-radius:999px; font-size:11px; font-weight:700; background:#F7E1DE; color:#C1443A;}
   .cc-pill.outline{background:transparent; color:var(--brand-700); border:1px solid var(--brand-300);}
   .badge{display:inline-flex; align-items:center; font-size:10.5px; font-weight:700; padding:3px 9px; border-radius:999px; white-space:nowrap;}
   .badge.sanaky{background:var(--purple-100); color:var(--purple-700);}
@@ -666,7 +667,7 @@
         </div>
         <div id="storeResults"></div>
         <div id="storeListBox">
-          <div class="chip-row"><select class="chip-select" id="storeListRegion"><option value="">Toàn quốc</option><option value="MB">Miền Bắc</option><option value="MT">Miền Trung</option><option value="MN">Miền Nam</option></select><select class="chip-select" id="storeListCity"><option value="">Tất cả tỉnh/TP</option></select><select class="chip-select" id="storeListType"><option value="">Tất cả loại CH</option></select><button type="button" class="chip-clear" id="storeListClearBtn" style="display:none;">Xoá lọc</button></div>
+          <div class="chip-row"><select class="chip-select" id="storeListRegion"><option value="">Toàn quốc</option><option value="MB">Miền Bắc</option><option value="MT">Miền Trung</option><option value="MN">Miền Nam</option></select><select class="chip-select" id="storeListCity"><option value="">Tất cả tỉnh/TP</option></select><select class="chip-select" id="storeListType"><option value="">Tất cả loại CH</option></select><button type="button" class="chip-clear" style="visibility:hidden;" id="storeListClearBtn">Xoá lọc</button></div>
           <div id="storeListItems"></div>
           <button class="btn-load-more" id="storeListMore" style="display:none;">Tải thêm</button>
         </div>
@@ -705,7 +706,7 @@
         <div class="chip-row">
           <select class="chip-select" id="sanakyMonthSelect"><option value="">Tất cả tháng</option></select>
           <select class="chip-select" id="sanakyYearSelect"><option value="">Tất cả năm</option></select>
-          <button type="button" class="chip-clear" id="sanakyClearBtn" style="display:none;">Xoá lọc</button>
+          <button type="button" class="chip-clear" style="visibility:hidden;" id="sanakyClearBtn">Xoá lọc</button>
         </div>
         <div class="stat-scroll" id="sanakyStats"></div>
         <div class="page-section-title">Cửa hàng chi phí cao nhất</div>
@@ -736,7 +737,7 @@
         <select class="chip-select" id="cpSupplierSelect"><option value="">Tất cả NCC</option></select>
         <select class="chip-select" id="cpMonthSelect"><option value="">Tất cả tháng</option></select>
         <select class="chip-select" id="cpYearSelect"><option value="">Tất cả năm</option></select>
-        <button type="button" class="chip-clear" id="cpClearBtn" style="display:none;">Xoá lọc</button>
+        <button type="button" class="chip-clear" style="visibility:hidden;" id="cpClearBtn">Xoá lọc</button>
       </div>
       <div id="cpList"></div>
       <button class="btn-load-more" id="cpMoreBtn" style="display:none;">Tải thêm</button>
@@ -761,7 +762,7 @@
         <select class="chip-select" id="maintQuarterSelect"><option value="">Tất cả quý</option></select>
         <select class="chip-select" id="maintSupplierSelect"><option value="">Tất cả NCC</option></select>
         <select class="chip-select" id="maintTypeSelect"><option value="">Tất cả loại TB</option></select>
-        <button type="button" class="chip-clear" id="maintClearBtn" style="display:none;">Xoá lọc</button>
+        <button type="button" class="chip-clear" style="visibility:hidden;" id="maintClearBtn">Xoá lọc</button>
       </div>
       <div id="maintList"></div>
       <button class="btn-load-more" id="maintMoreBtn" style="display:none;">Tải thêm</button>
@@ -783,7 +784,7 @@
       <div class="chip-row">
         <select class="chip-select" id="vtMonthSelect"></select>
         <select class="chip-select" id="vtYearSelect"></select>
-        <button type="button" class="chip-clear" id="vtMonthClearBtn" style="display:none;">Xoá lọc</button>
+        <button type="button" class="chip-clear" style="visibility:hidden;" id="vtMonthClearBtn">Xoá lọc</button>
       </div>
       <div class="card" id="vtByStaffList"></div>
 
@@ -800,7 +801,7 @@
           <option value="no_holder">Thiếu người giữ</option>
           <option value="no_qty">Thiếu số lượng</option>
         </select>
-        <button type="button" class="chip-clear" id="vtTrackClearBtn" style="display:none;">Xoá lọc</button>
+        <button type="button" class="chip-clear" style="visibility:hidden;" id="vtTrackClearBtn">Xoá lọc</button>
       </div>
       <div class="search-box">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
@@ -1053,7 +1054,8 @@
 
   /** Cặp lọc Tháng/Năm ràng buộc theo monthsAvailable ("yyyy-MM") — như bản desktop. */
   /* "Xoá lọc" dùng chung: chỉ hiện khi đang lọc khác mặc định; mỗi trang gọi trong hàm tải dữ liệu. */
-  function syncClear_(sel,active){ var b=$(sel); if(b) b.style.display=active?'':'none'; }
+  /* Nút Xoá lọc GIỮ CHỖ cố định (visibility) — hiện/ẩn không làm các ô lọc bên cạnh nhảy vị trí */
+  function syncClear_(sel,active){ var b=$(sel); if(b){ b.style.display=''; b.style.visibility=active?'visible':'hidden'; } }
   function setupYearMonth(monthsAvailable,yearEl,monthEl,curY,curM,onChange){
     var years=Array.from(new Set(monthsAvailable.map(function(k){return k.split('-')[0];}))).sort().reverse();
     function monthsFor(y){
@@ -1758,10 +1760,11 @@
     runServer('searchAssetByCode',[q],function(res){
       if(!res.length){ $('#assetCodeResults').innerHTML=emptyState('Không tìm thấy mã tài sản','Kiểm tra lại mã và thử lại.'); return; }
       $('#assetCodeResults').innerHTML=res.map(function(a,i){
-        var st=a.store?
-          '<div class="li-sub" style="margin-top:6px;">Thuộc <span class="cc-pill light">'+esc(a.store.costCenter)+'</span> '+esc(a.store.address)+'</div>'+
-          '<button class="btn btn-ghost" style="margin-top:9px; padding:9px 14px; font-size:12px;" onclick="THM.openStoreDetail(\''+esc(a.store.costCenter).replace(/'/g,"\\'")+'\')">Xem cửa hàng</button>'
-          :'<div class="li-sub" style="margin-top:6px; color:var(--danger);">Không tìm thấy cửa hàng tương ứng.</div>';
+        // Cửa hàng đã đóng (CH OFF): ghi rõ, không có nút xem; không tìm thấy: chỉ hiện thông tin tài sản
+        var st=!a.store?'':a.store.closed?
+          '<div class="li-sub" style="margin-top:6px;">Thuộc <span class="cc-pill light">'+esc(a.store.costCenter)+'</span> '+esc(a.store.address)+' <span class="badge-closed">Đã đóng cửa</span></div>'
+          :'<div class="li-sub" style="margin-top:6px;">Thuộc <span class="cc-pill light">'+esc(a.store.costCenter)+'</span> '+esc(a.store.address)+'</div>'+
+          '<button class="btn btn-ghost" style="margin-top:9px; padding:9px 14px; font-size:12px;" onclick="THM.openStoreDetail(\''+esc(a.store.costCenter).replace(/'/g,"\\'")+'\')">Xem cửa hàng</button>';
         return '<div class="card card-pad" style="margin-bottom:10px;">'+
           '<div class="li-title" style="font-size:14.5px;">'+esc(a.assetName)+'</div>'+
           '<div class="li-sub" style="margin-top:4px;"><span class="cc-pill outline">'+esc(a.assetCode)+'</span> · Hoạt động: '+esc(nDate(a.activeDate))+'</div>'+

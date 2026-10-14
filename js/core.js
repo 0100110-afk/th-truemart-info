@@ -1008,6 +1008,21 @@ var TMCore = (function () {
     };
   }
 
+  /** Thông tin rút gọn của cửa hàng ĐÃ ĐÓNG (sheet CH OFF) — chỉ dùng khi DS CH không có mã này. */
+  function getClosedStoreBrief_(costCenter) {
+    const cc = normalizeCC_(costCenter);
+    if (!cc) return null;
+    const found = readStoresOff_().find(function (s) { return normalizeCC_(s[COLS.STORE_COST_CENTER]) === cc; });
+    if (!found) return null;
+    return {
+      costCenter: found[COLS.STORE_COST_CENTER] || costCenter,
+      region: found[COLS.STORE_REGION] || '',
+      address: found[COLS.STORE_ADDRESS] || '',
+      city: found[COLS.STORE_CITY] || '',
+      closed: true
+    };
+  }
+
   // ============================== TÀI SẢN ==============================
 
   function searchAssetByCode(code) {
@@ -1019,7 +1034,8 @@ var TMCore = (function () {
     }).slice(0, 60);
 
     return matches.map(function (a) {
-      const store = getStoreDetail(a[COLS.ASSET_COST_CENTER]);
+      // Không có trong DS CH -> tra tiếp sheet CH OFF (cửa hàng đã đóng), gắn cờ closed để giao diện ghi rõ
+      const store = getStoreDetail(a[COLS.ASSET_COST_CENTER]) || getClosedStoreBrief_(a[COLS.ASSET_COST_CENTER]);
       return {
         assetCode: a[COLS.ASSET_CODE],
         assetName: a[COLS.ASSET_NAME],

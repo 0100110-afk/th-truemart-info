@@ -149,3 +149,6 @@ html:not([data-ui="mobile"]) .sidebar.collapsed .brand{padding-top:0; padding-bo
 @keyframes tmP2{0%,30%{transform:rotate(-26deg) scale(.9);opacity:0}66%{transform:rotate(3deg);opacity:1}80%,100%{transform:none;opacity:1}}
 @keyframes tmP3{0%,48%{transform:rotate(-52deg) scale(.85);opacity:0}86%{transform:rotate(4deg);opacity:1}100%{transform:none;opacity:1}}
 @media (prefers-reduced-motion:reduce){.tm-loader-icon,.tm-loader-icon *{animation:none !important;} .tm-loader-ring{opacity:.9; animation-duration:3s;}}
+
+/* Android Chrome tự phóng to chữ (font boosting / cỡ chữ hệ thống) làm giao diện to hơn iPhone -> giữ đúng cỡ thiết kế */
+html{-webkit-text-size-adjust:100%;text-size-adjust:100%;}

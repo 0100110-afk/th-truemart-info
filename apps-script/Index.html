@@ -406,6 +406,7 @@
     padding:4px 10px; border-radius:999px;
   }
   .cc-pill.light{background:var(--sky-100); color:var(--brand-900);}
+  .badge-closed{display:inline-block; margin-left:6px; padding:2px 9px; border-radius:999px; font-size:11px; font-weight:700; background:var(--danger-100, #F7E1DE); color:var(--danger, #C1443A); vertical-align:1px;}
   /* Mã bấm để SAO CHÉP; nút kính lúp bên cạnh mới là tra cứu theo mã. */
   .code-pill-wrap{display:inline-flex; align-items:center; gap:4px; white-space:nowrap; vertical-align:middle;}
   /* Viên mã rộng tối thiểu bằng mã 9 số -> mã ngắn (vd 1441755) vẫn cùng bề rộng, nên kính lúp
@@ -639,7 +640,12 @@
     box-shadow:var(--shadow-pop); max-height:90vh; overflow-y:auto;
   }
   .modal.modal-wide{max-width:820px;}
-  .modal.modal-xwide{max-width:min(1180px, 96vw); width:fit-content; min-width:min(620px, 96vw);}
+  .modal.modal-xwide{max-width:min(1180px, 96vw); width:fit-content; min-width:min(520px, 96vw);}
+  /* Dòng hướng dẫn KHÔNG quyết định bề rộng hộp (width:0 + min-width:100% -> tự xuống hàng theo bảng):
+     hộp ôm đúng bảng, hết khoảng trắng thừa bên phải. */
+  .modal.modal-xwide .hint{width:0; min-width:100%;}
+  .modal.modal-xwide .vt-grid-wrap{width:fit-content; max-width:100%;}
+  #vtStockInHistoryPanel{min-width:min(720px, 90vw);}
   /* Bảng nhập tồn kho dạng lưới: hàng = vật tư, cột = người giữ (giống bảng thống kê).
      Ghim hàng tiêu đề + cột tên vật tư khi cuộn. */
   .vt-grid-wrap{max-height:min(460px, 58vh); overflow:auto; border:1px solid var(--line); border-radius:10px; width:fit-content; max-width:100%;}
@@ -647,7 +653,7 @@
   table.vt-grid th, table.vt-grid td{padding:6px 8px; border-bottom:1px solid var(--line); border-right:1px solid var(--line); white-space:nowrap; background:var(--white);}
   table.vt-grid th:last-child, table.vt-grid td:last-child{border-right:none;}
   table.vt-grid thead th{position:sticky; top:0; z-index:2; font-weight:700; color:var(--brand-900); text-align:center; font-size:12.5px;}
-  table.vt-grid .vt-grid-name{position:sticky; left:0; z-index:1; text-align:left; min-width:190px; max-width:240px; white-space:normal; line-height:1.35; font-weight:700; color:var(--ink-900);}
+  table.vt-grid .vt-grid-name{position:sticky; left:0; z-index:1; text-align:left; min-width:250px; max-width:320px; white-space:normal; line-height:1.35; font-weight:700; color:var(--ink-900);}
   table.vt-grid thead th:not(.vt-grid-name){min-width:76px;}
   table.vt-grid thead th.vt-grid-name{z-index:3;}
   table.vt-grid tbody tr:hover td{background:#F7FAFD;}
@@ -996,7 +1002,7 @@
                 </select>
                 <select class="filter-select" id="storeListCity"><option value="">Tất cả tỉnh/thành phố</option></select>
                 <select class="filter-select" id="storeListType"><option value="">Tất cả loại cửa hàng</option></select>
-                <button class="btn btn-ghost btn-sm filter-clear" id="storeListClearBtn" type="button" style="display:none;">Xoá lọc</button>
+                <button class="btn btn-ghost btn-sm filter-clear" style="visibility:hidden;" id="storeListClearBtn" type="button">Xoá lọc</button>
               </div>
             </div>
             <div class="card">
@@ -1052,7 +1058,7 @@
                 <select class="filter-select" id="sanakyYearFilterSelect">
                   <option value="">Tất cả năm</option>
                 </select>
-                <button class="btn btn-ghost btn-sm filter-clear" id="sanakyClearBtn" type="button" style="display:none;">Xoá lọc</button>
+                <button class="btn btn-ghost btn-sm filter-clear" style="visibility:hidden;" id="sanakyClearBtn" type="button">Xoá lọc</button>
               </div>
             </div>
 
@@ -1116,7 +1122,7 @@
               <select class="filter-select" id="maintQuarterSelect"><option value="">Tất cả quý</option></select>
               <select class="filter-select" id="maintSupplierSelect"><option value="">Tất cả nhà cung cấp</option></select>
               <select class="filter-select" id="maintTypeSelect"><option value="">Tất cả loại thiết bị</option></select>
-              <button class="btn btn-ghost btn-sm filter-clear" id="maintClearBtn" type="button" style="display:none;">Xoá lọc</button>
+              <button class="btn btn-ghost btn-sm filter-clear" style="visibility:hidden;" id="maintClearBtn" type="button">Xoá lọc</button>
             </div>
           </div>
 
@@ -1154,7 +1160,7 @@
               <select class="filter-select" id="cpSupplierSelect"><option value="">Tất cả nhà cung cấp</option></select>
               <select class="filter-select" id="cpMonthSelect"><option value="">Tất cả tháng</option></select>
               <select class="filter-select" id="cpYearSelect"><option value="">Tất cả năm</option></select>
-              <button class="btn btn-ghost btn-sm filter-clear" id="cpClearBtn" type="button" style="display:none;">Xoá lọc</button>
+              <button class="btn btn-ghost btn-sm filter-clear" style="visibility:hidden;" id="cpClearBtn" type="button">Xoá lọc</button>
               <button class="btn btn-ghost btn-sm" id="cpExportBtn" type="button"><svg class="btn-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11M7.5 10.5 12 15l4.5-4.5"/><path d="M5 19h14"/></svg>Xuất Excel</button>
             </div>
           </div>
@@ -1198,7 +1204,7 @@
               <div class="filters-row">
                 <select class="filter-select" id="vtMonthSelect"></select>
                 <select class="filter-select" id="vtYearSelect"></select>
-                <button class="btn btn-ghost btn-sm filter-clear" id="vtMonthClearBtn" type="button" style="display:none;">Xoá lọc</button>
+                <button class="btn btn-ghost btn-sm filter-clear" style="visibility:hidden;" id="vtMonthClearBtn" type="button">Xoá lọc</button>
               </div>
             </div>
             <div class="table-wrap wrap-cells" id="vtByStaffTableWrap">
@@ -1222,7 +1228,7 @@
                   <option value="no_qty">Thiếu số lượng</option>
                   <option value="no_stock">Không đủ tồn</option>
                 </select>
-                <button class="btn btn-ghost btn-sm filter-clear" id="vtTrackClearBtn" type="button" style="display:none;">Xoá lọc</button>
+                <button class="btn btn-ghost btn-sm filter-clear" style="visibility:hidden;" id="vtTrackClearBtn" type="button">Xoá lọc</button>
               </div>
             </div>
             <div class="search-bar" style="margin-bottom:16px; max-width:520px;">
@@ -1643,7 +1649,8 @@
   /* Nút "Xoá lọc" dùng chung mọi trang: chỉ hiện khi đang lọc khác mặc định (ô chọn, ô tìm, chip…),
      bấm là trả TẤT CẢ về mặc định và tải lại 1 lần. Mỗi trang gọi syncClear_ ngay trong hàm tải dữ
      liệu của nó, nên lọc bằng cách nào (ô chọn, bấm biểu đồ, bấm thẻ) nút cũng hiện đúng. */
-  function syncClear_(sel, active) { var b = $(sel); if (b) b.style.display = active ? '' : 'none'; }
+  /* Nút Xoá lọc GIỮ CHỖ cố định (visibility) — hiện/ẩn không làm các ô lọc bên cạnh nhảy vị trí */
+  function syncClear_(sel, active) { var b = $(sel); if (b) { b.style.display = ''; b.style.visibility = active ? 'visible' : 'hidden'; } }
   // Ô lọc có độ rộng cố định: rê chuột vào là thấy đủ tên đang chọn
   document.addEventListener('mouseover', function (e) {
     var sel = e.target && e.target.closest ? e.target.closest('select.filter-select') : null;
@@ -2715,10 +2722,14 @@
   }
 
   function assetCard(a, idx) {
-    var storeBit = a.store
-      ? '<div class="hint" style="margin-top:10px;">Đang được giữ bởi: <span class="cc-pill light" style="margin-left:4px;">' + esc(a.store.costCenter) + '</span> — ' + esc(a.store.address) + '</div>' +
-        '<button class="btn btn-ghost btn-sm" style="margin-top:10px;" onclick="THTM.viewStoreFromAsset(\'' + esc(a.store.costCenter).replace(/'/g, "\\'") + '\')">Xem chi tiết cửa hàng</button>'
-      : '<div class="hint" style="margin-top:10px; color:var(--danger);">Không tìm thấy cửa hàng tương ứng với tài sản này.</div>';
+    /* Cửa hàng đã đóng (CH OFF): ghi rõ + bỏ nút xem chi tiết (trang chi tiết chỉ có cửa hàng đang hoạt động).
+       Không tìm thấy ở đâu: thẻ chỉ còn thông tin tài sản, không báo lỗi. */
+    var storeBit = !a.store ? ''
+      : a.store.closed
+        ? '<div class="hint" style="margin-top:10px;">Đang được giữ bởi: <span class="cc-pill light" style="margin-left:4px;">' + esc(a.store.costCenter) + '</span> — ' + esc(a.store.address) +
+          ' <span class="badge-closed">Đã đóng cửa</span></div>'
+        : '<div class="hint" style="margin-top:10px;">Đang được giữ bởi: <span class="cc-pill light" style="margin-left:4px;">' + esc(a.store.costCenter) + '</span> — ' + esc(a.store.address) + '</div>' +
+          '<button class="btn btn-ghost btn-sm" style="margin-top:10px;" onclick="THTM.viewStoreFromAsset(\'' + esc(a.store.costCenter).replace(/'/g, "\\'") + '\')">Xem chi tiết cửa hàng</button>';
 
     var histId = 'assetHist' + idx;
 
