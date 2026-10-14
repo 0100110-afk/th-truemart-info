@@ -278,6 +278,28 @@ const VT_OPS = {
     const bulk = Object.keys(newQty).map(function (code) { return { code: code, qty: newQty[code] }; });
     if (bulk.length) VT_OPS.setVatTuQtyBulk(st, h, bulk);
     return { success: true, itemsAdded: added };
+  },
+
+  /* Bảng nhập (máy tính): MỌI người giữ trong MỘT lần lưu — chạy trong cùng 1 transaction nên không
+     có cảnh lưu được người này mà hỏng người kia. grid = [{ holder, items: [{ code, qty }] }]. */
+  setVatTuQtyMatrix: function (st, grid) {
+    let cells = 0;
+    (grid || []).forEach(function (g) {
+      if (!g || !(g.items || []).length) return;
+      VT_OPS.setVatTuQtyBulk(st, g.holder, g.items);
+      cells += g.items.length;
+    });
+    return { success: true, cellsUpdated: cells };
+  },
+
+  addVatTuStockMatrix: function (st, stockin, grid) {
+    let added = 0, holders = 0;
+    (grid || []).forEach(function (g) {
+      if (!g || !(g.items || []).length) return;
+      const r = VT_OPS.addVatTuStock(st, stockin, g.holder, g.items);
+      if (r.itemsAdded) { added += r.itemsAdded; holders++; }
+    });
+    return { success: true, itemsAdded: added, holders: holders };
   }
 };
 
@@ -310,28 +332,16 @@ function exportVatTuExcel(yearFilter, monthFilter, trackOpts) {
     page: 1, pageSize: 100000
   });
 
-  function scopeText(y, m, st, q) {
-    const bits = ['Năm: ' + (y || 'Tất cả'), 'Tháng: ' + (m ? pad2_(m) : 'Tất cả')];
-    if (st) bits.push('Nhân viên: ' + st);
-    if (q) bits.push('Từ khoá: ' + q);
-    return bits.join('  ·  ');
-  }
-
   const XL = (typeof XLSX !== 'undefined') ? XLSX : null;
   if (!XL) throw new Error('Chưa tải được thư viện xuất Excel, thử tải lại trang.');
   const wb = XL.utils.book_new();
 
-  function writeSheet(name, headers, rows, scope) {
-    const aoa = [];
-    const merges = [];
-    if (scope) {
-      aoa.push(['Phạm vi lọc — ' + scope]);
-      merges.push({ s: { r: 0, c: 0 }, e: { r: 0, c: Math.max(0, headers.length - 1) } });
-    }
-    aoa.push(headers);
+  /* Hàng 1 là TIÊU ĐỀ CỘT luôn — đã bỏ dòng "Phạm vi lọc" ở đầu sheet (người dùng lọc/ghép file
+     ngay được, không phải xoá tay dòng đầu). */
+  function writeSheet(name, headers, rows) {
+    const aoa = [headers];
     rows.forEach(function (r) { aoa.push(r); });
     const ws = XL.utils.aoa_to_sheet(aoa);
-    if (merges.length) ws['!merges'] = merges;
     ws['!cols'] = headers.map(function (h, i) { return { wch: i === 0 ? 22 : Math.max(10, String(h).length + 2) }; });
     XL.utils.book_append_sheet(wb, ws, name);
   }
@@ -339,20 +349,18 @@ function exportVatTuExcel(yearFilter, monthFilter, trackOpts) {
   writeSheet('TonKho', ['Mã vật tư', 'Tên vật tư', 'Yêu cầu kỹ thuật'].concat(vt.holders, ['Tổng']),
     vt.materials.map(function (m) {
       return [m.code, m.name, m.spec].concat(vt.holders.map(function (h) { return m.qty[h] || 0; }), [m.total]);
-    }), 'Tồn kho tại thời điểm xuất file — không phụ thuộc bộ lọc tháng/năm');
+    }));
 
   writeSheet('TheoThang', ['Tên vật tư'].concat(byStaff.staffList, ['Tổng']),
     byStaff.materials.map(function (m) {
       return [m.name].concat(byStaff.staffList.map(function (s) { return m.byStaff[s] || 0; }), [m.total]);
-    }), scopeText(yearFilter, monthFilter, '', ''));
+    }));
 
   writeSheet('TheoDoiSuDung',
-    ['Nguồn', 'Ngày hoàn thành', 'Hạng mục vật tư', 'Số lượng', 'NV Phụ trách', 'Địa chỉ', 'Trạng thái', 'Vật tư khớp'],
+    ['Nguồn', 'Ngày thực hiện', 'Hạng mục/ vật tư', 'Số lượng', 'NV Phụ trách', 'Địa chỉ', 'Trạng thái', 'Vật tư khớp'],
     full.rows.map(function (r) {
       return [r.source, r.date, r.item, r.qty, r.staff, r.address, r.statusLabel, r.statusSub];
-    }),
-    scopeText(trackYear, trackMonth, trackStaff, trackQuery) +
-      (trackOpts.status ? '  ·  Trạng thái: ' + (VT_STATUS_LABELS_[trackOpts.status] || trackOpts.status) : ''));
+    }));
 
   const label = (yearFilter || monthFilter) ? ('_' + (yearFilter || 'tatca') + (monthFilter ? '-' + pad2_(monthFilter) : '')) : '';
   return { success: true, base64: XL.write(wb, { bookType: 'xlsx', type: 'base64' }), filename: 'VatTu' + label + '.xlsx' };
@@ -365,17 +373,12 @@ function exportChiPhiKindExcel(opts) {
   if (!XL) throw new Error('Chưa tải được thư viện xuất Excel, thử tải lại trang.');
   const data = getChiPhiKindRows(opts);
   const kindLabel = opts.kind === 'lsc' ? 'LSC' : 'THS';
-  const regionLabel = { MB: 'Miền Bắc', MT: 'Miền Trung', MN: 'Miền Nam' }[opts.region] || 'Toàn quốc';
-  const scope = ['Chi phí sửa chữa ' + kindLabel, regionLabel, 'Năm: ' + (opts.year || 'Tất cả'),
-    'Tháng: ' + (opts.month ? pad2_(opts.month) : 'Tất cả'), 'NCC: ' + (opts.supplier || 'Tất cả'), 'NV: ' + (opts.staff || 'Tất cả')]
-    .concat(opts.query ? ['Từ khoá: ' + opts.query] : []).join('  ·  ');
-  const headers = ['Cost center', 'Địa chỉ', 'Khu vực', 'NV phụ trách', 'Mô tả sự cố', 'Hạng mục/Vật tư', 'Mã thiết bị', 'Ngày hoàn thành', 'Số lượng', 'Tổng chi phí', 'Nhà cung cấp'];
-  const aoa = [['Phạm vi lọc — ' + scope], headers];
+  const headers = ['Cost center', 'Địa chỉ', 'Khu vực', 'NV phụ trách', 'Mô tả sự cố', 'Hạng mục/ vật tư', 'Mã thiết bị', 'Ngày thực hiện', 'Số lượng', 'Tổng chi phí', 'Nhà cung cấp'];
+  const aoa = [headers];   // hàng 1 = tiêu đề cột (đã bỏ dòng "Phạm vi lọc")
   data.rows.forEach(function (r) {
     aoa.push([r.costCenter, r.storeName, r.area, r.staff, r.issue, r.item, r.assetCode, r.date, r.qty, r.cost, r.supplier]);
   });
   const ws = XL.utils.aoa_to_sheet(aoa);
-  ws['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: headers.length - 1 } }];
   ws['!cols'] = [12, 40, 10, 20, 26, 32, 12, 14, 9, 14, 18].map(function (w) { return { wch: w }; });
   const wb = XL.utils.book_new();
   XL.utils.book_append_sheet(wb, ws, 'ChiPhi' + kindLabel);
@@ -438,6 +441,7 @@ function computeVatTuDeduction_(st, autolog) {
 
   const newEntries = [];
   let processedCount = 0, skippedCount = 0, shortedCount = 0, unmatchedTotal = 0;
+  let unNoItem = 0, unNoHolder = 0, unNoQty = 0;
 
   const order = cpRows
     .map(function (r, i) { return { i: i, t: vtRowTime_(r[COLS.CP_DATE]) }; })
@@ -455,9 +459,15 @@ function computeVatTuDeduction_(st, autolog) {
     const holder = matchVatTuHolder_(r[COLS.CP_STAFF], data.holders);
     const qty = Number(r[COLS.CP_QTY]) || 0;
     const unmatched = (!mat || !holder || qty <= 0);
-    if (unmatched) unmatchedTotal++;
+    const logged = processedKeys.has(key);
+    /* Đếm "chưa khớp" ĐÚNG như bảng Theo dõi (vatTuRowStatus_): thiếu vật tư thì luôn tính; còn
+       thiếu người giữ / thiếu số lượng chỉ tính với dòng CHƯA trừ kho. Dòng đã có trong sổ log
+       bảng hiện "Đã xuất kho" -> trước đây vẫn bị đếm nên toast báo 44 dòng mà lọc ra 0 dòng. */
+    if (!mat) { unmatchedTotal++; unNoItem++; }
+    else if (!logged && !holder) { unmatchedTotal++; unNoHolder++; }
+    else if (!logged && !(qty > 0)) { unmatchedTotal++; unNoQty++; }
 
-    if (processedKeys.has(key)) return;
+    if (logged) return;
     if (unmatched) { skippedCount++; return; }
 
     const matRef = stByCode[mat.code];
@@ -478,6 +488,7 @@ function computeVatTuDeduction_(st, autolog) {
     skipped: skippedCount,
     shorted: shortedCount,
     unmatchedTotal: unmatchedTotal,
+    unmatchedBy: { no_item: unNoItem, no_holder: unNoHolder, no_qty: unNoQty },
     scanned: cpRows.length
   };
   // Sổ log có dòng đổi khoá / cập nhật / bị xoá -> ghi lại TOÀN BỘ sổ

@@ -14,8 +14,9 @@ STUB = r"""
   C.setVatTu(st, stockin, autolog);
   const mut = (fn) => { const s2 = JSON.parse(JSON.stringify(st)); const r = fn(s2); st = s2; C.setVatTu(st, stockin, autolog); return r; };
   const api = Object.assign({}, C.READ_API);
-  Object.keys(C.VT_OPS).forEach((n) => { if (n !== 'addVatTuStock') api[n] = (...a) => mut((s) => C.VT_OPS[n](s, ...a)); });
+  Object.keys(C.VT_OPS).forEach((n) => { if (n !== 'addVatTuStock' && n !== 'addVatTuStockMatrix') api[n] = (...a) => mut((s) => C.VT_OPS[n](s, ...a)); });
   api.addVatTuStock = (h, items) => mut((s) => C.VT_OPS.addVatTuStock(s, stockin, h, items));
+  api.addVatTuStockMatrix = (grid) => mut((s) => C.VT_OPS.addVatTuStockMatrix(s, stockin, grid));
   api.runVatTuAutoDeduction = () => { const s2 = JSON.parse(JSON.stringify(st)); const r = C.computeVatTuDeduction(s2, autolog); autolog = autolog.concat(r.newEntries); st = s2; C.setVatTu(st, stockin, autolog); return r.result; };
   api.getDataLastUpdated = () => '2026-10-07T05:00:00Z';
   api.refreshData = () => ({ success: true, refreshedAt: new Date().toISOString() });

@@ -1660,6 +1660,8 @@ function getAssetRepairHistory(assetCode) {
       source: 'Sanaky',
       date: r.date,
       detail: r.items.map(function (it) { return it.repairItem; }).join(', '),
+      // Từng hạng mục 1 dòng (giống bảng Sanaky) — `detail` giữ lại cho chỗ cũ còn dùng
+      items: r.items.map(function (it) { return { label: it.repairItem, qty: it.qty, cost: it.amount }; }),
       supplier: '',
       cost: r.totalAmount
     });
@@ -1671,6 +1673,7 @@ function getAssetRepairHistory(assetCode) {
       source: 'Bảo dưỡng',
       date: r.date,
       detail: r.desc,
+      items: [{ label: r.desc, qty: '', cost: r.cost }],
       supplier: r.supplier,
       cost: r.cost
     });
@@ -1682,6 +1685,7 @@ function getAssetRepairHistory(assetCode) {
       source: chiPhiSupplierLabel_(r.supplier),
       date: r.date,
       detail: r.items.map(function (it) { return it.item; }).join(', '),
+      items: r.items.map(function (it) { return { label: it.item, qty: it.qty, cost: it.cost }; }),
       supplier: r.supplier,
       cost: r.totalCost
     });
@@ -2460,7 +2464,37 @@ function ensureVatTuLogSheet_() {
 }
 
 function addVatTuStock(holder, items) {
+  return withVatTuLock_(function () { return addVatTuStock_(holder, items); });
+}
+
+/** Bảng nhập (máy tính): ghi đè tồn của NHIỀU người giữ trong 1 lần. grid = [{ holder, items }]. */
+function setVatTuQtyMatrix(grid) {
   return withVatTuLock_(function () {
+    let cells = 0;
+    (grid || []).forEach(function (g) {
+      if (!g || !(g.items || []).length) return;
+      setVatTuQtyBulk_(g.holder, g.items);
+      cells += g.items.length;
+    });
+    return { success: true, cellsUpdated: cells };
+  });
+}
+
+/** Bảng nhập kho (máy tính): cộng dồn cho NHIỀU người giữ trong 1 lần, lịch sử ghi theo từng người. */
+function addVatTuStockMatrix(grid) {
+  return withVatTuLock_(function () {
+    let added = 0, holders = 0;
+    (grid || []).forEach(function (g) {
+      if (!g || !(g.items || []).length) return;
+      const r = addVatTuStock_(g.holder, g.items);
+      if (r.itemsAdded) { added += r.itemsAdded; holders++; }
+    });
+    return { success: true, itemsAdded: added, holders: holders };
+  });
+}
+
+function addVatTuStock_(holder, items) {
+  {
     const data = getVatTuData();
     const byCode = {};
     data.materials.forEach(function (m) { byCode[m.code] = m; });
@@ -2492,7 +2526,7 @@ function addVatTuStock(holder, items) {
       sh.getRange(startRow, 1, logRows.length, 5).setValues(logRows);
     }
     return { success: true, itemsAdded: logRows.length };
-  });
+  }
 }
 
 function getVatTuStockInHistory() {
@@ -3090,12 +3124,7 @@ function exportVatTuExcel(yearFilter, monthFilter, trackOpts) {
 
     function writeSheet(name, headers, rows, scope) {
       const sh = tempSs.insertSheet(name);
-      let r = 1;
-      if (scope) {
-        sh.getRange(1, 1, 1, headers.length).merge();
-        sh.getRange(1, 1).setValue('Phạm vi lọc — ' + scope).setFontWeight('bold');
-        r = 2;
-      }
+      const r = 1;   // hàng 1 = tiêu đề cột (đã bỏ dòng "Phạm vi lọc" ở đầu sheet)
       sh.getRange(r, 1, 1, headers.length).setValues([headers]).setFontWeight('bold');
       if (rows.length) sh.getRange(r + 1, 1, rows.length, headers.length).setValues(rows);
       sh.setFrozenRows(r);
@@ -3116,7 +3145,7 @@ function exportVatTuExcel(yearFilter, monthFilter, trackOpts) {
          trạng thái trên giao diện. Cột "Hạng mục vật tư" giữ nguyên văn trên sheet CHI PHÍ, nên
          phải có cột này mới đối chiếu được máy khớp đúng hay sai. Dòng "Chưa khớp vật tư" thì đây
          là ứng viên gần nhất, xem cột "Trạng thái" để biết. */
-      ['Nguồn', 'Ngày hoàn thành', 'Hạng mục vật tư', 'Số lượng', 'NV Phụ trách', 'Địa chỉ', 'Trạng thái', 'Vật tư khớp'],
+      ['Nguồn', 'Ngày thực hiện', 'Hạng mục/ vật tư', 'Số lượng', 'NV Phụ trách', 'Địa chỉ', 'Trạng thái', 'Vật tư khớp'],
       full.rows.map(function (r) {
         return [r.source, r.date, r.item, r.qty, r.staff, r.address, r.statusLabel, r.statusSub];
       }),
@@ -3353,6 +3382,7 @@ function runVatTuAutoDeduction() {
        skippedCount — chỉ tính dòng MỚI — thì toast báo "1 dòng chưa khớp" trong khi bảng hiện 35,
        hai con số không đối chiếu được với nhau. */
     let unmatchedTotal = 0;
+    let unNoItem = 0, unNoHolder = 0, unNoQty = 0;
 
     /* Sắp theo ngày TRƯỚC khi duyệt. Giữ lại chỉ số gốc `i` vì keys[i] phải khớp đúng dòng. */
     const order = cpRows
@@ -3373,11 +3403,17 @@ function runVatTuAutoDeduction() {
       const holder = matchVatTuHolder_(r[COLS.CP_STAFF], data.holders);
       const qty = Number(r[COLS.CP_QTY]) || 0;
       const unmatched = (!mat || !holder || qty <= 0);
-      if (unmatched) unmatchedTotal++;
+      const logged = (processedKeys.has(key) || processedKeys.has(legacyKeys[i]));
+      /* Đếm "chưa khớp" ĐÚNG như bảng Theo dõi (vatTuRowStatus_): thiếu vật tư thì luôn tính; còn
+         thiếu người giữ / thiếu số lượng chỉ tính với dòng CHƯA trừ kho. Dòng đã có trong sổ log
+         bảng hiện "Đã xuất kho" -> trước đây vẫn bị đếm nên toast báo 44 dòng mà lọc ra 0 dòng. */
+      if (!mat) { unmatchedTotal++; unNoItem++; }
+      else if (!logged && !holder) { unmatchedTotal++; unNoHolder++; }
+      else if (!logged && !(qty > 0)) { unmatchedTotal++; unNoQty++; }
 
       /* Chốt "đã xử lý" phải xét SAU khi khớp, để unmatchedTotal đếm được cả dòng cũ. Vẫn đứng
          TRƯỚC mọi thao tác ghi nên không có nguy cơ trừ kho hai lần. */
-      if (processedKeys.has(key) || processedKeys.has(legacyKeys[i])) return;
+      if (logged) return;
 
       // Chưa khớp được -> BỎ QUA, KHÔNG ghi log, để lần sau bổ sung danh mục là trừ được
       if (unmatched) { skippedCount++; return; }
@@ -3424,6 +3460,7 @@ function runVatTuAutoDeduction() {
       skipped: skippedCount,
       shorted: shortedCount,
       unmatchedTotal: unmatchedTotal,
+      unmatchedBy: { no_item: unNoItem, no_holder: unNoHolder, no_qty: unNoQty },
       scanned: cpRows.length
     };
   } finally {

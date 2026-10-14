@@ -180,6 +180,7 @@
     padding:8px 28px 8px 14px; border-radius:999px; font-size:12.5px; font-weight:600;
     background:var(--white) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%235C6C78' stroke-width='1.6' fill='none' stroke-linecap='round'/%3E%3C/svg%3E") no-repeat right 12px center;
     color:var(--ink-600); border:1px solid var(--line); outline:none;
+    max-width:190px; text-overflow:ellipsis; white-space:nowrap; overflow:hidden;   /* không giãn theo tên dài */
   }
   .segmented{
     display:flex; background:#E9EFF6; border-radius:12px; padding:4px; margin-bottom:14px;
@@ -665,7 +666,7 @@
         </div>
         <div id="storeResults"></div>
         <div id="storeListBox">
-          <div class="chip-row"><select class="chip-select" id="storeListRegion"><option value="">Toàn quốc</option><option value="MB">Miền Bắc</option><option value="MT">Miền Trung</option><option value="MN">Miền Nam</option></select><select class="chip-select" id="storeListCity"><option value="">Tất cả tỉnh/TP</option></select><select class="chip-select" id="storeListType"><option value="">Tất cả loại CH</option></select></div>
+          <div class="chip-row"><select class="chip-select" id="storeListRegion"><option value="">Toàn quốc</option><option value="MB">Miền Bắc</option><option value="MT">Miền Trung</option><option value="MN">Miền Nam</option></select><select class="chip-select" id="storeListCity"><option value="">Tất cả tỉnh/TP</option></select><select class="chip-select" id="storeListType"><option value="">Tất cả loại CH</option></select><button type="button" class="chip-clear" id="storeListClearBtn" style="display:none;">Xoá lọc</button></div>
           <div id="storeListItems"></div>
           <button class="btn-load-more" id="storeListMore" style="display:none;">Tải thêm</button>
         </div>
@@ -704,6 +705,7 @@
         <div class="chip-row">
           <select class="chip-select" id="sanakyMonthSelect"><option value="">Tất cả tháng</option></select>
           <select class="chip-select" id="sanakyYearSelect"><option value="">Tất cả năm</option></select>
+          <button type="button" class="chip-clear" id="sanakyClearBtn" style="display:none;">Xoá lọc</button>
         </div>
         <div class="stat-scroll" id="sanakyStats"></div>
         <div class="page-section-title">Cửa hàng chi phí cao nhất</div>
@@ -734,6 +736,7 @@
         <select class="chip-select" id="cpSupplierSelect"><option value="">Tất cả NCC</option></select>
         <select class="chip-select" id="cpMonthSelect"><option value="">Tất cả tháng</option></select>
         <select class="chip-select" id="cpYearSelect"><option value="">Tất cả năm</option></select>
+        <button type="button" class="chip-clear" id="cpClearBtn" style="display:none;">Xoá lọc</button>
       </div>
       <div id="cpList"></div>
       <button class="btn-load-more" id="cpMoreBtn" style="display:none;">Tải thêm</button>
@@ -767,9 +770,12 @@
     <!-- ===== VẬT TƯ ===== -->
     <section class="page" id="page-vattu">
       <div class="page-section-title">Tồn kho theo người giữ
-        <!-- padding hẹp hơn nút Nhập kho vì nhãn dài hơn -->
-        <button class="btn btn-ghost" style="padding:8px 10px; font-size:12px; border-radius:11px;" id="vtCalcBtn">Khớp vật tư</button>
-        <button class="btn btn-primary" style="padding:8px 14px; font-size:12px; border-radius:11px;" id="vtStockInOpenBtn">+ Nhập kho</button>
+        <!-- 2 nút gom thành 1 cụm bên phải: Khớp vật tư nằm sát Nhập kho (trước đây space-between
+             chia đều khoảng trống nên nút Khớp lơ lửng giữa hàng). Padding Khớp hẹp hơn vì nhãn dài hơn -->
+        <span style="display:inline-flex; align-items:center; gap:22px; margin-left:auto; flex-shrink:0;">
+          <button class="btn btn-ghost" style="padding:8px 10px; font-size:12px; border-radius:11px; white-space:nowrap;" id="vtCalcBtn">Khớp vật tư</button>
+          <button class="btn btn-primary" style="padding:8px 14px; font-size:12px; border-radius:11px; white-space:nowrap;" id="vtStockInOpenBtn">+ Nhập kho</button>
+        </span>
       </div>
       <div id="vtStockList"></div>
 
@@ -777,6 +783,7 @@
       <div class="chip-row">
         <select class="chip-select" id="vtMonthSelect"></select>
         <select class="chip-select" id="vtYearSelect"></select>
+        <button type="button" class="chip-clear" id="vtMonthClearBtn" style="display:none;">Xoá lọc</button>
       </div>
       <div class="card" id="vtByStaffList"></div>
 
@@ -793,6 +800,7 @@
           <option value="no_holder">Thiếu người giữ</option>
           <option value="no_qty">Thiếu số lượng</option>
         </select>
+        <button type="button" class="chip-clear" id="vtTrackClearBtn" style="display:none;">Xoá lọc</button>
       </div>
       <div class="search-box">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
@@ -1044,6 +1052,8 @@
   }
 
   /** Cặp lọc Tháng/Năm ràng buộc theo monthsAvailable ("yyyy-MM") — như bản desktop. */
+  /* "Xoá lọc" dùng chung: chỉ hiện khi đang lọc khác mặc định; mỗi trang gọi trong hàm tải dữ liệu. */
+  function syncClear_(sel,active){ var b=$(sel); if(b) b.style.display=active?'':'none'; }
   function setupYearMonth(monthsAvailable,yearEl,monthEl,curY,curM,onChange){
     var years=Array.from(new Set(monthsAvailable.map(function(k){return k.split('-')[0];}))).sort().reverse();
     function monthsFor(y){
@@ -1535,6 +1545,7 @@
   // Danh sách cửa hàng (hiện khi ô tìm kiếm trống) — các trường như sheet DS CH.
   var slRegion='', slCity='', slType='', slOptsLoaded=false, slPage=1, slRows=[], slTotal=0, slLoading=false;
   function fetchStoreListM(reset){
+    syncClear_('#storeListClearBtn',slRegion||slCity||slType);
     if(slLoading) return; slLoading=true;
     if(reset){ slPage=1; slRows=[]; $('#storeListItems').innerHTML=skeleton(3); }
     if(!slOptsLoaded){ slOptsLoaded=true; runServer('getStoreListFilterOptions',[],function(o){
@@ -1563,6 +1574,10 @@
   $('#storeListRegion').addEventListener('change',function(){ slRegion=this.value; fetchStoreListM(true); });
   $('#storeListCity').addEventListener('change',function(){ slCity=this.value; fetchStoreListM(true); });
   $('#storeListType').addEventListener('change',function(){ slType=this.value; fetchStoreListM(true); });
+  $('#storeListClearBtn').addEventListener('click',function(){
+    slRegion=slCity=slType=''; ['#storeListRegion','#storeListCity','#storeListType'].forEach(function(x){ $(x).value=''; });
+    fetchStoreListM(true);
+  });
   $('#storeListMore').addEventListener('click',function(){ slPage++; fetchStoreListM(false); });
 
   function showStoreList(){ $('#storeListView').style.display=''; $('#storeDetailView').style.display='none'; }
@@ -1768,7 +1783,8 @@
         return '<div class="rec" style="box-shadow:none; background:var(--cream); border-radius:12px;">'+
           '<div class="rec-top"><div class="rec-top-left"><span class="badge '+costBadgeCls(r.source)+'">'+esc(r.source)+'</span></div>'+
           '<span class="rec-date">'+esc(nDate(r.date))+'</span></div>'+
-          '<div class="rec-body">'+esc(r.detail||'—')+'</div>'+
+          /* Nhiều hạng mục -> mỗi hạng mục 1 dòng kèm SL + chi phí riêng (giống Sanaky); 1 hạng mục thì giữ 1 dòng chữ */
+          ((r.items&&r.items.length>1)?itemsBlock(r.items):'<div class="rec-body">'+esc(r.detail||'—')+'</div>')+
           (r.supplier?'<div class="rec-sub">'+esc(r.supplier)+'</div>':'')+
           '<div class="rec-foot"><span class="rec-total-label">Chi phí</span><span class="rec-total">'+fmtVND(r.cost)+'</span></div></div>';
       }).join('');
@@ -1875,7 +1891,7 @@
             var on=snkPick_&&snkPick_.kind===x[0]&&snkPick_.code===String(it.key);
             return rankRow(it,i).replace('<div class="rank-row">','<div class="rank-row tap'+(on?' on':'')+'" onclick="THM.snkPickRank(\''+x[0]+'\','+i+')">');
           }).join('')+
-          (list.length>3?'<button type="button" class="rank-more" onclick="THM.snkToggleRank(\''+x[0]+'\')">'+(open?'Thu gọn':'Xem thêm (top '+Math.min(10,list.length)+' '+x[2]+')')+'</button>':'')
+          (list.length>3?'<button type="button" class="rank-more" onclick="THM.snkToggleRank(\''+x[0]+'\')">'+(open?'Thu gọn':'Xem thêm')+'</button>':'')
         : '<div class="empty" style="padding:20px;">Chưa có dữ liệu</div>';
     });
   }
@@ -1888,6 +1904,11 @@
     if(snkPick_) $('#snkFilterChip').scrollIntoView({behavior:'smooth',block:'start'});
   }
   function snkClearPick(){ snkPick_=null; renderSnkRanks_(); fetchSanakyList(true); }
+  $('#sanakyClearBtn').addEventListener('click',function(){
+    snkPick_=null; snkQuery=''; $('#sanakySearchInput').value=''; renderSnkRanks_();
+    var ys=$('#sanakyYearSelect'); ys.value='';
+    if(ys.onchange) ys.onchange(); else { snkYear=snkMonth=''; fetchSanakyList(true); }
+  });
   function statTileSnk(cls,ic,k,v){
     return '<div class="stat-tile" style="flex:0 0 40%;"><div class="ic '+cls+'">'+ic+'</div><div class="k">'+esc(k)+'</div><div class="v">'+esc(v)+'</div></div>';
   }
@@ -1900,6 +1921,7 @@
   }
 
   function fetchSanakyList(reset){
+    syncClear_('#sanakyClearBtn',snkYear||snkMonth||snkQuery||snkPick_);
     if(reset){ snkRows=[]; snkPage=1; $('#sanakyList').innerHTML=skeleton(3); }
     var chip=$('#snkFilterChip');
     chip.style.display=snkPick_?'':'none';
@@ -2031,6 +2053,7 @@
     });
   }
   function fetchChiPhiKind(reset){
+    syncClear_('#cpClearBtn',cpState.region||cpState.supplier||cpState.staff||cpState.year||cpState.month||cpState.query);
     if(reset){ cpRows=[]; cpState.page=1; $('#cpList').innerHTML=skeleton(3); }
     runServer('getChiPhiKindRows',[cpOpts_()],function(d){
       cpTotal=d.total; cpTotalCost=d.totalCost; cpRows=cpRows.concat(d.rows); renderChiPhiKind();
@@ -2057,6 +2080,12 @@
   $('#cpRegionSelect').addEventListener('change',function(){ cpState.region=this.value; fetchChiPhiKind(true); });
   $('#cpSupplierSelect').addEventListener('change',function(){ cpState.supplier=this.value; fetchChiPhiKind(true); });
   $('#cpStaffSelect').addEventListener('change',function(){ cpState.staff=this.value; fetchChiPhiKind(true); });
+  $('#cpClearBtn').addEventListener('click',function(){
+    cpState.region=cpState.supplier=cpState.staff=cpState.query='';
+    ['#cpRegionSelect','#cpStaffSelect','#cpSupplierSelect','#cpSearchInput'].forEach(function(x){ $(x).value=''; });
+    var ys=$('#cpYearSelect'); ys.value='';
+    if(ys.onchange) ys.onchange(); else { cpState.year=cpState.month=''; fetchChiPhiKind(true); }
+  });
   $('#cpSearchInput').addEventListener('keydown',function(e){ if(e.key==='Enter'){ e.preventDefault(); this.blur(); cpState.query=this.value.trim(); fetchChiPhiKind(true); } });
   var cpDebounce_=null;
   $('#cpSearchInput').addEventListener('input',function(){ var v=this.value.trim(); clearTimeout(cpDebounce_); cpDebounce_=setTimeout(function(){ if(v===cpState.query) return; cpState.query=v; fetchChiPhiKind(true); },350); });
@@ -2073,7 +2102,7 @@
     runServer('getMaintenanceFilterOptions',[],function(o){
       var opt=function(all,list){ return '<option value="">'+all+'</option>'+list; };
       $('#maintQuarterSelect').innerHTML=opt('Tất cả quý',(o.quarters||[]).map(function(q){ return '<option value="'+q.value+'">'+esc(q.label)+'</option>'; }).join(''));
-      $('#maintSupplierSelect').innerHTML=opt('Tất cả NCC',(o.suppliers||[]).map(function(v){ return '<option value="'+esc(v)+'">'+esc(v)+'</option>'; }).join('')+'<option value="__others__">NCC khác (ngoài biểu đồ)</option>');
+      $('#maintSupplierSelect').innerHTML=opt('Tất cả NCC',(o.suppliers||[]).map(function(v){ return '<option value="'+esc(v)+'">'+esc(v)+'</option>'; }).join(''));
       $('#maintTypeSelect').innerHTML=opt('Tất cả loại TB',(o.types||[]).map(function(v){ return '<option value="'+esc(v)+'">'+esc(v)+'</option>'; }).join(''));
       syncMaintSelects_();
     });
@@ -2083,10 +2112,14 @@
 
   /* Lọc Bảo dưỡng: ô chọn + chạm vào cột biểu đồ (giống bản máy tính). Chạm lại đúng cột đang chọn -> bỏ lọc. */
   function syncMaintSelects_(){
+    /* Chỉ liệt kê NCC thật; lựa chọn "NCC khác" chỉ thêm tạm khi đang lọc theo cột gộp của biểu đồ */
+    var supSel=$('#maintSupplierSelect'), tmp=supSel.querySelector('option[value="__others__"]');
+    if(maintFilter.supplier==='__others__'&&!tmp) supSel.insertAdjacentHTML('beforeend','<option value="__others__">NCC khác</option>');
+    if(maintFilter.supplier!=='__others__'&&tmp) tmp.remove();
     $('#maintQuarterSelect').value=maintFilter.quarter;
     $('#maintSupplierSelect').value=maintFilter.supplier;
     $('#maintTypeSelect').value=maintFilter.type;
-    $('#maintClearBtn').style.display=(maintFilter.quarter||maintFilter.supplier||maintFilter.type)?'':'none';
+    syncClear_('#maintClearBtn',maintFilter.quarter||maintFilter.supplier||maintFilter.type||mQuery);
   }
   function applyMaintFilter_(){ syncMaintSelects_(); highlightMaintCharts_(); fetchMaint(true); }
   function maintSupplierOf_(name){ return name==='NCC khác'?'__others__':(name==='Tổng'?'':name); }
@@ -2118,7 +2151,7 @@
   ['#maintQuarterSelect','#maintSupplierSelect','#maintTypeSelect'].forEach(function(sel,i){
     $(sel).addEventListener('change',function(){ maintFilter[['quarter','supplier','type'][i]]=this.value; applyMaintFilter_(); });
   });
-  $('#maintClearBtn').addEventListener('click',function(){ maintFilter={quarter:'',supplier:'',type:''}; applyMaintFilter_(); });
+  $('#maintClearBtn').addEventListener('click',function(){ maintFilter={quarter:'',supplier:'',type:''}; mQuery=''; $('#maintSearchInput').value=''; applyMaintFilter_(); });
 
   function renderMaintCharts(d){
     maintChartData=d;
@@ -2212,7 +2245,7 @@
   $('#maintSearchInput').addEventListener('input',function(){
     clearTimeout(mDebounce);
     var v=this.value;
-    mDebounce=setTimeout(function(){ mQuery=v.trim(); fetchMaint(true); },400);
+    mDebounce=setTimeout(function(){ mQuery=v.trim(); syncMaintSelects_(); fetchMaint(true); },400);
   });
 
   // ============================== VẬT TƯ ==============================
@@ -2244,7 +2277,11 @@
     if(!res) return 'Đã tính toán vật tư.';
     if(res.success===false) return res.message||'Không chạy được, thử lại sau.';
     if(res.migrated) return 'Đã khởi tạo khoá cho '+res.migrated+' dòng chi phí (chưa trừ kho).';
-    var tot=res.unmatchedTotal?' Tổng cộng '+res.unmatchedTotal+' dòng đang chưa khớp.':'';
+    var by=res.unmatchedBy||{}, bits=[];
+    if(by.no_item) bits.push(by.no_item+' chưa khớp vật tư');
+    if(by.no_holder) bits.push(by.no_holder+' thiếu người giữ');
+    if(by.no_qty) bits.push(by.no_qty+' thiếu số lượng');
+    var tot=res.unmatchedTotal?' Tổng cộng '+res.unmatchedTotal+' dòng đang chưa khớp'+(bits.length?' ('+bits.join(' · ')+')':'')+'.':'';
     if(!res.processed&&!res.shorted&&!res.skipped) return 'Không có dòng chi phí mới nào cần trừ kho.'+tot;
     var parts=[];
     if(res.processed) parts.push('đã trừ kho '+res.processed+' dòng');
@@ -2286,6 +2323,7 @@
         vtDefaultApplied=true;
         var latest=ms[0].split('-');
         vtYear=latest[0]; vtMonth=String(Number(latest[1]));
+        vtDefaultYM_={y:vtYear,m:vtMonth};
       }
       setupYearMonth(ms,$('#vtYearSelect'),$('#vtMonthSelect'),vtYear,vtMonth,function(y,m){
         vtYear=y; vtMonth=m; loadVtByStaff();
@@ -2295,7 +2333,9 @@
     });
   }
 
+  var vtDefaultYM_={y:'',m:''};
   function loadVtByStaff(){
+    syncClear_('#vtMonthClearBtn',String(vtYear||'')!==vtDefaultYM_.y||String(vtMonth||'')!==vtDefaultYM_.m);
     $('#vtByStaffList').innerHTML=skeleton(2);
     runServer('getVatTuByStaffMonth',[vtYear,vtMonth],function(d){
       if(!d.materials.length){ $('#vtByStaffList').innerHTML='<div class="empty" style="padding:24px;">Không có vật tư nào trong khoảng thời gian này.</div>'; return; }
@@ -2328,6 +2368,7 @@
   }
 
   function fetchVtTrack(reset){
+    syncClear_('#vtTrackClearBtn',vtTStaff||vtTYear||vtTMonth||vtTStatus||vtTQuery);
     if(reset){ vtTRows=[]; vtTPage=1; $('#vtTrackList').innerHTML=skeleton(2); }
     runServer('getVatTuTrackingList',[{query:vtTQuery,staff:vtTStaff,year:vtTYear,month:vtTMonth,
       status:vtTStatus,page:vtTPage,pageSize:vtTPageSize}],function(d){
@@ -2445,6 +2486,13 @@
     vtFixSendM_(c.row, c.kind==='item'?{item:v,fromItem:c.row.item}:{staff:v,fromStaff:c.row.staff||''});
   });
   $('#vtTrackStatusSelect').addEventListener('change',function(){ vtTStatus=this.value; fetchVtTrack(true); });
+  $('#vtMonthClearBtn').addEventListener('click',function(){ vtYear=vtMonth=''; vtDefaultApplied=false; loadVtMonths(); });
+  $('#vtTrackClearBtn').addEventListener('click',function(){
+    vtTStaff=vtTStatus=vtTQuery='';
+    ['#vtTrackStaffSelect','#vtTrackStatusSelect','#vtTrackSearchInput'].forEach(function(x){ $(x).value=''; });
+    var ys=$('#vtTrackYearSelect'); ys.value='';
+    if(ys.onchange) ys.onchange(); else { vtTYear=vtTMonth=''; fetchVtTrack(true); }
+  });
   $('#vtTrackMoreBtn').addEventListener('click',function(){ vtTPage++; fetchVtTrack(false); });
   $('#vtTrackSearchInput').addEventListener('input',function(){
     clearTimeout(vtTDebounce);

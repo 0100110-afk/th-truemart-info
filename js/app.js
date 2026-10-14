@@ -369,8 +369,9 @@ async function runVatTuAutoDeduction() {
 function buildApi() {
   const api = Object.assign({}, TMCore.READ_API);
   ['saveVatTuItem', 'deleteVatTuItem', 'moveVatTuItem', 'addVatTuHolder', 'renameVatTuHolder',
-    'deleteVatTuHolder', 'setVatTuQty', 'setVatTuQtyBulk', 'confirmChiPhiFix'].forEach((n) => { api[n] = opWrapper(n); });
+    'deleteVatTuHolder', 'setVatTuQty', 'setVatTuQtyBulk', 'setVatTuQtyMatrix', 'confirmChiPhiFix'].forEach((n) => { api[n] = opWrapper(n); });
   api.addVatTuStock = (holder, items) => mutateVatTu((st, stockin) => TMCore.VT_OPS.addVatTuStock(st, stockin, holder, items));
+  api.addVatTuStockMatrix = (grid) => mutateVatTu((st, stockin) => TMCore.VT_OPS.addVatTuStockMatrix(st, stockin, grid));
   api.runVatTuAutoDeduction = runVatTuAutoDeduction;
   api.getDataLastUpdated = () => lastUpdatedIso;
   /* Admin: bảo Sync.gs (Web app) đọc Google Sheet NGAY và đẩy phần thay đổi lên, rồi tải về. */
