@@ -293,6 +293,9 @@ function fsWebSync_() {
   const lock = LockService.getScriptLock();
   if (!lock.tryLock(120000)) throw new Error('Đang có lượt đồng bộ khác chạy, thử lại sau ít phút.');
   try {
+    // Sửa tay trên sheet VAT TU mà trigger sửa ô bị lỡ -> đẩy lên app trước (chỉ khi app không sửa gì kể từ lần kéo trước).
+    let vtPush = '';
+    try { vtPush = fsPushVatTuIfSheetNewer_(); } catch (err) { console.error('web vattu push: ' + err.message); }
     // Kéo kho vật tư + ghi ô đã xác nhận vật tư/người giữ về sheet TRƯỚC, rồi mới đọc meta.
     try { fsMirrorVatTu_(false); } catch (err) { console.error('web mirror: ' + err.message); }
     const meta = fsReadMeta_();
@@ -312,6 +315,8 @@ function fsWebSync_() {
     });
     fsWriteMetaOnly_(meta);
     try { fsSyncAllUsers_(false); } catch (err) { console.error('web users: ' + err.message); }
+    if (vtPush === 'pushed') { changed.unshift('vattu'); details.unshift('VAT TU: đã đưa danh mục + tồn kho từ sheet lên app'); }
+    if (vtPush === 'conflict') details.push('VAT TU: sheet và app cùng được sửa — đã giữ bản trên app, sheet được ghi lại theo app');
     return { ok: true, changed: changed, details: details, at: new Date().toISOString() };
   } finally { lock.releaseLock(); }
 }
@@ -1056,6 +1061,34 @@ function fsPushVatTuSheet_(name) {
     }
   }
   return false;
+}
+
+/**
+ * Nút "Đồng bộ từ Google Sheet" trên app: sheet VAT TU khác dữ liệu trên app thì
+ *  - app KHÔNG sửa vật tư kể từ lần kéo về sheet gần nhất (rev = rev đã kéo) -> đẩy sheet lên app ('pushed');
+ *  - app CŨNG đã sửa -> giữ bản trên app, lượt kéo ngay sau đó ghi lại sheet theo app ('conflict').
+ * Giống hệt -> ''. Chỉ đụng danh mục + tồn kho theo người giữ (như sửa ô); lịch sử nhập / sổ trừ kho giữ nguyên.
+ * Gọi khi ĐANG giữ khoá (fsWebSync_).
+ */
+function fsPushVatTuIfSheetNewer_() {
+  const d = fsGetDoc_('vattu/state');
+  if (!d) return '';
+  const parsed = fsReadVatTuSheet_(SpreadsheetApp.getActive());
+  if (!parsed) return '';
+  const st = JSON.parse(fsField_(d, 'json') || '{}');
+  if (fsVatTuSig_(parsed.holders, parsed.materials) === fsVatTuSig_(st.holders, st.materials)) return '';
+  const rev = String(fsField_(d, 'rev') || '0');
+  if (PropertiesService.getScriptProperties().getProperty(FS_PROP_MIRROR_REV) !== rev) return 'conflict';
+  return fsPushVatTuSheet_(FS_TAB_VATTU) ? 'pushed' : '';
+}
+
+/** Dấu vân tay danh mục + tồn kho (bỏ qua khác biệt kiểu số/chuỗi, khoảng trắng thừa). */
+function fsVatTuSig_(holders, materials) {
+  holders = holders || [];
+  return JSON.stringify([holders, (materials || []).map(function (m) {
+    return [String(m.code || '').trim(), String(m.name || '').trim(), String(m.spec || '').trim(),
+      holders.map(function (h) { return Number(m.qty && m.qty[h]) || 0; })];
+  })]);
 }
 
 /** Firestore -> 3 sheet VAT TU. Chỉ ghi khi rev trên app khác lần kéo trước (force: luôn ghi). */

@@ -4376,7 +4376,7 @@
         if (res && res.refreshedAt) setLastUpdatedValue_(fmtLastUpdated_(res.refreshedAt));
         var labels = (res && res.changedLabels) || [];
         if (labels.length) syncCard_('ok', 'Đã cập nhật: ' + labels.join(', '), (res.details || []).join(' · ') + (res.details && res.details.length ? ' · ' : '') + 'lúc ' + nowVn_());
-        else syncCard_('none', 'Không có thay đổi', 'Google Sheet giống dữ liệu đang có trên app · kiểm tra lúc ' + nowVn_());
+        else syncCard_('none', 'Không có thay đổi', ((res && res.details && res.details.length) ? res.details.join(' · ') : 'Google Sheet giống dữ liệu đang có trên app') + ' · kiểm tra lúc ' + nowVn_());
       }, function (e) {
         done(); refreshBtn.querySelector('.label').textContent = 'Đồng bộ từ Google Sheet';
         syncCard_('err', 'Đồng bộ thất bại', (e && e.message) || 'Thử lại sau ít phút.');

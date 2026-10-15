@@ -32,7 +32,7 @@ let currentUser = null;
 let currentRole = null;
 let lastUpdatedIso = null;
 let loadedHashes = {};             // key -> hash của bản đang hiển thị (để biết sheet nào có dữ liệu mới)
-const SHEET_LABELS = { stores: 'DS CH', assets: 'TAI SAN', maint: 'BAO DUONG', chiphi: 'CHI PHI', sanaky: 'SANAKY',
+const SHEET_LABELS = { vattu: 'VAT TU', stores: 'DS CH', assets: 'TAI SAN', maint: 'BAO DUONG', chiphi: 'CHI PHI', sanaky: 'SANAKY',
   ncctabs: 'NCC THEO DÕI', storesoff: 'CH OFF', dongia_bt: 'Đơn giá BT', dongia_xd: 'Đơn giá XD', dongia_snk: 'Đơn giá SNK' };
 let autologCache = [];
 let stockinCache = [];

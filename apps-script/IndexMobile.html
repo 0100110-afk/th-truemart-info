@@ -2729,7 +2729,7 @@
         btn.classList.remove('spinning'); reloadAfterData_();
         var labels=(res&&res.changedLabels)||[];
         if(labels.length) syncCard_('ok','Đã cập nhật: '+labels.join(', '),((res.details||[]).length?res.details.join(' · ')+' · ':'')+'lúc '+nowVnM_());
-        else syncCard_('none','Không có thay đổi','Google Sheet giống dữ liệu đang có trên app · kiểm tra lúc '+nowVnM_());
+        else syncCard_('none','Không có thay đổi',((res&&res.details&&res.details.length)?res.details.join(' · '):'Google Sheet giống dữ liệu đang có trên app')+' · kiểm tra lúc '+nowVnM_());
       },function(e){ btn.classList.remove('spinning'); syncCard_('err','Đồng bộ thất bại',(e&&e.message)||'Thử lại sau ít phút.'); });
       return;
     }

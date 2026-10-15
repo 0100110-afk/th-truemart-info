@@ -227,6 +227,32 @@ ok(si[0].qty === 99 && !!store['vattu/state'].fields.json, 'sửa sheet NHAP KHO
   ok(store['vattu/stockin'].fields.json.stringValue === keep, 'sheet NHAP KHO trống -> KHÔNG xoá lịch sử trên app');
   saved.forEach(function (r) { sv.push(r); });
 }
+// ---- Phương án C: nút "Đồng bộ từ Google Sheet" đẩy sheet VAT TU khi trigger sửa ô bị lỡ ----
+{
+  const vt = () => sheets['VAT TU']._v();
+  const appSt = () => JSON.parse(store['vattu/state'].fields.json.stringValue);
+  const appRev = () => Number(store['vattu/state'].fields.rev.integerValue);
+  sheets['APP USERS']._v()[1][1] = 'admin';
+  // 1) Xoá hẳn 1 cột người giữ trên sheet (KHÔNG chạy trigger) rồi bấm Đồng bộ -> app mất cột đó
+  vt().forEach((r) => r.splice(4, 1));
+  const r0 = appRev();
+  const res1 = call('tok:' + ADMIN_EMAIL);
+  ok(res1.ok && res1.changed[0] === 'vattu' && /VAT TU/.test(res1.details[0]), 'C: sheet đổi, app không đổi -> nút Đồng bộ đẩy VAT TU lên (' + JSON.stringify(res1.changed) + ')');
+  ok(JSON.stringify(appSt().holders) === JSON.stringify(['Nguyễn Duy Đức']) && appSt().autologChunks === 2, 'C: app bỏ người giữ đã xoá, giữ sổ trừ kho');
+  ok(appRev() === r0 + 1 && vt()[0].length === 4, 'C: rev tăng 1, sheet giữ nguyên 4 cột (không bị kéo lại cột cũ)');
+  // 2) Bấm lại khi không có gì khác -> không đụng vật tư
+  const res2 = call('tok:' + ADMIN_EMAIL);
+  ok(!res2.changed.includes('vattu') && !res2.details.some((x) => /VAT TU/.test(x)) && appRev() === r0 + 1, 'C: bấm lại khi giống nhau -> không ghi vật tư');
+  // 3) App và sheet cùng sửa -> giữ bản app, sheet ghi lại theo app
+  const s3 = appSt(); s3.materials[0].qty['Nguyễn Duy Đức'] = 111;
+  store['vattu/state'].fields.json.stringValue = JSON.stringify(s3);
+  store['vattu/state'].fields.rev = { integerValue: String(appRev() + 1) };
+  vt()[1][3] = 222;
+  const res3 = call('tok:' + ADMIN_EMAIL);
+  ok(appSt().materials[0].qty['Nguyễn Duy Đức'] === 111 && vt()[1][3] === 111, 'C: cùng sửa -> giữ bản app (111), sheet ghi lại theo app');
+  ok(!res3.changed.includes('vattu') && res3.details.some((x) => /cùng được sửa/.test(x)), 'C: cùng sửa -> có ghi chú báo trên app');
+  sheets['APP USERS']._v()[1][1] = 'user';
+}
 // ---- Cấp quyền Phiếu sửa chữa từ cùng sheet APP USERS ----
 stores.p2['admins/quantri@th.com'] = { name: 'projects/p2/databases/(default)/documents/admins/quantri@th.com', fields: { role: { stringValue: 'admin' } } };
 props.FIREBASE_SA_PSC = JSON.stringify({ client_email: 'y', private_key: 'k', project_id: 'p2' });
