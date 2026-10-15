@@ -669,6 +669,15 @@
   .modal.modal-xwide .hint{width:0; min-width:100%;}
   .modal.modal-xwide .vt-grid-wrap{width:fit-content; max-width:100%;}
   #vtStockInHistoryPanel{min-width:min(720px, 90vw);}
+  /* 2 bảng lưới (Chỉnh sửa tồn kho / Nhập kho) cùng 1 chiều cao: hộp cao cố định, bảng giãn lấp phần còn lại
+     -> hàng tab của bảng Nhập kho không làm hộp cao hơn bảng kia. */
+  #vtQtyModal .modal, #vtStockInModal .modal{height:min(640px, 90vh); display:flex; flex-direction:column; overflow:hidden;}
+  #vtQtyModal .modal-body, #vtStockInModal .modal-body{flex:1; min-height:0; display:flex; flex-direction:column;}
+  #vtStockInModal .mode-toggle{align-self:flex-start; flex-shrink:0;}
+  #vtStockInFormPanel{flex:1; min-height:0; display:flex; flex-direction:column;}
+  #vtStockInHistoryPanel{flex:1; min-height:0; overflow:auto;}
+  #vtQtyModal .vt-grid-wrap, #vtStockInFormPanel .vt-grid-wrap{flex:0 1 auto; min-height:0; max-height:none;}
+  #vtQtyModal .hint, #vtStockInFormPanel .hint{flex-shrink:0;}
   /* Bảng nhập tồn kho dạng lưới: hàng = vật tư, cột = người giữ (giống bảng thống kê).
      Ghim hàng tiêu đề + cột tên vật tư khi cuộn. */
   .vt-grid-wrap{max-height:min(460px, 58vh); overflow:auto; border:1px solid var(--line); border-radius:10px; width:fit-content; max-width:100%;}
@@ -676,7 +685,7 @@
   table.vt-grid th, table.vt-grid td{padding:6px 8px; border-bottom:1px solid var(--line); border-right:1px solid var(--line); white-space:nowrap; background:var(--white);}
   table.vt-grid th:last-child, table.vt-grid td:last-child{border-right:none;}
   table.vt-grid thead th{position:sticky; top:0; z-index:2; font-weight:700; color:var(--brand-900); text-align:center; font-size:12.5px;}
-  table.vt-grid .vt-grid-name{position:sticky; left:0; z-index:1; text-align:left; min-width:250px; max-width:320px; white-space:normal; line-height:1.35; font-weight:700; color:var(--ink-900);}
+  table.vt-grid .vt-grid-name{position:sticky; left:0; z-index:1; text-align:left; min-width:250px; max-width:320px; white-space:normal; line-height:1.35; font-weight:600; color:var(--ink-900);}
   table.vt-grid thead th:not(.vt-grid-name){min-width:76px;}
   table.vt-grid thead th.vt-grid-name{z-index:3;}
   table.vt-grid tbody tr:hover td{background:#F7FAFD;}
