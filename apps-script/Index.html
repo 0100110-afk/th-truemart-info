@@ -779,6 +779,11 @@
   .vt-order-btns{display:inline-flex; gap:2px; margin-left:6px;}
 
   /* Đồng bộ màu/độ đậm tiêu đề "Vật tư theo tháng" với bảng tồn kho phía trên */
+  /* Dòng Tổng cộng cuối bảng "Vật tư được sử dụng theo tháng" */
+  table.vt-staff-table tfoot td{padding:12px 14px; background:var(--brand-50, #EEF6FD); border-top:2px solid var(--line); font-weight:700; color:var(--brand-900);
+    text-align:center; font-variant-numeric:tabular-nums;}
+  table.vt-staff-table tfoot td:first-child{text-align:left; border-radius:0 0 0 10px;}
+  table.vt-staff-table tfoot td:last-child{border-radius:0 0 10px 0;}
   table.vt-staff-table thead th{
     color:var(--brand-900); font-weight:700; text-transform:none; letter-spacing:0; font-size:13px;
   }
@@ -3495,7 +3500,15 @@
         data.staffList.map(function (s) { return '<td>' + (m.byStaff[s] ? esc(m.byStaff[s]) : '—') + '</td>'; }).join('') +
         '<td class="money" style="font-weight:700; color:var(--brand-900);">' + esc(m.total) + '</td></tr>';
     }).join('');
-    $('#vtByStaffTableWrap').innerHTML = '<table class="data-table vt-staff-table"><thead><tr>' + headCols + '</tr></thead><tbody>' + bodyRows + '</tbody></table>';
+    // Dòng TỔNG CỘNG: cộng theo từng người + tổng chung
+    var sumBy = {}, sumAll = 0;
+    data.materials.forEach(function (m) {
+      data.staffList.forEach(function (s) { sumBy[s] = (sumBy[s] || 0) + (Number(m.byStaff[s]) || 0); });
+      sumAll += Number(m.total) || 0;
+    });
+    var footRow = '<tr><td>Tổng cộng</td>' + data.staffList.map(function (s) { return '<td>' + (sumBy[s] ? sumBy[s] : '—') + '</td>'; }).join('') +
+      '<td>' + sumAll + '</td></tr>';
+    $('#vtByStaffTableWrap').innerHTML = '<table class="data-table vt-staff-table"><thead><tr>' + headCols + '</tr></thead><tbody>' + bodyRows + '</tbody><tfoot>' + footRow + '</tfoot></table>';
   }
 
   function loadVtTrackFilters() {

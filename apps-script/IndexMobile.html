@@ -489,6 +489,8 @@
   .field select{appearance:none; -webkit-appearance:none; height:46px; padding:0 38px 0 14px;
     font-size:14px; font-weight:600; color:var(--ink-900);
     background:var(--cream) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5l5 5 5-5' stroke='%2371828B' stroke-width='1.8' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") no-repeat right 14px center; text-overflow:ellipsis; white-space:nowrap; overflow:hidden;}
+  .vt-sum-card{background:var(--brand-50, #EEF6FD);}
+  .vt-sum-card .vt-name{font-weight:700; color:var(--brand-900);}
   .stockin-row{display:flex; align-items:center; gap:10px; padding:10px 0; border-bottom:1px solid var(--line);}
   .stockin-row:last-child{border-bottom:none;}
   .stockin-name{flex:1; min-width:0; font-size:12.5px; font-weight:600; color:var(--ink-900); line-height:1.35;}
@@ -2386,7 +2388,21 @@
           '</div>'+
           '<div class="vt-detail">'+lines+'</div>'+
         '</div>';
-      }).join('');
+      }).join('')+(function(){
+        // Thẻ TỔNG CỘNG cuối danh sách: chạm để xem tổng theo từng người
+        var sumBy={},sumAll=0;
+        d.materials.forEach(function(m){ d.staffList.forEach(function(s){ sumBy[s]=(sumBy[s]||0)+(Number(m.byStaff[s])||0); }); sumAll+=Number(m.total)||0; });
+        var lines=d.staffList.filter(function(s){return sumBy[s];}).map(function(s){
+          return '<div class="vt-holder-line"><span class="h">'+esc(s)+'</span><span class="q">'+sumBy[s]+'</span></div>';
+        }).join('');
+        return '<div class="vt-card vt-sum-card" id="vtStaffCardSum">'+
+          '<div class="vt-head" onclick="THM.vtStaffToggle(\'Sum\')">'+
+            '<div class="vt-main"><div class="vt-name">Tổng cộng</div></div>'+
+            '<div class="vt-total">'+sumAll+'</div>'+
+          '</div>'+
+          '<div class="vt-detail">'+lines+'</div>'+
+        '</div>';
+      })();
     });
   }
   function vtStaffToggle(i){ var c=document.getElementById('vtStaffCard'+i); if(c) c.classList.toggle('expanded'); }
