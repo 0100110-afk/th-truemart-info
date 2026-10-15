@@ -1721,7 +1721,7 @@ function getStoreRepairHistory(costCenter) {
     rows.push({
       source: 'Sanaky',
       date: r.date,
-      items: r.items.map(function (it) { return { label: it.repairItem, assetCode: r.assetCode, cost: it.amount }; }),
+      items: r.items.map(function (it) { return { label: it.repairItem, assetCode: r.assetCode, qty: it.qty, cost: it.amount }; }),
       cost: r.totalAmount
     });
   });
@@ -1741,7 +1741,7 @@ function getStoreRepairHistory(costCenter) {
     rows.push({
       source: chiPhiSupplierLabel_(r.supplier),
       date: r.date,
-      items: r.items.map(function (it) { return { label: it.item, assetCode: it.assetCode, cost: it.cost }; }),
+      items: r.items.map(function (it) { return { label: it.item, assetCode: it.assetCode, qty: it.qty, cost: it.cost }; }),
       cost: r.totalCost
     });
   });

@@ -340,10 +340,12 @@
   .rec-body{font-size:13px; color:var(--ink-900); line-height:1.45;}
   .rec-sub{font-size:11.5px; color:var(--ink-500); margin-top:5px; line-height:1.45;}
   .rec-items{margin-top:8px; border-top:1px dashed var(--line); padding-top:8px; display:flex; flex-direction:column; gap:6px;}
-  .rec-item-row{display:flex; align-items:baseline; justify-content:space-between; gap:10px; font-size:12.5px;}
-  .rec-item-row .n{color:var(--ink-600); flex:1; min-width:0;}
-  .rec-item-row .q{color:var(--ink-300); font-size:11px; flex-shrink:0;}
-  .rec-item-row .m{font-weight:700; color:var(--ink-900); white-space:nowrap; flex-shrink:0;}
+  /* 3 cột cố định: tên | ×số lượng | thành tiền -> cột số lượng và cột tiền thẳng hàng ở MỌI dòng, mọi tab
+     (Tổng hợp, Sanaky, Bảo dưỡng, nhà cung cấp...). Dòng không có số lượng vẫn giữ chỗ cột. */
+  .rec-item-row{display:grid; grid-template-columns:minmax(0,1fr) 38px 96px; align-items:baseline; gap:8px; font-size:12.5px;}
+  .rec-item-row .n{color:var(--ink-600); min-width:0;}
+  .rec-item-row .q{color:var(--ink-500); font-size:11.5px; text-align:right; font-variant-numeric:tabular-nums; white-space:nowrap;}
+  .rec-item-row .m{font-weight:700; color:var(--ink-900); white-space:nowrap; text-align:right; font-variant-numeric:tabular-nums;}
   .rec-foot{
     display:flex; align-items:center; justify-content:space-between; gap:8px;
     margin-top:9px; padding-top:9px; border-top:1px solid var(--line);
@@ -647,7 +649,7 @@
     <!-- ===== TỔNG QUAN ===== -->
     <section class="page active" id="page-dash">
       <div class="chip-row" id="dashChips">
-        <select class="chip-select" id="dashYearSelect" aria-label="Năm"></select>
+        <select class="chip-select" id="dashYearSelect" aria-label="Năm" autocomplete="off"></select>
         <button class="chip active" data-region="">Toàn quốc</button>
         <button class="chip" data-region="MB">Miền Bắc</button>
         <button class="chip" data-region="MT">Miền Trung</button>
@@ -1157,7 +1159,7 @@
   (function(){
     var sel=$('#dashYearSelect'), nowY=new Date().getFullYear(), html='<option value="">Tất cả năm</option>';
     for(var y=nowY;y>=nowY-6;y--) html+='<option value="'+y+'"'+(String(y)===dashYear?' selected':'')+'>Năm '+y+'</option>';
-    sel.innerHTML=html;
+    sel.innerHTML=html; sel.value=dashYear;   // luôn mở ở năm hiện tại (năm mới nhất)
     sel.addEventListener('change',function(){ dashYear=sel.value; loadDash(); });
   })();
   $all('#dashChips .chip').forEach(function(c){
@@ -1707,7 +1709,7 @@
       var label=it.label!==undefined?it.label:(it.repairItem!==undefined?it.repairItem:it.item);
       var money=it.cost!==undefined?it.cost:it.amount;
       return '<div class="rec-item-row"><span class="n">'+esc(label||'—')+'</span>'+
-        (it.qty?'<span class="q">×'+esc(it.qty)+'</span>':'')+
+        '<span class="q">'+(it.qty?'×'+esc(it.qty):'')+'</span>'+
         '<span class="m">'+fmtVND(money)+'</span></div>';
     }).join('')+'</div>';
   }
@@ -2119,7 +2121,7 @@
         '</div><span class="rec-date">'+esc(nDate(r.date))+'</span></div>'+
         (r.storeName?'<div class="rec-body">'+esc(r.storeName)+'</div>':'')+
         cpField('NV phụ trách',r.staff)+cpField('Sự cố',r.issue)+cpField('Nhà cung cấp',r.supplier)+
-        '<div class="rec-items"><div class="rec-item-row"><span class="n">'+esc(r.item)+'</span><span class="q">x'+esc(r.qty)+'</span><span class="m">'+fmtVND(r.cost)+'</span></div></div>'+
+        '<div class="rec-items"><div class="rec-item-row"><span class="n">'+esc(r.item)+'</span><span class="q">'+(r.qty?'×'+esc(r.qty):'')+'</span><span class="m">'+fmtVND(r.cost)+'</span></div></div>'+
       '</div>';
     }).join('');
     $('#cpMoreBtn').style.display=cpRows.length<cpTotal?'':'none';
@@ -2993,8 +2995,12 @@ html.uip-desk ::-webkit-scrollbar-corner{background:transparent;}
 
   /* ---------------- ô chọn ---------------- */
   function buildList(sel, host, onPick) {
-    var opts = Array.prototype.slice.call(sel.options).filter(function (o) { return !o.hidden && !o.disabled; });
-    var withSearch = opts.length > 8;
+    // Bỏ dòng gợi ý kiểu "— Chọn vật tư —" khỏi danh sách (vẫn hiện trong ô khi chưa chọn gì).
+    // Dòng "Tất cả ..." (cũng có value rỗng) thì giữ vì đó là một lựa chọn thật.
+    var isHint = function (o) { return o.value === '' && /^[\s—–-]*Chọn/i.test(o.textContent); };
+    var opts = Array.prototype.slice.call(sel.options).filter(function (o) { return !o.hidden && !o.disabled && !isHint(o); });
+    // Ô tìm chỉ khi danh sách dài (> 13 dòng): 12 tháng + "Tất cả tháng", danh sách năm, miền... không cần tìm
+    var withSearch = opts.length > 13;
     host.innerHTML = (withSearch ? '<div class="uip-search">' + I.search + '<input type="search" placeholder="Tìm…" aria-label="Tìm" autocomplete="off"><button type="button" class="uip-clear" aria-label="Xoá chữ" hidden>' + I.x + '</button></div>' : '') +
       '<div class="uip-opts" role="listbox"></div>';
     var list = host.querySelector('.uip-opts'), q = host.querySelector('input'), clr = host.querySelector('.uip-clear');
