@@ -1802,8 +1802,8 @@
         /* Biểu đồ đã dựng từ trước nhưng bị đo khi panel đang ẩn. Panel vừa hiện lại -> ép
            Chart.js đo lại rồi căn chú thích, nếu không donut giữ nguyên kích thước sai. */
         requestAnimationFrame(function () {
-          if (chartRegion) chartRegion.resize();
-          if (chartType) chartType.resize();
+          fitChart_(chartRegion);
+          fitChart_(chartType);
           requestAnimationFrame(alignChartBaselines_);
         });
       }
@@ -1828,12 +1828,21 @@
   // Dashboard
   var dashboardLoaded = false;
   var chartRegion, chartType;
+  /* Ép biểu đồ đo lại theo ĐÚNG kích thước khung. Gọi chart.resize() trống thì Chart.js đo bằng
+     getBoundingClientRect — số đã nhân CSS zoom của giao diện (0.9 ở màn 1366) — rồi lại bị zoom thêm
+     lần nữa khi vẽ -> biểu đồ co còn 90% mỗi lần bấm lại "Tổng quan". clientWidth/Height là số CHƯA zoom. */
+  function fitChart_(ch) {
+    if (!ch || !ch.canvas || !ch.canvas.parentElement) return;
+    var box = ch.canvas.parentElement;
+    if (box.clientWidth && box.clientHeight) ch.resize(box.clientWidth, box.clientHeight);
+    else ch.resize();
+  }
   var currentRegionFilter = '';
   var currentYearFilter = String(new Date().getFullYear());
 
   window.addEventListener('load', function () {
-    if (chartRegion) chartRegion.resize();
-    if (chartType) chartType.resize();
+    fitChart_(chartRegion);
+    fitChart_(chartType);
   });
 
   (function initYearFilter() {
@@ -2483,8 +2492,8 @@
     renderTypeLegend_(typeLabels, typeColors, typeValues);
 
     requestAnimationFrame(function () {
-      if (chartRegion) chartRegion.resize();
-      if (chartType) chartType.resize();
+      fitChart_(chartRegion);
+      fitChart_(chartType);
       // Chờ thêm 1 khung hình để scale/legend đã fit xong rồi mới đo và căn thẳng hàng.
       requestAnimationFrame(alignChartBaselines_);
     });
