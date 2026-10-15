@@ -3166,6 +3166,9 @@ function exportVatTuExcel(yearFilter, monthFilter, trackOpts) {
         return [r.source, r.date, r.item, r.qty, r.staff, r.address, r.statusLabel, r.statusSub];
       }),
       scopeText(trackYear, trackMonth, trackStaff, trackQuery));
+    // Lịch sử nhập kho: TOÀN BỘ các lượt nhập (không theo bộ lọc tháng/năm), mới nhất lên đầu — giống tab "Lịch sử nhập".
+    writeSheet('LichSuNhapKho', ['Ngày nhập', 'Mã vật tư', 'Tên vật tư', 'Số lượng nhập', 'Người giữ'],
+      getVatTuStockInHistory().map(function (r) { return [r.date, r.code, r.name, r.qty, r.holder]; }), 'Toàn bộ lịch sử nhập kho');
 
     tempSs.deleteSheet(defaultSheet);
     SpreadsheetApp.flush();

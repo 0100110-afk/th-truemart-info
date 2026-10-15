@@ -36,6 +36,7 @@ const tl = run('getVatTuTrackingList',{page:1,pageSize:20});
 console.log('tracking', JSON.stringify(tl.counts), tl.rows.map(r=>r.item+' -> '+r.statusLabel+' ('+r.statusSub+')').join(' | '));
 const x = run('exportVatTuExcel','2026','9',{});
 console.log('excel bytes', x && x.base64.length);
+{ const sn = XLSX.read(x.base64, { type: 'base64' }).SheetNames; if (sn.indexOf('LichSuNhapKho') < 0) { console.log('THIẾU sheet LichSuNhapKho: ' + sn); process.exitCode = 1; } else console.log('excel sheets', sn.join(', ')); }
 
 // --- Vân tay MD5 phải trùng bản Apps Script (computeDigest MD5 UTF-8, 8 byte đầu) ---
 const keys = C._chiPhiKeys();

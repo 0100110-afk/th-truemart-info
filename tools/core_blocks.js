@@ -361,6 +361,9 @@ function exportVatTuExcel(yearFilter, monthFilter, trackOpts) {
     full.rows.map(function (r) {
       return [r.source, r.date, r.item, r.qty, r.staff, r.address, r.statusLabel, r.statusSub];
     }));
+  // Lịch sử nhập kho: TOÀN BỘ các lượt nhập (không theo bộ lọc tháng/năm), mới nhất lên đầu — giống tab "Lịch sử nhập".
+  writeSheet('LichSuNhapKho', ['Ngày nhập', 'Mã vật tư', 'Tên vật tư', 'Số lượng nhập', 'Người giữ'],
+    getVatTuStockInHistory().map(function (r) { return [r.date, r.code, r.name, r.qty, r.holder]; }));
 
   const label = (yearFilter || monthFilter) ? ('_' + (yearFilter || 'tatca') + (monthFilter ? '-' + pad2_(monthFilter) : '')) : '';
   return { success: true, base64: XL.write(wb, { bookType: 'xlsx', type: 'base64' }), filename: 'VatTu' + label + '.xlsx' };
