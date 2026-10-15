@@ -3153,6 +3153,14 @@
   var cpState = { region: '', supplier: '', staff: '', year: '', month: '', query: '', page: 1, pageSize: 50 };
 
   /* File Excel lớn (> ~2MB) tải bằng data: URL dễ bị trình duyệt chặn lặng lẽ -> chuyển sang Blob. */
+  /* Tên file xuất kèm dấu thời gian: VatTu_2026-09.xlsx -> VatTu_2026-09_20261016_061530.xlsx.
+     Mỗi lần xuất ra 1 file mới, không trùng tên (trình duyệt không phải tự thêm (1), (2)). */
+  function stampName_(name) {
+    var d = new Date(), p = function (n) { return (n < 10 ? '0' : '') + n; };
+    var ts = d.getFullYear() + p(d.getMonth() + 1) + p(d.getDate()) + '_' + p(d.getHours()) + p(d.getMinutes()) + p(d.getSeconds());
+    name = String(name || 'file.xlsx');
+    return /\.[a-z0-9]+$/i.test(name) ? name.replace(/(\.[a-z0-9]+)$/i, '_' + ts + '$1') : name + '_' + ts;
+  }
   function xlsxBlobUrl_(b64) {
     var bin = atob(b64), n = bin.length, u8 = new Uint8Array(n);
     for (var i = 0; i < n; i++) u8[i] = bin.charCodeAt(i);
@@ -3235,7 +3243,7 @@
       if (!res || !res.base64) { showToast('Không xuất được file Excel.', true); return; }
       var a = document.createElement('a');
       a.href = xlsxBlobUrl_(res.base64);
-      a.download = res.filename;
+      a.download = stampName_(res.filename);
       document.body.appendChild(a); a.click(); a.remove();
     }, function () { btn.disabled = false; });
   });
@@ -3753,11 +3761,11 @@
       btn.disabled = false;
       var a = document.createElement('a');
       a.href = xlsxBlobUrl_(res.base64);
-      a.download = res.filename;
+      a.download = stampName_(res.filename);
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
-      showToast('Đã tải file: ' + res.filename);
+      showToast('Đã tải file: ' + a.download);
     }, function () { btn.disabled = false; });
   });
 
