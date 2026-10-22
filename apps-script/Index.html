@@ -762,7 +762,9 @@
   }
   .vt-stock-wrap::-webkit-scrollbar-thumb:hover{background:rgba(120,140,160,.55); background-clip:content-box;}
   .vt-stock-wrap::-webkit-scrollbar-corner{background:transparent;}
-  table.vt-compact{border-collapse:collapse; font-size:13px; width:100%; table-layout:auto;}
+  /* separate (không collapse): đường viền thuộc về TỪNG Ô, nên tiêu đề ghim (sticky) mang theo viền dưới
+     khi cuộn. Với collapse, viền thuộc về bảng -> tiêu đề ghim bị mất viền dưới. */
+  table.vt-compact{border-collapse:separate; border-spacing:0; font-size:13px; width:100%; table-layout:auto;}
   table.vt-compact th, table.vt-compact td{padding:9px 10px; border-bottom:1px solid var(--line); border-right:1px solid var(--line); white-space:nowrap; font-size:13px;}
   table.vt-compact th:last-child, table.vt-compact td:last-child{border-right:none;}
   table.vt-compact thead th{position:sticky; top:0; background:var(--white); z-index:2; text-transform:none; letter-spacing:0; font-weight:700; color:var(--brand-900);}
@@ -3419,12 +3421,15 @@
   var vtCurrentYear = '';
   var vtCurrentMonth = '';
   var vtDefaultApplied = false;
+  var vtMonthCleared_ = false;   // đã bấm Xoá lọc -> không tự chọn lại tháng mới nhất khi tải lại dữ liệu
   var vtTrackPage = 1;
   var vtTrackQuery = '';
   var vtTrackStaff = '';
   var vtTrackStatus = '';
   var vtTrackYear = '';
   var vtTrackMonth = '';
+  var vtTrackDefaultApplied = false;
+  var vtTrackCleared_ = false;   // đã bấm Xoá lọc -> không tự chọn lại tháng mới nhất khi tải lại dữ liệu
   var vtTrackPageSize = 20;
   var vtTrackDebounce = null;
 
@@ -3434,15 +3439,13 @@
     vattuLoaded = true;
     loadVtStock();
     loadVtYearsAndMonths();
-    loadVtTrackFilters();
-    fetchVtTrackList();
+    loadVtTrackFilters();   // tự gọi fetchVtTrackList sau khi đã chọn tháng mặc định
   }
 
   function reloadVatTuAll_() {
     loadVtStock();
     loadVtYearsAndMonths();
-    loadVtTrackFilters();
-    fetchVtTrackList();
+    loadVtTrackFilters();   // tự gọi fetchVtTrackList sau khi đã chọn tháng mặc định
   }
 
   function loadVtStock() {
@@ -3479,15 +3482,14 @@
     $('#vtStockTableWrap').innerHTML = '<table class="vt-compact"><thead><tr>' + headCols + '</tr></thead><tbody>' + bodyRows + '</tbody></table>';
   }
 
-  /** Mặc định chọn THÁNG MỚI NHẤT có dữ liệu, chỉ áp dụng ở lần tải đầu tiên. */
+  /** Mặc định LỌC theo THÁNG MỚI NHẤT có dữ liệu (nút Xoá lọc hiện). Xoá lọc = Tất cả năm + Tất cả tháng. */
   function loadVtYearsAndMonths() {
     runServer('getVatTuMonthsAvailable', [], function (monthsAvailable) {
-      if (!vtDefaultApplied && !vtCurrentYear && !vtCurrentMonth && monthsAvailable.length) {
+      if (!vtDefaultApplied && !vtMonthCleared_ && !vtCurrentYear && !vtCurrentMonth && monthsAvailable.length) {
         vtDefaultApplied = true;
         var latest = monthsAvailable[0].split('-');
         vtCurrentYear = latest[0];
         vtCurrentMonth = String(Number(latest[1]));
-        vtDefaultYM_ = { y: vtCurrentYear, m: vtCurrentMonth };
       }
       setupYearMonthFilter_(monthsAvailable, $('#vtYearSelect'), $('#vtMonthSelect'), vtCurrentYear, vtCurrentMonth, function (y, m) {
         vtCurrentYear = y; vtCurrentMonth = m;
@@ -3499,9 +3501,8 @@
     });
   }
 
-  var vtDefaultYM_ = { y: '', m: '' };
   function loadVtByStaff(year, month) {
-    syncClear_('#vtMonthClearBtn', String(year || '') !== vtDefaultYM_.y || String(month || '') !== vtDefaultYM_.m);
+    syncClear_('#vtMonthClearBtn', !!(year || month));
     $('#vtByStaffTableWrap').innerHTML = '<div class="loading-wrap"><div class="spinner"></div>Đang tải…</div>';
     runServer('getVatTuByStaffMonth', [year, month], renderVtByStaffTable);
   }
@@ -3528,8 +3529,17 @@
     $('#vtByStaffTableWrap').innerHTML = '<table class="data-table vt-staff-table"><thead><tr>' + headCols + '</tr></thead><tbody>' + bodyRows + '</tbody><tfoot>' + footRow + '</tfoot></table>';
   }
 
+  /** Mặc định LỌC theo THÁNG MỚI NHẤT có dữ liệu (nút Xoá lọc hiện). Danh sách chỉ tải SAU khi đã
+   *  biết tháng mặc định -> không gọi server 2 lần. */
   function loadVtTrackFilters() {
+    $('#vtTrackTable tbody').innerHTML = skelTableRows(7, 6);
     runServer('getVatTuTrackingFilters', [], function (f) {
+      if (!vtTrackDefaultApplied && !vtTrackCleared_ && !vtTrackYear && !vtTrackMonth && f.monthsAvailable.length) {
+        vtTrackDefaultApplied = true;
+        var latest = f.monthsAvailable[0].split('-');
+        vtTrackYear = latest[0];
+        vtTrackMonth = String(Number(latest[1]));
+      }
       var staffSel = $('#vtTrackStaffSelect');
       staffSel.innerHTML = '<option value="">Tên nhân viên</option>' +
         f.staffList.map(function (s) { return '<option value="' + esc(s) + '">' + esc(s) + '</option>'; }).join('');
@@ -3538,16 +3548,22 @@
       setupYearMonthFilter_(f.monthsAvailable, $('#vtTrackYearSelect'), $('#vtTrackMonthSelect'), vtTrackYear, vtTrackMonth, function (y, m) {
         vtTrackYear = y; vtTrackMonth = m; vtTrackPage = 1; fetchVtTrackList();
       });
+      vtTrackYear = $('#vtTrackYearSelect').value;
+      vtTrackMonth = $('#vtTrackMonthSelect').value;
+      fetchVtTrackList();
     });
   }
 
   $('#vtTrackStaffSelect').addEventListener('change', function () { vtTrackStaff = this.value; vtTrackPage = 1; fetchVtTrackList(); });
   $('#vtTrackStatusSelect').addEventListener('change', function () { vtTrackStatus = this.value; vtTrackPage = 1; fetchVtTrackList(); });
   $('#vtMonthClearBtn').addEventListener('click', function () {
-    // Mặc định của khối này là THÁNG MỚI NHẤT có dữ liệu -> dựng lại bộ chọn đúng như lần mở đầu
-    vtCurrentYear = vtCurrentMonth = ''; vtDefaultApplied = false; loadVtYearsAndMonths();
+    // Xoá lọc = Tất cả năm + Tất cả tháng (mặc định khi mở là tháng mới nhất, tính là ĐANG lọc)
+    vtMonthCleared_ = true;
+    var ys = $('#vtYearSelect'); ys.value = '';
+    if (ys.onchange) ys.onchange(); else { vtCurrentYear = vtCurrentMonth = ''; loadVtByStaff('', ''); }
   });
   $('#vtTrackClearBtn').addEventListener('click', function () {
+    vtTrackCleared_ = true;
     vtTrackStaff = vtTrackStatus = vtTrackQuery = '';
     ['#vtTrackStaffSelect', '#vtTrackStatusSelect', '#vtTrackSearchInput'].forEach(function (x) { $(x).value = ''; });
     var ys = $('#vtTrackYearSelect'); ys.value = '';
@@ -4328,7 +4344,7 @@
   function reloadViewsAfterData_() {
     dashboardLoaded = false; sanakyLoaded = false; maintLoaded = false; vattuLoaded = false; dongiaLoaded = false;
     dongiaCache = { bt: null, xd: null, snk: null };
-    vtDefaultApplied = false;
+    vtDefaultApplied = false; vtTrackDefaultApplied = false;
     if (chartRegion) { chartRegion.destroy(); chartRegion = null; }
     if (chartType) { chartType.destroy(); chartType = null; }
     if (chartMaintQuarterlyQty) { chartMaintQuarterlyQty.destroy(); chartMaintQuarterlyQty = null; }

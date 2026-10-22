@@ -2303,7 +2303,8 @@
   // ============================== VẬT TƯ ==============================
 
   var vattuLoaded=false, vtData=null;
-  var vtYear='', vtMonth='', vtDefaultApplied=false;
+  var vtYear='', vtMonth='', vtDefaultApplied=false, vtMonthCleared_=false;
+  var vtTDefaultApplied=false, vtTCleared_=false; // đã bấm Xoá lọc -> không tự chọn lại tháng mới nhất khi tải lại
   var vtTPage=1, vtTQuery='', vtTStaff='', vtTYear='', vtTMonth='', vtTPageSize=15, vtTRows=[], vtTTotal=0, vtTDebounce=null;
   var vtTStatus='', vtTCounts=null;
 
@@ -2320,8 +2321,7 @@
   function reloadVatTuAll_(){
     loadVtStock();
     loadVtMonths();
-    loadVtTrackFilters();
-    fetchVtTrack(true);
+    loadVtTrackFilters(); // tự gọi fetchVtTrack sau khi đã chọn tháng mặc định
   }
 
   /** Diễn giải kết quả runVatTuAutoDeduction — giữ CÙNG nội dung với vtCalcMessage_ bản desktop. */
@@ -2374,11 +2374,11 @@
 
   function loadVtMonths(){
     runServer('getVatTuMonthsAvailable',[],function(ms){
-      if(!vtDefaultApplied&&!vtYear&&!vtMonth&&ms.length){
+      /* Mặc định LỌC theo tháng mới nhất (nút Xoá lọc hiện). Xoá lọc = Tất cả năm + Tất cả tháng. */
+      if(!vtDefaultApplied&&!vtMonthCleared_&&!vtYear&&!vtMonth&&ms.length){
         vtDefaultApplied=true;
         var latest=ms[0].split('-');
         vtYear=latest[0]; vtMonth=String(Number(latest[1]));
-        vtDefaultYM_={y:vtYear,m:vtMonth};
       }
       setupYearMonth(ms,$('#vtYearSelect'),$('#vtMonthSelect'),vtYear,vtMonth,function(y,m){
         vtYear=y; vtMonth=m; loadVtByStaff();
@@ -2388,9 +2388,8 @@
     });
   }
 
-  var vtDefaultYM_={y:'',m:''};
   function loadVtByStaff(){
-    syncClear_('#vtMonthClearBtn',String(vtYear||'')!==vtDefaultYM_.y||String(vtMonth||'')!==vtDefaultYM_.m);
+    syncClear_('#vtMonthClearBtn',!!(vtYear||vtMonth));
     $('#vtByStaffList').innerHTML=skeleton(2);
     runServer('getVatTuByStaffMonth',[vtYear,vtMonth],function(d){
       if(!d.materials.length){ $('#vtByStaffList').innerHTML='<div class="empty" style="padding:24px;">Không có vật tư nào trong khoảng thời gian này.</div>'; return; }
@@ -2430,9 +2429,17 @@
       sel.innerHTML='<option value="">Tất cả NV</option>'+f.staffList.map(function(s){return '<option value="'+esc(s)+'">'+esc(abbrevName(s))+'</option>';}).join('');
       sel.value=vtTStaff;
       sel.onchange=function(){ vtTStaff=sel.value; fetchVtTrack(true); };
+      /* Mặc định LỌC theo tháng mới nhất; danh sách chỉ tải SAU khi biết tháng -> không gọi server 2 lần */
+      if(!vtTDefaultApplied&&!vtTCleared_&&!vtTYear&&!vtTMonth&&f.monthsAvailable.length){
+        vtTDefaultApplied=true;
+        var latest=f.monthsAvailable[0].split('-');
+        vtTYear=latest[0]; vtTMonth=String(Number(latest[1]));
+      }
       setupYearMonth(f.monthsAvailable,$('#vtTrackYearSelect'),$('#vtTrackMonthSelect'),vtTYear,vtTMonth,function(y,m){
         vtTYear=y; vtTMonth=m; fetchVtTrack(true);
       });
+      vtTYear=$('#vtTrackYearSelect').value; vtTMonth=$('#vtTrackMonthSelect').value;
+      fetchVtTrack(true);
     });
   }
 
@@ -2555,8 +2562,13 @@
     vtFixSendM_(c.row, c.kind==='item'?{item:v,fromItem:c.row.item}:{staff:v,fromStaff:c.row.staff||''});
   });
   $('#vtTrackStatusSelect').addEventListener('change',function(){ vtTStatus=this.value; fetchVtTrack(true); });
-  $('#vtMonthClearBtn').addEventListener('click',function(){ vtYear=vtMonth=''; vtDefaultApplied=false; loadVtMonths(); });
+  $('#vtMonthClearBtn').addEventListener('click',function(){
+    vtMonthCleared_=true;
+    var ys=$('#vtYearSelect'); ys.value='';
+    if(ys.onchange) ys.onchange(); else { vtYear=vtMonth=''; loadVtByStaff(); }
+  });
   $('#vtTrackClearBtn').addEventListener('click',function(){
+    vtTCleared_=true;
     vtTStaff=vtTStatus=vtTQuery='';
     ['#vtTrackStaffSelect','#vtTrackStatusSelect','#vtTrackSearchInput'].forEach(function(x){ $(x).value=''; });
     var ys=$('#vtTrackYearSelect'); ys.value='';
@@ -2729,7 +2741,7 @@
 
   function reloadAfterData_(){
     dashLoaded=false; sanakyLoaded=false; maintLoaded=false; vattuLoaded=false; dongiaLoaded=false;
-    dgCache={bt:null,xd:null,snk:null}; vtDefaultApplied=false;
+    dgCache={bt:null,xd:null,snk:null}; vtDefaultApplied=false; vtTDefaultApplied=false;
     if(chartRegion){chartRegion.destroy(); chartRegion=null;}
     if(chartType){chartType.destroy(); chartType=null;}
     if(chartMQty){chartMQty.destroy(); chartMQty=null;}
