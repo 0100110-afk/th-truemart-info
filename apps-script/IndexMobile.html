@@ -3246,10 +3246,9 @@ html.uip-desk ::-webkit-scrollbar-corner{background:transparent;}
 <style>
   /* Cuộn tới cuối danh sách trong bảng không kéo theo trang phía sau */
   .sheet-body, .modal, .vt-grid-wrap, .uip-opts, .uip-sheet{overscroll-behavior:contain;}
-  /* iPhone: khi ghim body để khoá cuộn, vùng thanh Home dưới mép bảng lộ nền trang (dải xám) ->
-     kéo dài nền của bảng xuống dưới mép màn hình. Lúc bảng ẩn, phần kéo dài cũng nằm ngoài màn hình. */
-  .sheet::after, .uip-sheet::after{content:''; position:absolute; left:0; right:0; top:100%; height:160px;
-    background:inherit; pointer-events:none;}
+  /* iPhone: khi ghim body để khoá cuộn, khung hiển thị ngắn lại ở đáy và vùng thanh Home vẽ bằng nền trang
+     (dải xám, nằm ngoài cả lớp phủ lẫn bảng). Lúc đang mở bảng trượt -> nền trang trắng cho trùng màu bảng. */
+  html.sheet-open, html.sheet-open body{background:#fff;}
   /* Máy tính: khoá cuộn trang, giữ chỗ thanh cuộn để giao diện không bị xô ngang */
   html.scroll-lock{overflow:hidden; scrollbar-gutter:stable;}
 </style>
@@ -3268,7 +3267,11 @@ html.uip-desk ::-webkit-scrollbar-corner{background:transparent;}
     locked = false; root.classList.remove('scroll-lock');
     if (touch) { var b = document.body.style; b.position = b.top = b.left = b.right = b.width = ''; window.scrollTo(0, y); }
   }
-  function check() { pending = false; var on = !!document.querySelector(SEL); if (on && !locked) lock(); else if (!on && locked) unlock(); }
+  function check() {
+    pending = false; var on = !!document.querySelector(SEL);
+    if (on && !locked) lock(); else if (!on && locked) unlock();
+    root.classList.toggle('sheet-open', !!document.querySelector('.sheet.active, .uip-sheet.on'));
+  }
   new MutationObserver(function () { if (!pending) { pending = true; Promise.resolve().then(check); } })
     .observe(document.body, { subtree: true, childList: true, attributes: true, attributeFilter: ['class'] });
 })();
