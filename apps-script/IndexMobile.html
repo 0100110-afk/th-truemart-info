@@ -920,7 +920,7 @@
     <div class="sheet-body">
       <div id="vtFixInfoM" style="margin-bottom:12px;"></div>
       <div class="field"><label id="vtFixLabelM">Vật tư</label><select id="vtFixSelectM"></select></div>
-      <div style="font-size:11.5px; color:var(--ink-500); line-height:1.45;">Sau khi xác nhận, ô tương ứng trên sheet CHI PHI được cập nhật (trong vòng 10 phút). Bấm Khớp vật tư để trừ kho.</div>
+      <div style="font-size:11.5px; color:var(--ink-500); line-height:1.45;">Sau khi xác nhận, ô tương ứng trên sheet CHI PHI được cập nhật ở lần đồng bộ kế tiếp (mở file, bấm Đồng bộ, hoặc tối đa 1 giờ trong 7h–19h). Bấm Khớp vật tư để trừ kho.</div>
     </div>
     <div class="sheet-foot" style="display:flex; gap:10px;">
       <button class="btn btn-ghost" style="flex:1;" id="vtFixBackBtnM">Quay lại</button>
@@ -3246,6 +3246,10 @@ html.uip-desk ::-webkit-scrollbar-corner{background:transparent;}
 <style>
   /* Cuộn tới cuối danh sách trong bảng không kéo theo trang phía sau */
   .sheet-body, .modal, .vt-grid-wrap, .uip-opts, .uip-sheet{overscroll-behavior:contain;}
+  /* iPhone: khi ghim body để khoá cuộn, vùng thanh Home dưới mép bảng lộ nền trang (dải xám) ->
+     kéo dài nền của bảng xuống dưới mép màn hình. Lúc bảng ẩn, phần kéo dài cũng nằm ngoài màn hình. */
+  .sheet::after, .uip-sheet::after{content:''; position:absolute; left:0; right:0; top:100%; height:160px;
+    background:inherit; pointer-events:none;}
   /* Máy tính: khoá cuộn trang, giữ chỗ thanh cuộn để giao diện không bị xô ngang */
   html.scroll-lock{overflow:hidden; scrollbar-gutter:stable;}
 </style>
