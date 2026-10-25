@@ -471,7 +471,9 @@
   .sheet{
     position:fixed; left:0; right:0; bottom:0; z-index:61;
     background:var(--white); border-radius:22px 22px 0 0; box-shadow:var(--shadow-sheet);
-    transform:translateY(105%); transition:transform .26s cubic-bezier(.32,.72,.28,1);
+    /* Ẩn: lùi hẳn 90px dưới mép màn hình — bóng đổ hắt lên ~66px; chỉ lùi 5% thì bóng của các bảng đang ẩn
+       lọt vào đáy màn hình thành dải xanh xám (cả dưới thanh nút lẫn đè lên bảng đang mở). */
+    transform:translateY(calc(100% + 90px)); transition:transform .26s cubic-bezier(.32,.72,.28,1);
     max-height:86vh; display:flex; flex-direction:column;
     padding-bottom:env(safe-area-inset-bottom,0px);
   }
