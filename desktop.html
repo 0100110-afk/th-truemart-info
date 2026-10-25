@@ -3738,7 +3738,7 @@
     var col = c.kind === 'item' ? 'Hạng mục/Vật tư' : 'NV phụ trách';
     var oldV = c.kind === 'item' ? c.row.item : (c.row.staff || '');
     $('#vtFixNote').innerHTML = v
-      ? 'Sau khi xác nhận:<br>• Ô <b>' + col + '</b> của dòng này trên sheet CHI PHI đổi từ <b>' + (oldV ? '"' + esc(oldV) + '"' : '(trống)') + '</b> thành <b>"' + esc(v) + '"</b> (sheet cập nhật trong vòng 10 phút).<br>' +
+      ? 'Sau khi xác nhận:<br>• Ô <b>' + col + '</b> của dòng này trên sheet CHI PHI đổi từ <b>' + (oldV ? '"' + esc(oldV) + '"' : '(trống)') + '</b> thành <b>"' + esc(v) + '"</b> (sheet cập nhật ở lần đồng bộ kế tiếp — tối đa 1 giờ trong 7h–19h).<br>' +
         '• Dòng chuyển sang trạng thái tiếp theo ngay trên app; bấm <b>Khớp vật tư</b> để trừ kho như bình thường.'
       : 'Chọn ' + (c.kind === 'item' ? 'vật tư' : 'người giữ') + ' đúng cho dòng này.';
     $('#vtFixOkBtn').disabled = !v;

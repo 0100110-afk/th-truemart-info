@@ -10,12 +10,13 @@
  *   Sheet -> App  (sửa trên Google Sheet như trước):
  *       DS CH, TAI SAN, BAO DUONG, CHI PHI, SANAKY (cùng file TM), DON GIA BT/XD/SNK (file DG riêng),
  *       APP USERS (danh sách người được vào app).
- *       Đẩy lên ngay khi sửa ô (trigger onEdit) + quét lại toàn bộ 10 phút/lần (bắt các thay đổi
- *       trigger onEdit không thấy: dán hàng loạt, công thức, file Sanaky/Đơn giá nằm ngoài).
+ *       Đẩy lên ngay khi sửa ô (onEdit) / chèn, xoá dòng (onChange) + quét lại toàn bộ mỗi giờ trong
+ *       khung FS_TICK_HOURS (bắt các thay đổi trigger không thấy: công thức, file Đơn giá nằm ngoài).
  *
  *   App -> Sheet  (sửa trên APP, sheet chỉ là bản sao để xem/báo cáo):
  *       VAT TU, VAT TU NHAP KHO, VAT TU TU DONG TRU.
- *       Kéo về 10 phút/lần, hoặc menu "App TM" -> "Kéo vật tư từ app về sheet".
+ *       Kéo về khi mở file + mỗi giờ (FS_TICK_HOURS), nút "Đồng bộ từ Google Sheet" trên app,
+ *       hoặc menu "App TM" -> "Kéo vật tư từ app về sheet".
  *       HAI CHIỀU: sửa tay VAT TU (danh mục, tồn kho theo người giữ) hoặc VAT TU NHAP KHO (lịch sử
  *       nhập) -> đẩy ngược lên app ngay. VAT TU TU DONG TRU vẫn chỉ đọc. Bản sửa sau cùng thắng.
  *
@@ -230,7 +231,7 @@ function fsOnEdit(e) {
 }
 
 /** Trigger cài đặt onChange — xoá/chèn dòng, dán nhiều ô... (những thay đổi onEdit không bắt được).
- *  Không biết chính xác tab nào đổi -> đồng bộ tab đang mở; tab khác vẫn được lượt quét 10 phút bù. */
+ *  Không biết chính xác tab nào đổi -> đồng bộ tab đang mở; tab khác vẫn được lượt quét mỗi giờ bù. */
 function fsOnChange(e) {
   try {
     const t = e && e.changeType;
