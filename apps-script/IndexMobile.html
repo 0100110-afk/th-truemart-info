@@ -3246,26 +3246,27 @@ html.uip-desk ::-webkit-scrollbar-corner{background:transparent;}
 <style>
   /* Cuộn tới cuối danh sách trong bảng không kéo theo trang phía sau */
   .sheet-body, .modal, .vt-grid-wrap, .uip-opts, .uip-sheet{overscroll-behavior:contain;}
-  /* iPhone: khi ghim body để khoá cuộn, khung hiển thị ngắn lại ở đáy và vùng thanh Home vẽ bằng nền trang
-     (dải xám, nằm ngoài cả lớp phủ lẫn bảng). Lúc đang mở bảng trượt -> nền trang trắng cho trùng màu bảng. */
+  /* Lúc đang mở bảng trượt: nền trang trắng, phòng khi iPhone vẫn để lộ vùng thanh Home dưới đáy bảng. */
   html.sheet-open, html.sheet-open body{background:#fff;}
   /* Máy tính: khoá cuộn trang, giữ chỗ thanh cuộn để giao diện không bị xô ngang */
   html.scroll-lock{overflow:hidden; scrollbar-gutter:stable;}
+  /* Điện thoại: KHÔNG ghim body (position:fixed) — trên iPhone cách đó làm khung hiển thị ngắn lại và lộ
+     dải xám dưới đáy bảng. Thay bằng: chặn cuộn ở html + body, lớp phủ tối không nhận thao tác vuốt. */
+  html.scroll-lock body{overflow:hidden;}
+  .sheet-overlay, .uip-back{touch-action:none;}
 </style>
 <script>
 /* Khi có bảng trượt / hộp thoại đang mở thì trang phía sau đứng yên: vuốt trong bảng chỉ cuộn bảng.
-   Điện thoại (iPhone bỏ qua overflow:hidden) -> ghim body tại chỗ rồi trả lại đúng vị trí khi đóng. */
+   Điện thoại: overflow:hidden ở html + body và lớp phủ chặn vuốt (không ghim body — xem ghi chú CSS ở trên). */
 (function () {
   var SEL = '.sheet.active, .modal-overlay.active, .uip-sheet';
   var root = document.documentElement, locked = false, y = 0, pending = false;
-  var touch = window.matchMedia && matchMedia('(pointer:coarse)').matches;
   function lock() {
-    locked = true; root.classList.add('scroll-lock');
-    if (touch) { var b = document.body.style; y = window.scrollY || 0; b.position = 'fixed'; b.top = (-y) + 'px'; b.left = '0'; b.right = '0'; b.width = '100%'; }
+    locked = true; y = window.scrollY || 0; root.classList.add('scroll-lock');
   }
   function unlock() {
     locked = false; root.classList.remove('scroll-lock');
-    if (touch) { var b = document.body.style; b.position = b.top = b.left = b.right = b.width = ''; window.scrollTo(0, y); }
+    if (window.scrollY !== y) window.scrollTo(0, y);   // phòng khi trang có nhích lúc đang mở bảng
   }
   function check() {
     pending = false; var on = !!document.querySelector(SEL);
