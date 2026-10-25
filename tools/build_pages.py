@@ -7,10 +7,10 @@ root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 HEAD = '''<meta charset="utf-8">
   {viewport}<title>TH true mart · Hệ thống quản lý</title>
-  <meta name="theme-color" content="{theme}">
+  <meta name="theme-color" content="#0B4C8C">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="{statusbar}">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="TH truemart">
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" type="image/png" href="icons/favicon-96.png?v=2">
@@ -37,12 +37,7 @@ def build(src, dst, desktop):
     head = HEAD.format(
         viewport='' if has_vp else '<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">\n  ',
         xlsx='<script src="js/vendor/xlsx.mini.min.js" defer></script>\n  ' if desktop else '',
-        uiscale='<script src="js/ui-scale.js"></script>\n  ' if desktop else '',
-        # Điện thoại: thanh trạng thái iOS kiểu "default" (như app TH true care). "black-translucent" làm
-        # iOS vẽ một dải chuyển màu xám xanh dưới đáy màn hình, cả dưới thanh nút lẫn dưới bảng trượt.
-        # Màu chủ đề = màu đầu thanh tiêu đề (--brand-950) để vùng giờ/pin liền với thanh tiêu đề.
-        statusbar='black-translucent' if desktop else 'default',
-        theme='#0B4C8C' if desktop else '#083A6B')
+        uiscale='<script src="js/ui-scale.js"></script>\n  ' if desktop else '')
     i = s.index('<head>') + len('<head>')
     s = s[:i] + '\n  ' + head + s[i:]
     i = s.index('<body>') + len('<body>')
