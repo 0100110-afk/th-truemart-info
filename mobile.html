@@ -3,10 +3,10 @@
 <head>
   <meta charset="utf-8">
   <title>TH true mart · Hệ thống quản lý</title>
-  <meta name="theme-color" content="#0B4C8C">
+  <meta name="theme-color" content="#083A6B">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="TH truemart">
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" type="image/png" href="icons/favicon-96.png?v=2">
@@ -19,7 +19,7 @@
 
   
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
-  <meta name="theme-color" content="#0B4C8C">
+  <meta name="theme-color" content="#083A6B">
   <style>
   @import url('https://fonts.googleapis.com/css2?family=Sora:wght@600;700;800&family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap');
   /* Chỉ 8 ký tự cho khối logo (~2-3 KB) — quan trọng với bản mobile chạy 4G.
@@ -3263,33 +3263,25 @@ html.uip-desk ::-webkit-scrollbar-corner{background:transparent;}
 <style>
   /* Cuộn tới cuối danh sách trong bảng không kéo theo trang phía sau */
   .sheet-body, .modal, .vt-grid-wrap, .uip-opts, .uip-sheet{overscroll-behavior:contain;}
-  /* Lúc đang mở bảng trượt: nền trang trắng, phòng khi iPhone vẫn để lộ vùng thanh Home dưới đáy bảng. */
-  html.sheet-open, html.sheet-open body{background:#fff;}
   /* Máy tính: khoá cuộn trang, giữ chỗ thanh cuộn để giao diện không bị xô ngang */
   html.scroll-lock{overflow:hidden; scrollbar-gutter:stable;}
-  /* Điện thoại: KHÔNG ghim body (position:fixed) — trên iPhone cách đó làm khung hiển thị ngắn lại và lộ
-     dải xám dưới đáy bảng. Thay bằng: chặn cuộn ở html + body, lớp phủ tối không nhận thao tác vuốt. */
-  html.scroll-lock body{overflow:hidden;}
-  .sheet-overlay, .uip-back{touch-action:none;}
 </style>
 <script>
 /* Khi có bảng trượt / hộp thoại đang mở thì trang phía sau đứng yên: vuốt trong bảng chỉ cuộn bảng.
-   Điện thoại: overflow:hidden ở html + body và lớp phủ chặn vuốt (không ghim body — xem ghi chú CSS ở trên). */
+   Điện thoại (iPhone bỏ qua overflow:hidden) -> ghim body tại chỗ rồi trả lại đúng vị trí khi đóng. */
 (function () {
   var SEL = '.sheet.active, .modal-overlay.active, .uip-sheet';
   var root = document.documentElement, locked = false, y = 0, pending = false;
+  var touch = window.matchMedia && matchMedia('(pointer:coarse)').matches;
   function lock() {
-    locked = true; y = window.scrollY || 0; root.classList.add('scroll-lock');
+    locked = true; root.classList.add('scroll-lock');
+    if (touch) { var b = document.body.style; y = window.scrollY || 0; b.position = 'fixed'; b.top = (-y) + 'px'; b.left = '0'; b.right = '0'; b.width = '100%'; }
   }
   function unlock() {
     locked = false; root.classList.remove('scroll-lock');
-    if (window.scrollY !== y) window.scrollTo(0, y);   // phòng khi trang có nhích lúc đang mở bảng
+    if (touch) { var b = document.body.style; b.position = b.top = b.left = b.right = b.width = ''; window.scrollTo(0, y); }
   }
-  function check() {
-    pending = false; var on = !!document.querySelector(SEL);
-    if (on && !locked) lock(); else if (!on && locked) unlock();
-    root.classList.toggle('sheet-open', !!document.querySelector('.sheet.active, .uip-sheet.on'));
-  }
+  function check() { pending = false; var on = !!document.querySelector(SEL); if (on && !locked) lock(); else if (!on && locked) unlock(); }
   new MutationObserver(function () { if (!pending) { pending = true; Promise.resolve().then(check); } })
     .observe(document.body, { subtree: true, childList: true, attributes: true, attributeFilter: ['class'] });
 })();
